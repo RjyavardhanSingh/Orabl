@@ -29,6 +29,8 @@ const WHITE = '#FFFFFF'
 export function LandingPage() {
   const reduceMotion = useReducedMotion() ?? false
 
+  const reduceMotion = useReducedMotion() ?? false
+
   return (
 <<<<<<< HEAD
     <div className="min-h-dvh overflow-x-clip bg-canvas text-ink">
@@ -112,6 +114,7 @@ export function LandingPage() {
       <div className="flex min-h-screen flex-col p-4 pt-32 md:p-6 md:pt-36">
         {/* Floating editorial card — full viewport, warm off-white canvas */}
         <div className="relative flex flex-1 overflow-hidden rounded-xs border-2 border-black bg-[#FDFBF7]">
+        <div className="relative flex flex-1 overflow-hidden rounded-xs border-2 border-black bg-[#FDFBF7]">
           {/* Hero — warm off-white. Rail theme vars overridden to crimson/white so the
               marquee is pure crimson-on-white with no other hues. */}
           <div
@@ -143,7 +146,6 @@ export function LandingPage() {
         <AnimatedFooter
           headingLines={['Orabl']}
           subtitle="Thoughts become understanding."
-          subtitle="Thoughts become understanding."
           leftImage="/animated-footer/hand-left.jpg"
           rightImage="/animated-footer/hand-right.jpg"
           background="#000000"
@@ -159,8 +161,6 @@ export function LandingPage() {
           hoverCharColor={CRIMSON}
 >>>>>>> f503cbc (feat: update UI components with new styles, add framer-motion dependency, and enhance landing page structure)
           columns={56}
-          parallaxStrength={reduceMotion ? 0 : 4}
-          revealOnScroll={!reduceMotion}
           parallaxStrength={reduceMotion ? 0 : 4}
           revealOnScroll={!reduceMotion}
         />
