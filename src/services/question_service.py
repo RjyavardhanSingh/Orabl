@@ -31,6 +31,7 @@ async def generate_questions(
     db: Database,
     context_id: str,
     count: int | None = None,
+    user_id: str | None = None,
 ) -> list[dict]:
     """Generate practice questions from a cached LearningContext.
 
@@ -44,6 +45,7 @@ async def generate_questions(
             raise ValueError(f"Context not found: {context_id}")
         context_data = {
             "context_id": row["id"],
+            "user_id": row["user_id"] if "user_id" in row.keys() else None,
             "goal": {
                 "subject": row["subject"],
                 "target": row["target"],
@@ -53,6 +55,8 @@ async def generate_questions(
                 "word_count": row["word_count"],
             },
         }
+    if user_id is not None and context_data.get("user_id") != user_id:
+        raise ValueError(f"Context not found: {context_id}")
 
     sources = context_data.get("sources", [])
     if sources:

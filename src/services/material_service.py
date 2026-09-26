@@ -51,10 +51,12 @@ async def upload_pdf(
 
     row_id = namespaced_id(user_id, doc.source_id)
     await db.execute(
-        """INSERT INTO materials (id, name, kind, full_text, page_count, word_count, object_key)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+        """INSERT INTO materials (id, user_id, name, kind, full_text, page_count, word_count,
+              object_key)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            ON CONFLICT (id) DO NOTHING""",
         row_id,
+        user_id,
         safe_filename,
         doc.kind.value,
         doc.full_text,
@@ -76,10 +78,11 @@ async def upload_text(
     doc = extract_text(content, name=name, kind=kind)
     row_id = namespaced_id(user_id, doc.source_id)
     await db.execute(
-        """INSERT INTO materials (id, name, kind, full_text, page_count, word_count)
-           VALUES ($1, $2, $3, $4, $5, $6)
+        """INSERT INTO materials (id, user_id, name, kind, full_text, page_count, word_count)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            ON CONFLICT (id) DO NOTHING""",
         row_id,
+        user_id,
         doc.name,
         doc.kind.value,
         doc.full_text,
@@ -89,9 +92,14 @@ async def upload_text(
     return doc.model_copy(update={"source_id": row_id})
 
 
-async def get_material(db: Database, material_id: str) -> dict | None:
-    """Fetch a material record by ID."""
-    row = await db.fetchrow("SELECT * FROM materials WHERE id = $1", material_id)
+async def get_material(db: Database, material_id: str, user_id: str | None = None) -> dict | None:
+    """Fetch a material record by ID. Scoped to the owner; чужой rows read as missing."""
+    if user_id is None:
+        row = await db.fetchrow("SELECT * FROM materials WHERE id = $1", material_id)
+    else:
+        row = await db.fetchrow(
+            "SELECT * FROM materials WHERE id = $1 AND user_id = $2", material_id, user_id
+        )
     return dict(row) if row else None
 
 

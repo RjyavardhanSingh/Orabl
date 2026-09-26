@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from api.routes import contexts, materials, questions, sessions, stt
+from api.routes import auth, contexts, materials, questions, sessions, stt
 from cache import get_cache
 from db.connection import Database, close_pool, get_db
 
@@ -130,7 +130,14 @@ def create_app() -> FastAPI:
         logger.exception("Unhandled API error", extra={"request_id": request.state.request_id})
         return _error_response(request, 500, "Internal server error")
 
-    routers = (materials.router, contexts.router, questions.router, sessions.router, stt.router)
+    routers = (
+        materials.router,
+        contexts.router,
+        questions.router,
+        sessions.router,
+        stt.router,
+        auth.router,
+    )
     for router in routers:
         app.include_router(router, prefix="/v1")
     # Keep old clients working during migration, but only document /v1.

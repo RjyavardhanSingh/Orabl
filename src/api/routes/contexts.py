@@ -7,6 +7,7 @@ from cache import CacheService, get_cache
 from db.connection import Database, get_db
 from models import LearningGoal
 from services import context_service
+from services.auth_service import CurrentUser, get_current_user
 
 router = APIRouter(prefix="/contexts", tags=["Goal"])
 
@@ -18,6 +19,7 @@ async def create_context(
     payload: ContextCreate,
     db: Database = Depends(get_db),
     cache: CacheService = Depends(get_cache),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Step 2 — Goal: turn uploads + goal into a LearningContext (DB + Dragonfly cache)."""
     goal = LearningGoal(
@@ -28,7 +30,9 @@ async def create_context(
         language=payload.language,
     )
     try:
-        ctx = await context_service.build_and_store_context(db, cache, payload.material_ids, goal)
+        ctx = await context_service.build_and_store_context(
+            db, cache, payload.material_ids, goal, user_id=user.id
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -45,17 +49,20 @@ async def get_context(
     context_id: str,
     db: Database = Depends(get_db),
     cache: CacheService = Depends(get_cache),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Step 2/3 — fetch context for Preparing. Cache-first, DB fallback."""
     cached = cache.get(f"context:{context_id}")
-    if cached is not None:
+    if cached is not None and cached.get("user_id") == user.id:
         return ContextResponse(
             id=cached["context_id"],
             subject=cached["goal"]["subject"],
             target=cached["goal"]["target"],
             stats=ContextStatsResponse(**cached["stats"]),
         )
-    row = await db.fetchrow("SELECT * FROM contexts WHERE id = $1", context_id)
+    row = await db.fetchrow(
+        "SELECT * FROM contexts WHERE id = $1 AND user_id = $2", context_id, user.id
+    )
     if row is None:
         raise HTTPException(status_code=404, detail="Context not found")
     return ContextResponse(

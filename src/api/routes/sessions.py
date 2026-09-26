@@ -15,7 +15,8 @@ from api.schemas import (
 )
 from cache import CacheService, get_cache
 from db.connection import Database, get_db
-from services import question_service, session_service
+from services import context_service, question_service, session_service
+from services.auth_service import CurrentUser, get_current_user
 from services.session_service import (
     InvalidAnswerError,
     RetestWindowExpiredError,
@@ -40,13 +41,21 @@ def _progress(state: dict) -> tuple[int, int]:
 async def create_session(
     payload: SessionCreate,
     cache: CacheService = Depends(get_cache),
+    db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Step 4 — Practice: start session from prepared questions (Dragonfly)."""
+    try:
+        await context_service.require_context_owner(db, payload.context_id, user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     questions = await question_service.get_questions(cache, payload.context_id)
     if questions is None:
         raise HTTPException(status_code=404, detail="Generate questions first")
 
-    state = await session_service.create_session(cache, payload.context_id, questions)
+    state = await session_service.create_session(
+        cache, payload.context_id, questions, user_id=user.id
+    )
     pending, scored = _progress(state)
     return SessionResponse(
         id=state["id"],
@@ -68,9 +77,10 @@ async def create_session(
 async def get_session(
     session_id: str,
     cache: CacheService = Depends(get_cache),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Step 4 — Practice: get current session state."""
-    state = await session_service.get_session(cache, session_id)
+    state = await session_service.get_session(cache, session_id, user_id=user.id)
     if state is None:
         raise HTTPException(status_code=404, detail="Session not found")
     pending, scored = _progress(state)
@@ -96,6 +106,7 @@ async def submit_answer(
     payload: AnswerSubmit,
     cache: CacheService = Depends(get_cache),
     db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Step 4 — Practice: submit answer (supports skipped=true per PRD §9.3).
 
@@ -110,6 +121,7 @@ async def submit_answer(
             payload.answer_text,
             skipped=payload.skipped,
             db=db,
+            user_id=user.id,
         )
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -130,10 +142,11 @@ async def complete_session(
     session_id: str,
     cache: CacheService = Depends(get_cache),
     db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Step 5 — Results: compute readiness, persist to DB, clear cache."""
     try:
-        state = await session_service.complete_session(cache, db, session_id)
+        state = await session_service.complete_session(cache, db, session_id, user_id=user.id)
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except SessionConflictError as e:
@@ -161,10 +174,11 @@ async def get_results(
     session_id: str,
     cache: CacheService = Depends(get_cache),
     db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Step 5 — Results: read-only fetch (cache → DB fallback)."""
     # cache first (active or just-completed still cached briefly)
-    state = await session_service.get_session(cache, session_id)
+    state = await session_service.get_session(cache, session_id, user_id=user.id)
     if state is not None and state.get("status") == "completed":
         return SessionResultsResponse(
             id=state["id"],
@@ -178,7 +192,9 @@ async def get_results(
             next_review_suggestion=state.get("next_review_suggestion"),
         )
     # DB fallback
-    row = await db.fetchrow("SELECT * FROM sessions WHERE id = $1", session_id)
+    row = await db.fetchrow(
+        "SELECT * FROM sessions WHERE id = $1 AND user_id = $2", session_id, user.id
+    )
     if row is None:
         raise HTTPException(status_code=404, detail="Results not found")
     import json as _json
@@ -213,6 +229,7 @@ async def create_retest(
     payload: RetestCreate,
     cache: CacheService = Depends(get_cache),
     db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Step 6 — Retest: targeted practice on weak areas (score <= 60).
 
@@ -227,6 +244,7 @@ async def create_retest(
             session_id,
             weak_only=payload.weak_only,
             count=payload.count,
+            user_id=user.id,
         )
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
