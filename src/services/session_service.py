@@ -43,12 +43,14 @@ async def create_session(
     questions: list[dict],
     parent_session_id: str | None = None,
     weak_only: bool = False,
+    user_id: str | None = None,
 ) -> dict:
     """Start a new session. Stores state in Dragonfly."""
     session_id = uuid.uuid4().hex[:16]
     state = {
         "id": session_id,
         "context_id": context_id,
+        "user_id": user_id,
         "parent_session_id": parent_session_id,
         "is_retest": parent_session_id is not None,
         "weak_only": weak_only,
@@ -63,9 +65,22 @@ async def create_session(
     return state
 
 
-async def get_session(cache: CacheService, session_id: str) -> dict | None:
-    """Get session state from Dragonfly."""
-    return cache.get(f"session:{session_id}")
+async def get_session(
+    cache: CacheService, session_id: str, user_id: str | None = None
+) -> dict | None:
+    """Get session state from Dragonfly. чужой states read as missing."""
+    state = cache.get(f"session:{session_id}")
+    if state is None:
+        return None
+    if user_id is not None and state.get("user_id") != user_id:
+        return None
+    return state
+
+
+def _require_owner(state: dict, user_id: str | None) -> None:
+    """Raise SessionNotFoundError unless the cached state belongs to the caller."""
+    if user_id is not None and state.get("user_id") != user_id:
+        raise SessionNotFoundError(f"Session not found: {state.get('id')}")
 
 
 async def submit_answer(
@@ -75,6 +90,7 @@ async def submit_answer(
     answer_text: str,
     skipped: bool = False,
     db: Database | None = None,
+    user_id: str | None = None,
 ) -> dict:
     """Record an answer for a question. Updates session in Dragonfly.
 
@@ -88,6 +104,7 @@ async def submit_answer(
     state = cache.get(f"session:{session_id}")
     if state is None:
         raise SessionNotFoundError(f"Session not found: {session_id}")
+    _require_owner(state, user_id)
     if state.get("status") != "active":
         raise SessionConflictError("Session is no longer active")
     if question_index != state.get("current_index", 0):
@@ -323,6 +340,7 @@ async def complete_session(
     cache: CacheService,
     db: Database,
     session_id: str,
+    user_id: str | None = None,
 ) -> dict:
     """Complete a session: compute final score, write to DB, clear cache.
 
@@ -331,6 +349,7 @@ async def complete_session(
     state = cache.get(f"session:{session_id}")
     if state is None:
         raise SessionNotFoundError(f"Session not found: {session_id}")
+    _require_owner(state, user_id)
     if state.get("status") != "active":
         raise SessionConflictError("Session is already completed")
     if state.get("current_index", 0) != len(state.get("questions", [])):
@@ -365,12 +384,13 @@ async def complete_session(
     completed_at = _parse_completed_at(state.get("completed_at")) or now
 
     await db.execute(
-        """INSERT INTO sessions (id, context_id, parent_session_id, is_retest, weak_only,
+        """INSERT INTO sessions (id, user_id, context_id, parent_session_id, is_retest, weak_only,
               questions, answers, scores, readiness_score, topic_summary, weak_topics,
               started_at, completed_at)
-           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9,
-                   $10::jsonb, $11::jsonb, $12, $13)""",
+           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10,
+                   $11::jsonb, $12::jsonb, $13, $14)""",
         state["id"],
+        state.get("user_id"),
         state["context_id"],
         state.get("parent_session_id"),
         bool(state.get("is_retest", False)),
@@ -536,15 +556,16 @@ async def _upsert_concept_mastery(db: Database, state: dict) -> None:
         next_review = _calculate_next_review(answer["score"], attempts)
         await db.execute(
             """INSERT INTO concept_mastery
-               (id, context_id, question_id, topic, best_score, attempts,
+               (id, user_id, context_id, question_id, topic, best_score, attempts,
                 last_attempt_at, next_review_at)
-               VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
                ON CONFLICT (context_id, question_id) DO UPDATE SET
                  best_score = GREATEST(concept_mastery.best_score, EXCLUDED.best_score),
                  attempts = concept_mastery.attempts + 1,
                  last_attempt_at = NOW(),
                  next_review_at = EXCLUDED.next_review_at""",
             uuid.uuid4().hex[:12],
+            state.get("user_id"),
             state["context_id"],
             question_id,
             topic,
@@ -608,15 +629,29 @@ async def create_retest(
     parent_session_id: str,
     weak_only: bool = True,
     count: int | None = None,
+    user_id: str | None = None,
 ) -> tuple[dict, dict]:
     """Create a retest session from a completed parent.
 
     Returns (new_state, meta) where meta holds weak_topics and
     previous_scores for the UI. Enforces the 24h review window.
+    The retest belongs to the caller, never the parent's owner.
     """
     parent = cache.get(f"session:{parent_session_id}")
+    if parent is not None:
+        try:
+            _require_owner(parent, user_id)
+        except SessionNotFoundError:
+            parent = None
     if parent is None:
-        row = await db.fetchrow("SELECT * FROM sessions WHERE id = $1", parent_session_id)
+        if user_id is None:
+            row = await db.fetchrow("SELECT * FROM sessions WHERE id = $1", parent_session_id)
+        else:
+            row = await db.fetchrow(
+                "SELECT * FROM sessions WHERE id = $1 AND user_id = $2",
+                parent_session_id,
+                user_id,
+            )
         if row is None:
             raise SessionNotFoundError(f"Parent session not found: {parent_session_id}")
         if not row["completed_at"]:
@@ -680,6 +715,7 @@ async def create_retest(
         retest_qs,
         parent_session_id=parent_session_id,
         weak_only=weak_only,
+        user_id=user_id,
     )
     meta = {"selected_topics": sorted(selected_topics), "previous_scores": previous_scores}
     return state, meta

@@ -222,3 +222,14 @@ class RetestResponse(BaseModel):
 class SttTokenResponse(BaseModel):
     token: str
     expires_in: int
+
+
+# ---------------------------------------------------------------------------
+# 8. Auth — verified caller profile (Neon Auth owns identity; we verify only)
+# GET /v1/auth/me
+# ---------------------------------------------------------------------------
+
+
+class MeResponse(BaseModel):
+    id: str
+    email: str | None = None
