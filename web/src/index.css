@@ -8,6 +8,11 @@
    SOFT + WONK from CSS to get the warm-but-characterful cut; opsz stays on
    font-optical-sizing: auto so large headlines tighten automatically. */
 @import "@fontsource-variable/fraunces/full.css";
+/* Story Script is single-weight (400) — used only for the hero voice lines.
+   Self-hosted like the rest: no third-party font CDN. */
+@import "@fontsource/story-script/400.css";
+/* PT Serif — hero subcopy only. */
+@import "@fontsource/pt-serif/400.css";
 
 @theme {
   /* ---- Type ---------------------------------------------------------- */
@@ -15,6 +20,10 @@
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   /* Display. Fraunces is the voice: literary, warm, a little unusual. */
   --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
+  /* Handwritten voice, hero only. Single 400 weight — never bold it. */
+  --font-story: "Story Script", "Segoe Script", cursive;
+  /* Editorial serif, hero subcopy only. */
+  --font-pt-serif: "PT Serif", Georgia, serif;
 
   /* ---- Neutrals: warm paper, never cool grey ------------------------- */
   --color-canvas: #f7f5ef; /* page background — warm paper */
@@ -86,14 +95,14 @@
 
 html {
   min-width: 320px;
-  overflow-x: hidden;
+  overflow-x: clip;
   scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-width: 320px;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Kill the double-tap zoom delay on interactive controls. */
@@ -142,6 +151,30 @@ label {
 /* Numerals line up in score columns and countdowns. */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Clarity rail: waveform bars inside the practice machine. Transform-only
+   animation on SVG rects; static heights when motion is reduced. */
+.rail-bar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: rail-eq 1.6s ease-in-out infinite;
+}
+
+@keyframes rail-eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-bar {
+    animation: none;
+  }
 }
 
 ::selection {
