@@ -1,107 +1,113 @@
-# Auth — backend sprint
+# Auth — own Google OAuth + session tokens
 
-## Architecture: identity vs authorization
+## Architecture (2026-09-28 rewrite; Neon Auth / Better Auth fully removed)
 
-Neon Auth (Managed Better Auth) **owns identity**: email signup, Google
-OAuth, refresh, and the HTTP-only session cookie all happen directly between
-the frontend SDK and the Neon Auth service. Our backend never sees passwords
-or OAuth codes and mints no tokens.
-
-Our backend **owns authorization**: it verifies the short-lived Bearer JWT
-(EdDSA/Ed25519) against the branch JWKS, takes `user_id` from the `sub`
-claim, and scopes every domain query with `WHERE user_id`. There is no
-`users` table on our side — `neon_auth.user` is the source of truth.
+We own identity end to end. No third-party auth service, no session
+cookies, no JWKS — after the Neon session-cookie failures (see History),
+every credential is a first-party exchange between our SPA, our API, and
+Google directly:
 
 ```
-Frontend SDK  ←→  Neon Auth service   (login, Google, refresh, cookie)
-     │  Authorization: Bearer <~15-min JWT>
-     ▼
-FastAPI: verify vs JWKS (cached) → user_id = sub
-     → every query scoped → 401 no/invalid token · 404 чужой/missing row
+SPA --GET /v1/auth/google/url--> API: mint state+PKCE (cache, 10 min) --> {url}
+SPA --full-page navigate--> Google (consent, code flow, our client_secret stays server-side)
+Google --top-level redirect--> API /v1/auth/google/callback?code&state
+API: validate state (single-use) → exchange code → userinfo → upsert
+     app_users → create app_sessions row → single-use exchange code (cache, 5 min)
+     --302--> SPA /auth/callback?code=...&next=...
+SPA --POST /v1/auth/token {code}--> {token, user} (raw token revealed once)
+SPA --Authorization: Bearer <token>--> API: SHA-256 lookup in app_sessions
 ```
 
-## Console checklist (per branch)
-
-1. Enable Auth on the branch (Neon Console → Auth).
-2. Add Google OAuth client ID + secret (shared creds work in dev only).
-3. Allowlist callback origins: `localhost` ports are pre-approved; add
-   production + preview hosts as trusted domains.
-
-## Environment
-
-Backend (this sprint) — nothing secret:
+Why this survives what killed Neon Auth: the token travels in JSON bodies
+and an `Authorization` header. No cookies are set, read, or required, so
+incognito, Safari, and third-party-cookie blocking are all non-issues.
 
 ```
-JWKS_URL=https://<auth-host>/.well-known/jwks.json
-AUTH_URL=https://<auth-host>
+┌─────┐   GET /auth/google/url?next=/upload    ┌─────┐
+│ SPA │ ─────────────────────────────────────▶ │ API │
+│     │ ◀───────────────────────────────────── │     │
+└─────┘   {url}  (state+PKCE cached, 10 min)    └──┬──┘
+   │ full-page navigate to Google                  │
+   ▼                                               │
+┌────────┐  consent + code                         │
+│ Google │ ──top-level redirect w/ ?code&state────▶│
+└────────┘                                         ▼
+                            validate state (single-use) → exchange code
+                            → userinfo → upsert app_users
+                            → create app_sessions → one-time code (5 min)
+┌─────┐   302 /auth/callback?code=..&next=..   ┌────┴────┐
+│ SPA │ ◀───────────────────────────────────── │   API   │
+│     │ ── POST /auth/token {code} ───────────▶ │         │
+│     │ ◀── {token, user} (raw shown once) ─── │         │
+└──┬──┘                                        └─────────┘
+   │  Authorization: Bearer <token> (sessionStorage)
+   ▼
+all /v1 routes → 401 no/invalid token · 404 чужой/missing row
 ```
 
-`auth_service` reads exactly these two names. `AUTH_URL` is used only to
-check the token `iss` claim (trailing slashes normalized).
+## Tables (`005_app_auth`)
 
-Frontend (next sprint, not this one): `VITE_NEON_AUTH_URL` + callback URL.
+- `app_users`: `id` UUID, `email` (unique on `LOWER`), `name`,
+  `google_sub` (unique), `email_verified`, timestamps. Lookup order on
+  login: `google_sub` → same-email adoption → insert.
+- `app_sessions`: `user_id` FK cascade, `token_hash` (SHA-256 hex, unique),
+  `expires_at` (30 days), `revoked_at`, `last_used_at` (best-effort touch).
 
-## Protected-routes matrix
+`user_id` on `sessions`/`materials`/`contexts`/`concept_mastery` is TEXT
+and now carries `app_users.id`. Rows keyed by old Neon `sub` values are
+orphaned (invisible, same fail-closed rule as before) — no backfill; the
+Neon user base was one dev account.
 
-| Routes | Rule |
+## Environment (backend `.env`)
+
+```
+GOOGLE_CLIENT_ID=....apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-...
+API_EXTERNAL_BASE_URL=http://localhost:8000   # builds our redirect_uri
+FRONTEND_URL=http://localhost:5173            # callback redirect target
+```
+
+Google Cloud Console → this OAuth client → **Authorized redirect URIs**
+must contain exactly `{API_EXTERNAL_BASE_URL}/v1/auth/google/callback`
+(local: `http://localhost:8000/v1/auth/google/callback`). A missing entry
+surfaces as `?error=` on Google's chooser page, then as `google_rejected`
+on our callback screen — not a silent stall.
+
+`GET /v1/auth/google/url` returns 500 when the creds are unset (fail loud,
+not silent). No frontend env vars are needed for auth.
+
+## Endpoint contract
+
+| Route | Rule |
 |---|---|
-| `POST /materials`, `POST /materials/upload` | `user_id` stored on insert |
-| `GET /materials/{id}`, `/download` | `WHERE id AND user_id`, else 404 |
-| `POST /contexts` | All `material_ids` verified owned first (чужой → 404 before building) |
-| `GET /contexts/{id}` | Cached payload carries `user_id`; legacy entries without it 404; DB fallback scoped |
-| `POST/GET .../questions` | Context ownership verified before serving cache |
-| `POST /sessions` | Context ownership verified, `user_id` embedded in cached state |
-| All `/sessions/{id}/*`, retest | Cached state checked, DB fallback scoped; retest inherits the *caller's* id |
-| `GET /stt/token` | Authenticated (abuse-gating; no per-user binding) |
-| `GET /v1/auth/me` | Returns `{id, email?}` from verified claims |
-| `/health*` | Open |
-
-Legacy unversioned aliases share the same router objects, so they inherit
-identical gating — no back door.
-
-## Namespaced IDs
-
-Material row IDs are `sha256(user_id + ":" + content_id)`, so identical
-uploads by different users never collide (the old bare content hash would
-have made user B's upload point at user A's row, then 404 for B). Context
-IDs derive from source IDs, so they are per-user automatically. S3
-`object_key` stays content-derived (overwrite-idempotent).
-
-## Cache ownership rules
-
-- Session state embeds `user_id` at creation; every read checks it.
-- Context payloads embed `user_id`; entries predating this read as missing.
-- Pre-auth cached states (no `user_id` key) fail closed with 404. In-flight
-  sessions at deploy time need re-creation (≤24h TTL bounds the impact).
-
-## Error contract
-
-- Missing/malformed/expired/forged token → **401**, generic message (never
-  which check failed, never the token).
-- Valid token, чужой or absent row → **404** (no existence oracle; no 403s).
-- Server misconfiguration (no `JWKS_URL`) → 500.
-
-## Backfill runbook
-
-Migration `003` adds nullable `user_id` + indexes to
-`sessions`/`materials`/`contexts`. Run `BACKFILL_USER_ID=<sub> alembic
-upgrade head` to claim orphans, or plain `upgrade head` to leave them
-invisible (secure default; applied without backfill on 2026-09-26).
-Migration `004` adds nullable `user_id` to `concept_mastery` (no backfill;
-mastery recomputes on next completion).
+| `GET /auth/google/url?next=` | `next` sanitized to same-origin SPA paths, else `/upload` |
+| `GET /auth/google/callback` | top-level only; bad state/replay → 302 `?error=invalid_state`; Google `?error=` → 302 `?error=google_rejected`; exchange/userinfo failure → 302 `?error=signin_failed` |
+| `POST /auth/token` | single-use code (replay → 401); returns raw token once |
+| `GET /auth/me` | `{id, email}` from session |
+| `POST /auth/logout` | revokes the calling session; always 200 |
+| everything else | unchanged: missing/invalid/expired/revoked token → 401 generic; valid token, чужой/absent row → 404 |
 
 ## Test strategy
 
-`tests/test_auth.py` crafts real Ed25519 JWTs locally and stubs only the
-JWKS fetch — zero network. Covers: valid/expired/tampered/unknown-kid/
-missing-sub/wrong-issuer/wrong-alg tokens, dependency 401s, `/me` open +
-authed paths, cross-user session/retest reads-as-missing, context ownership,
-user_id on writes, scoped reads. `tests/test_material_scoping.py` covers
-ID namespacing (legacy preservation, determinism, cross-user isolation).
+`tests/test_auth.py` (no network): token hash/issue, `next` sanitizer,
+authorize-URL shape, state/code single-use round-trips via a fake Redis,
+session create/resolve/expiry/revocation/DB-error via a fake DB,
+upsert branches (existing sub / same-email adoption / insert), full
+callback→token→replay-401 round-trip via TestClient with overridden
+`get_db`/`get_cache`, logout revocation, plus the unchanged per-user
+ownership tests. `tsc -b` + `oxlint` cover the SPA.
 
-## Non-goals (this sprint)
+## History (why Neon Auth is gone)
 
-No token minting, no `users` table, no login/signup routes, no roles in
-claims (authorize from our tables), no frontend SDK wiring, no RLS
-(managed at the application layer while Neon Auth is Beta; keeps the
-provider swap to ~2 files).
+2026-09-27–28: Google login via managed Better Auth stalled on
+`Sign-in did not complete` in all browsers. Proven by direct DB inspection:
+sessions were created on every attempt (verified user, `google` account,
+fresh rows per attempt) but the session cookie never reached the browser
+— absent in DevTools, unsent on `fetch`, even with third-party cookies
+allowed and after explicit Storage Access grants. Contributing misleads
+along the way: branch on shared creds (`isShared: true`, since fixed to
+`standard` via API — irrelevant in the end), `callback_has_code_param`
+is normally false (Neon consumes the code server-side), and the managed
+`/sign-in/social` endpoint ignores `idToken` (probed), so no cookie-free
+path existed through Neon REST. No session-cookie knobs exist in the Neon
+Auth API. Hence: own OAuth, own sessions, zero cookies.

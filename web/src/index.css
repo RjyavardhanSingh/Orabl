@@ -148,31 +148,47 @@ label {
   background-color: var(--color-ink-faint);
 }
 
+/* Footer display heading: radial-glow-button palette as text gradient.
+   Targets the per-character reveal spans directly, so it wins over the
+   inherited footer text color. Dark stops only — keeps AA on canvas. */
+.recall-heading-gradient [data-af-char] {
+  background: linear-gradient(100deg, #000022 0%, #1f3f6d 45%, #469396 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 /* Numerals line up in score columns and countdowns. */
 .tabular {
   font-variant-numeric: tabular-nums;
 }
 
-/* Clarity rail: waveform bars inside the practice machine. Transform-only
-   animation on SVG rects; static heights when motion is reduced. */
-.rail-bar {
+/* Clarity rail: robot eyes blink via vertical scale only — width and
+   position never change, both eyes share one animation so they stay in
+   sync. Eyes rest open; reduced-motion users always see them open. */
+.robot-eye {
   transform-box: fill-box;
-  transform-origin: 50% 100%;
-  animation: rail-eq 1.6s ease-in-out infinite;
+  transform-origin: 50% 50%;
+  animation: robot-blink 5.2s ease-in-out infinite;
 }
 
-@keyframes rail-eq {
+@keyframes robot-blink {
   0%,
-  100% {
-    transform: scaleY(0.3);
+  88% {
+    transform: scaleY(1);
   }
-  50% {
+  91.5%,
+  92.5% {
+    transform: scaleY(0.08);
+  }
+  96%,
+  100% {
     transform: scaleY(1);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rail-bar {
+  .robot-eye {
     animation: none;
   }
 }

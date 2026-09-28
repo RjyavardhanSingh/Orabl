@@ -1,4 +1,3 @@
-"use client";
 import { useNavigate } from "react-router-dom";
 
 import { ClarityRail } from "./clarity-rail";
@@ -22,7 +21,7 @@ export const Header = () => {
         </p>
         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
           <RadialGlowButton
-            onClick={() => navigate("/upload")}
+            onClick={() => navigate("/signin")}
             className="w-full sm:w-auto"
           >
             Start a Session
