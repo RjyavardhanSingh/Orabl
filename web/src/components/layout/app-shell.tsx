@@ -1,22 +1,26 @@
-import { useQuery } from '@tanstack/react-query'
 import {
-  ArrowRight,
   BookOpen,
   Check,
+  ChevronUp,
   FileText,
   LoaderCircle,
+  Lock,
+  LogOut,
   Menu,
-  Sparkles,
+  PanelLeftClose,
+  PanelLeftOpen,
   Target,
   Trophy,
   Upload,
   X,
 } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useLocation } from 'react-router-dom'
 
-import { api } from '../../lib/api'
+import { useAuthStore } from '../../lib/auth-state'
 import { cn } from '../../lib/utils'
+import mainLogo from '../../assets/Main-logo-transparent.svg'
 import { Button } from '../ui/button'
 
 const steps = [
@@ -35,34 +39,83 @@ function useActiveStep() {
   return steps.findIndex((step) => pathname.startsWith(step.path))
 }
 
-function Brand() {
-  return (
-    <NavLink to="/" className="flex items-center gap-3 text-white">
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-surface text-ink">
-        <Sparkles className="size-4" strokeWidth={2.5} aria-hidden="true" />
-      </span>
-      <span className="min-w-0">
-        <span className="block font-display text-[17px] font-semibold leading-none tracking-tight">
-          recall
-        </span>
+/**
+ * Which steps are unlocked, derived from the flow state the pages already
+ * persist: material → goal → practice → results. Recomputed every render;
+ * Sidebar re-renders on every navigation (useActiveStep), so unlocks apply
+ * the moment a step completes. sessionStorage may throw (private mode) —
+ * fail closed to Upload-only.
+ */
+function useUnlockedSteps(): boolean[] {
+  useLocation()
+  let material = false
+  let context = false
+  let results = false
+  try {
+    material = window.sessionStorage.getItem('recall.material') !== null
+    const stored = window.sessionStorage.getItem('recall.materials')
+    if (stored) {
+      const parsed: unknown = JSON.parse(stored)
+      material = material || (Array.isArray(parsed) && parsed.length > 0)
+    }
+    context = window.sessionStorage.getItem('recall.context') !== null
+    results = window.sessionStorage.getItem('recall.results') !== null
+  } catch {
+    // fail closed below
+  }
+  return [true, material, context, results]
+}
 
-      </span>
-    </NavLink>
+function BrandIcon({ className }: { className?: string }) {
+  return (
+    <img
+      src={mainLogo}
+      alt=""
+      aria-hidden="true"
+      className={cn('shrink-0 rounded-xl object-cover', className ?? 'size-9')}
+    />
   )
 }
 
-function Sidebar({ onClose }: { onClose?: () => void }) {
+function Brand() {
+  return (
+      <div className='bg-canvas rounded-xl flex items-center justify-center'>
+      <BrandIcon className="h-14 w-24" />
+      </div>
+  )
+}
+
+function Sidebar({
+  onClose,
+  collapsed = false,
+  onToggleCollapse,
+}: {
+  onClose?: () => void
+  collapsed?: boolean
+  onToggleCollapse?: () => void
+}) {
   const activeStep = useActiveStep()
-  const { data: health, isLoading } = useQuery({
-    queryKey: ['health'],
-    queryFn: api.health,
-    retry: false,
-  })
+  const unlocked = useUnlockedSteps()
+  const user = useAuthStore((s) => s.user)
+  const signOut = useAuthStore((s) => s.signOut)
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-y-auto overscroll-contain bg-ink px-4 py-5 text-white lg:w-[248px] lg:shrink-0 xl:w-[264px]">
-      <div className="flex items-center justify-between gap-2">
-        <Brand />
+    <aside
+      className={cn(
+        'flex h-full w-full flex-col overflow-y-auto overscroll-contain bg-green-900 px-4 py-5 text-white transition-[width] duration-200',
+        collapsed ? 'lg:w-[76px] lg:px-3' : 'lg:w-[248px] lg:shrink-0 xl:w-[264px]',
+      )}
+    >
+      <div className={cn('flex items-center gap-2', collapsed ? 'flex-col lg:gap-3' : 'justify-between')}>
+        {collapsed ? (
+          <div className='bg-canvas rounded-xs'>
+            <BrandIcon className="size-10" />
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1">
+            <Brand />
+          </div>
+        )}
         {onClose ? (
           <Button
             variant="ghost"
@@ -73,11 +126,31 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
             <X className="size-5" aria-hidden="true" />
             <span className="sr-only">Close Navigation</span>
           </Button>
+        ) : onToggleCollapse ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={onToggleCollapse}
+            className="hidden shrink-0 text-white/60 hover:bg-white/10 hover:text-white focus-visible:ring-white lg:inline-flex"
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="size-5" aria-hidden="true" />
+            ) : (
+              <PanelLeftClose className="size-5" aria-hidden="true" />
+            )}
+            <span className="sr-only">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
+          </Button>
         ) : null}
       </div>
 
-      <nav className="mt-9 flex-1" aria-label="Main">
-        <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+      <nav className="mt-9 w-full flex-1" aria-label="Main">
+        <p
+          className={cn(
+            'mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40',
+            collapsed && 'lg:sr-only',
+          )}
+        >
           Your Journey
         </p>
         <ul className="space-y-1">
@@ -85,17 +158,41 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
             const Icon = step.icon
             const isActive = index === activeStep
             const isDone = index < activeStep
+            const locked = index > 0 && !unlocked[index]
+            if (locked) {
+              return (
+                <li key={step.path}>
+                  <span
+                    aria-disabled="true"
+                    title={`${step.label} — finish the previous step first`}
+                    className={cn(
+                      'flex cursor-not-allowed items-center gap-3 rounded-full px-3.5 py-2.5 text-sm text-white/35',
+                      collapsed && 'lg:justify-center lg:px-0',
+                    )}
+                  >
+                    <Icon className="size-4 shrink-0" aria-hidden="true" />
+                    <span className={cn('min-w-0 flex-1 truncate', collapsed && 'lg:sr-only')}>
+                      {step.label}
+                    </span>
+                    <Lock className="size-3.5 shrink-0" aria-hidden="true" />
+                  </span>
+                </li>
+              )
+            }
             return (
               <li key={step.path}>
                 <NavLink
                   to={step.path}
                   onClick={onClose}
+                  title={collapsed ? step.label : undefined}
                   aria-current={isActive ? 'page' : undefined}
+                  aria-label={collapsed ? step.label : undefined}
                   className={cn(
                     'group flex items-center gap-3 rounded-full px-3.5 py-2.5 text-sm transition-colors duration-150',
                     isActive
                       ? 'bg-surface text-ink'
                       : 'text-white/55 hover:bg-white/10 hover:text-white',
+                    collapsed && 'lg:justify-center lg:px-0',
                   )}
                 >
                   {({ isActive: navActive }) => (
@@ -105,11 +202,11 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
                         strokeWidth={navActive || isDone ? 2.5 : 2}
                         aria-hidden="true"
                       />
-                      <span className="min-w-0 flex-1 truncate">{step.label}</span>
+                      <span className={cn('min-w-0 flex-1 truncate', collapsed && 'lg:sr-only')}>
+                        {step.label}
+                      </span>
                       {isDone ? (
                         <Check className="size-3.5 shrink-0 text-white/60" strokeWidth={3} aria-hidden="true" />
-                      ) : isActive ? (
-                        <ArrowRight className="size-3.5 shrink-0" aria-hidden="true" />
                       ) : null}
                     </>
                   )}
@@ -120,35 +217,178 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
         </ul>
       </nav>
 
-      <div className="mt-8 space-y-3 border-t border-white/10 pt-5">
-        <p className="flex items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
-          <span
-            aria-hidden="true"
-            className={cn(
-              'size-1.5 shrink-0 rounded-full',
-              isLoading ? 'bg-warn-tint' : health ? 'bg-white' : 'bg-bad',
-            )}
-          />
-          <span className="truncate">
-            {isLoading ? 'Checking API' : health ? 'API Connected' : 'API Offline'}
-          </span>
-        </p>
-        <div className="flex items-center gap-3 rounded-2xl bg-white/5 px-3 py-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white">
-            You
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-white/85">Personal Workspace</p>
-            <p className="truncate text-[11px] text-white/50">Local session</p>
-          </div>
-        </div>
+      <div className="mt-8 w-full border-t border-white/10 pt-5">
+        <ProfileMenu collapsed={collapsed} email={user?.email ?? null} onSignOut={() => void signOut()} />
       </div>
     </aside>
   )
 }
 
+/**
+ * Profile block: avatar button opening a small menu with the account email
+ * and sign-out. The menu portals to document.body with fixed positioning so
+ * it works identically in the expanded rail and the collapsed icon rail
+ * (no clipping from the sidebar's scroll container).
+ */
+function ProfileMenu({
+  collapsed,
+  email,
+  onSignOut,
+}: {
+  collapsed: boolean
+  email: string | null
+  onSignOut: () => void
+}) {
+  const [openPath, setOpenPath] = useState<string | null>(null)
+  const [anchor, setAnchor] = useState<{ left: number; bottom: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const location = useLocation()
+  const initial = (email?.trim()?.[0] ?? 'Y').toUpperCase()
+
+  // The menu belongs to the route it was opened on: navigating (including
+  // sign-out) closes it by derivation — no effect needed.
+  const open = openPath !== null && openPath === location.pathname
+
+  // Outside pointer + Escape dismiss.
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null
+      if (
+        target &&
+        ((buttonRef.current && buttonRef.current.contains(target)) ||
+          (menuRef.current && menuRef.current.contains(target)))
+      ) {
+        return
+      }
+      setOpenPath(null)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenPath(null)
+        buttonRef.current?.focus()
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open ])
+
+  function toggle() {
+    if (open) {
+      setOpenPath(null)
+      return
+    }
+    const rect = buttonRef.current?.getBoundingClientRect()
+    if (rect) {
+      const width = 248
+      setAnchor({
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        bottom: window.innerHeight - rect.top + 8,
+      })
+    }
+    setOpenPath(location.pathname)
+  }
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={email ?? 'Profile'}
+        onClick={toggle}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-2xl bg-white/5 px-3 py-2.5 text-left transition-colors hover:bg-white/10',
+          collapsed && 'lg:justify-center lg:rounded-full lg:px-0',
+        )}
+      >
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white">
+          {initial}
+        </span>
+        <span className={cn('min-w-0 flex-1 truncate text-xs font-medium text-white/80', collapsed && 'lg:sr-only')}>
+          {email ?? 'Profile'}
+        </span>
+        <ChevronUp
+          className={cn(
+            'size-4 shrink-0 text-white/50 transition-transform duration-150',
+            open && 'rotate-180',
+            collapsed && 'lg:sr-only',
+          )}
+          aria-hidden="true"
+        />
+      </button>
+      {open && anchor
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              aria-label="Profile"
+              className="fixed z-[70] w-60 overflow-hidden rounded-2xl border border-line bg-surface text-ink shadow-xl"
+              style={{ left: anchor.left, bottom: anchor.bottom }}
+            >
+              <div className="flex items-center gap-3 px-4 py-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sunk text-sm font-semibold text-ink">
+                  {initial}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-display text-[15px] font-semibold leading-tight">
+                    Personal Workspace
+                  </p>
+                  <p className="truncate text-xs text-ink-muted">{email ?? 'Local session'}</p>
+                </div>
+              </div>
+              <div className="border-t border-line">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenPath(null)
+                    onSignOut()
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-sunk hover:text-ink"
+                >
+                  <LogOut className="size-4 shrink-0" aria-hidden="true" />
+                  Sign out
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  )
+}
+
+const SIDEBAR_KEY = 'recall.sidebar.collapsed'
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(SIDEBAR_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(readCollapsed)
+
+  function toggleCollapse() {
+    setCollapsed((prev) => {
+      try {
+        window.localStorage.setItem(SIDEBAR_KEY, prev ? '0' : '1')
+      } catch {
+        // private mode etc. — collapse still works for this session
+      }
+      return !prev
+    })
+  }
 
   // Escape closes the drawer; body scroll is locked while it is open.
   useEffect(() => {
@@ -175,8 +415,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
 
       <div className="flex h-dvh">
-        <div className="hidden lg:block">
-          <Sidebar />
+        <div className="hidden shrink-0 lg:block">
+          <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} />
         </div>
 
         {mobileOpen ? (
@@ -206,8 +446,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               size="icon"
               onClick={() => setMobileOpen(true)}
               aria-expanded={mobileOpen}
+              className='bg-transparent border-none'
             >
-              <Menu className="size-5" aria-hidden="true" />
+              <Menu className="size-5 text-ink" aria-hidden="true" />
               <span className="sr-only">Open Navigation</span>
             </Button>
           </header>

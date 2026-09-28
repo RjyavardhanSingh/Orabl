@@ -1,9 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { FileUp, Mic, RotateCcw, Sparkles, Target, Trophy, X, type LucideIcon } from 'lucide-react'
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-
-import { Button } from './ui/button'
+// import { useNavigate } from 'react-router-dom'
 
 type WorkflowStep = {
   step: string
@@ -52,7 +50,6 @@ const STEPS: WorkflowStep[] = [
 ]
 
 export function WorkflowModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const navigate = useNavigate()
   const reduceMotion = useReducedMotion() ?? false
   const beat = reduceMotion ? 0 : undefined
 
@@ -84,7 +81,7 @@ export function WorkflowModal({ open, onClose }: { open: boolean; onClose: () =>
           onClick={onClose}
         >
           <motion.div
-            className="w-full max-w-lg overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_80px_-24px_rgba(27,26,23,0.45)]"
+            className="w-full max-w-lg overflow-hidden rounded-l border border-line bg-surface"
             initial={{ opacity: 0, scale: 0.92, y: 24 }}
             animate={{
               opacity: 1,
@@ -105,9 +102,6 @@ export function WorkflowModal({ open, onClose }: { open: boolean; onClose: () =>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-ink-muted">
                   How it works
                 </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
-                  Upload → Goal → Speak → Report → Retest
-                </h2>
               </div>
               <button
                 type="button"
@@ -141,12 +135,6 @@ export function WorkflowModal({ open, onClose }: { open: boolean; onClose: () =>
                 </li>
               ))}
             </ol>
-
-            <div className="border-t border-line p-6 pt-5 sm:px-8">
-              <Button className="w-full" onClick={() => { onClose(); navigate('/upload') }}>
-                Start a Session
-              </Button>
-            </div>
           </motion.div>
         </motion.div>
       ) : null}

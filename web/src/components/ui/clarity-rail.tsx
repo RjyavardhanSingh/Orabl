@@ -1,4 +1,5 @@
 import { useReducedMotion } from "motion/react";
+import { useEffect, useState } from "react";
 
 const LOOP_SECONDS = 14;
 
@@ -8,28 +9,16 @@ const LOOP_SECONDS = 14;
 const LEG_CLEAR =
   "M 325 296 C 350 300, 380 305, 420 320 C 490 352, 570 395, 660 445";
 
-// Entry leg: a single overhand-knot silhouette — one continuous open
-// path, not a figure-eight. It descends the left, twists once (a vertical
-// pass crossed by a horizontal pass near x=185,y=196), then hooks right
-// into the pill's left edge heading horizontally. Touches the waveform
-// nowhere except the entry point. Loosely tied: wide loop, clear gaps.
+// Entry leg: one open curl, not a knot. Drops in from the top, sweeps
+// left in a gentle wave, rounds a single spacious bowl, and runs into the
+// pill's left edge heading horizontally. No self-crossings, no closed
+// rings — one continuous ribbon with clear air around every bend.
 const LEG_FOG =
-  "M 450 -30 C 440 55, 402 92, 350 108 " +
-  "C 298 124, 240 126, 205 138 " +
-  "C 190 143, 186 152, 185 165 " +
-  "C 184 178, 184 190, 185 202 " +
-  "C 186 214, 185 226, 184 238 " +
-  "C 182 251, 155 262, 128 260 " +
-  "C 100 258, 78 240, 75 214 " +
-  "C 72 188, 82 168, 104 160 " +
-  "C 130 152, 158 151, 184 156 " +
-  "C 208 160, 226 171, 230 185 " +
-  "C 234 199, 220 202, 204 200 " +
-  "C 188 199, 180 199, 172 200 " +
-  "C 156 201, 144 208, 138 220 " +
-  "C 132 234, 134 250, 142 264 " +
-  "C 152 280, 168 294, 186 300 " +
-  "C 200 303, 216 305, 242 306";
+  "M 470 -30 C 460 50, 420 80, 370 92 " +
+  "C 320 104, 270 95, 220 85 " +
+  "C 170 78, 125 105, 112 155 " +
+  "C 100 210, 115 260, 155 285 " +
+  "C 195 310, 218 303, 242 306";
 
 const FOG_UNIT = "umm so like photosynthesis is umm when plants • ";
 const FOG_TILED = `${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}`;
@@ -51,30 +40,146 @@ const CLEAR_TILED = `${CLEAR_UNIT}${CLEAR_UNIT}${CLEAR_UNIT}`;
 const TILED_LENGTH = 1380;
 const TILE_UNIT = TILED_LENGTH / 3;
 
-const BAR_COUNT = 14;
-
 // Flowing rail text uses the hero voice. Story Script ships 400 only,
 // so weight stays 400 everywhere here — never bold it.
 const RAIL_FONT = { fontFamily: "var(--font-story)", fontWeight: 400 } as const;
 
-function WaveformBars({ animated }: { animated: boolean }) {
-  const bars = Array.from({ length: BAR_COUNT }, (_, i) => {
-    const h = 10 + Math.round(22 * Math.abs(Math.sin(i * 1.7)));
-    return (
+const STATUS_WORDS = ["Struggling?", "Learn", "Improve", "Conquer"];
+
+const POP_IN_MS =600;
+const HOLD_MS = 600;
+const DROP_OUT_MS = 600;
+const GAP_MS = 300;
+// Travel distance: tucks just behind the robot pill's top edge on exit,
+// so the pill reads as popping out from the robot area. Never reaches
+// the robot face (head top sits ~18px below the lowest travel point).
+const PILL_HIDDEN_DY = 22;
+
+type PillPhase = "in" | "hold" | "out" | "gap";
+
+function StatusPill({ reduceMotion }: { reduceMotion: boolean }) {
+  const [[wordIndex, phase], setState] = useState<[number, PillPhase]>([0, "in"]);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const delay =
+      phase === "in"
+        ? POP_IN_MS
+        : phase === "hold"
+          ? HOLD_MS
+          : phase === "out"
+            ? DROP_OUT_MS
+            : GAP_MS;
+    const timer = setTimeout(() => {
+      setState(([w, p]) => {
+        if (p === "in") return [w, "hold"];
+        if (p === "hold") return [w, "out"];
+        if (p === "out") return [w, "gap"];
+        return [(w + 1) % STATUS_WORDS.length, "in"];
+      });
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [wordIndex, phase, reduceMotion]);
+
+  const visible = reduceMotion || phase === "in" || phase === "hold";
+  return (
+    <g
+      style={{
+        transform: `translateY(${visible ? 0 : PILL_HIDDEN_DY}px)`,
+        opacity: visible ? 1 : 0,
+        transition:
+          phase === "in"
+            ? "transform 200ms cubic-bezier(0.34, 1.4, 0.64, 1), opacity 160ms ease-out"
+            : "transform 200ms cubic-bezier(0.5, 0, 0.75, 0), opacity 160ms ease-in",
+      }}
+    >
       <rect
-        key={i}
-        x={262 + i * 5.6}
-        y={306 - h / 2}
-        width={3}
-        height={h}
-        rx={1.5}
-        fill="var(--color-ink)"
-        className={animated ? "rail-bar" : undefined}
-        style={animated ? { animationDelay: `${(i % 7) * 0.18}s` } : undefined}
+        x={247}
+        y={224}
+        width={150}
+        height={34}
+        rx={17}
+        fill="var(--color-good)"
       />
-    );
-  });
-  return <g>{bars}</g>;
+      <text
+        x={322}
+        y={246}
+        textAnchor="middle"
+        fontSize={14}
+        fontWeight={600}
+        fill="#ffffff"
+        style={{ fontFamily: "var(--font-sans)" }}
+      >
+        {STATUS_WORDS[wordIndex]}
+      </text>
+    </g>
+  );
+}
+
+function RobotFace() {
+  return (
+    <g strokeLinecap="round">
+      {/* ears behind the head edge */}
+      <rect
+        x={301}
+        y={303}
+        width={8}
+        height={11}
+        rx={4}
+        fill="none"
+        stroke="var(--color-ink)"
+        strokeWidth={2.5}
+      />
+      <rect
+        x={335}
+        y={303}
+        width={8}
+        height={11}
+        rx={4}
+        fill="none"
+        stroke="var(--color-ink)"
+        strokeWidth={2.5}
+      />
+      {/* head */}
+      <circle
+        cx={322}
+        cy={309}
+        r={15}
+        fill="var(--color-surface)"
+        stroke="var(--color-ink)"
+        strokeWidth={3}
+      />
+      {/* antenna stem + tip */}
+      <line
+        x1={322}
+        y1={294}
+        x2={322}
+        y2={287}
+        stroke="var(--color-ink)"
+        strokeWidth={2.5}
+      />
+      <circle cx={322} cy={284} r={2.8} fill="var(--color-ink)" />
+      {/* eyes — vertical scale only, synced via shared class */}
+      <rect
+        className="robot-eye"
+        x={312.5}
+        y={302.5}
+        width={5}
+        height={11}
+        rx={2.5}
+        fill="var(--color-ink)"
+      />
+      <rect
+        className="robot-eye"
+        x={326.5}
+        y={302.5}
+        width={5}
+        height={11}
+        rx={2.5}
+        fill="var(--color-ink)"
+      />
+    </g>
+  );
 }
 
 export function ClarityRail() {
@@ -171,36 +276,18 @@ export function ClarityRail() {
         )}
         {/* The machine */}
         <g>
-          <rect
-            x={247}
-            y={224}
-            width={150}
-            height={34}
-            rx={17}
-            fill="var(--color-good)"
-          />
-          <text
-            x={322}
-            y={246}
-            textAnchor="middle"
-            fontSize={14}
-            fontWeight={600}
-            fill="#ffffff"
-            style={{ fontFamily: "var(--font-sans)" }}
-          >
-            ✓ No more Umms
-          </text>
+          <StatusPill reduceMotion={reduceMotion} />
           <rect
             x={242}
             y={276}
             width={160}
             height={60}
             rx={30}
-            fill="var(--color-surface)"
+            fill="var(--color-canvas)"
             stroke="var(--color-ink)"
             strokeWidth={2}
           />
-          <WaveformBars animated={!reduceMotion} />
+          <RobotFace />
         </g>
       </svg>
     </div>

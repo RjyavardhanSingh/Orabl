@@ -1,169 +1,183 @@
-"""Neon Auth JWT verification and per-user ownership."""
+"""Own Google OAuth + opaque session tokens, and per-user ownership."""
 
 import asyncio
-import base64
-import json
-import time
+import hashlib
+from datetime import datetime, timedelta, timezone
 
 import pytest
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
 
 from api.app import create_app
+from cache.dragonfly import CacheService, get_cache
+from db.connection import get_db
 from services import auth_service, context_service, material_service, session_service
 from services.auth_service import CurrentUser, get_current_user
 from services.session_service import SessionNotFoundError
 
-AUTH_URL = "https://auth.example.com"
-JWKS_URL = "https://auth.example.com/.well-known/jwks.json"
+
+@pytest.fixture()
+def env_google(monkeypatch):
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "test-client-secret")
 
 
-def _b64(data: bytes) -> str:
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+class _FakeRedis:
+    """Minimal redis stand-in: set/get/delete with TTL expiry."""
+
+    def __init__(self):
+        self.store = {}
+
+    def set(self, key, value, ex=None):
+        expires = datetime.now(timezone.utc) + timedelta(seconds=ex) if ex is not None else None
+        self.store[key] = (value, expires)
+
+    def get(self, key):
+        hit = self.store.get(key)
+        if hit is None:
+            return None
+        value, expires = hit
+        if expires is not None and expires <= datetime.now(timezone.utc):
+            del self.store[key]
+            return None
+        return value
+
+    def delete(self, key):
+        self.store.pop(key, None)
 
 
 @pytest.fixture()
-def keypair():
-    private = Ed25519PrivateKey.generate()
-    public = private.public_key().public_bytes_raw()
-    return private, _b64(public)
+def cache():
+    return CacheService(_FakeRedis())
 
 
-@pytest.fixture()
-def jwks(keypair):
-    _, x = keypair
-    return {"keys": [{"kty": "OKP", "crv": "Ed25519", "kid": "test-key", "x": x}]}
+class _FakeDb:
+    def __init__(self, fetchrow_result=None, results=None):
+        self.executes = []
+        self.queries = []
+        self.fetchrow_result = fetchrow_result
+        self.results = list(results) if results else []
+
+    async def execute(self, query, *args):
+        self.executes.append((query, args))
+        return "OK"
+
+    async def fetchrow(self, query, *args):
+        self.queries.append((query, args))
+        if self.results:
+            return self.results.pop(0)
+        return self.fetchrow_result
+
+    async def fetch(self, query, *args):
+        self.queries.append((query, args))
+        return []
 
 
-@pytest.fixture()
-def env_keys(monkeypatch):
-    monkeypatch.setenv("JWKS_URL", JWKS_URL)
-    monkeypatch.setenv("AUTH_URL", AUTH_URL)
-
-
-def _mint(private, kid="test-key", alg="EdDSA", claims=None):
-    now = int(time.time())
-    payload = {
-        "sub": "user-1",
-        "email": "u@example.com",
-        "iss": AUTH_URL,
-        "iat": now,
-        "exp": now + 900,
+def _live_row(user_id="user-1", email="u@example.com"):
+    return {
+        "user_id": user_id,
+        "email": email,
+        "expires_at": datetime.now(timezone.utc) + timedelta(days=30),
+        "revoked_at": None,
     }
-    if claims:
-        payload.update(claims)
-    header = {"alg": alg, "typ": "JWT", "kid": kid}
-    h = _b64(json.dumps(header, separators=(",", ":")).encode())
-    p = _b64(json.dumps(payload, separators=(",", ":")).encode())
-    sig = _b64(private.sign(f"{h}.{p}".encode("ascii")))
-    return f"{h}.{p}.{sig}"
 
 
-def _stub_jwks(monkeypatch, jwks):
-    async def fake_jwks():
-        return jwks
-
-    monkeypatch.setattr(auth_service, "_get_jwks", fake_jwks)
+def _bearer(token: str):
+    return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
 
-def test_verify_valid_token(monkeypatch, env_keys, keypair, jwks):
-    private, _ = keypair
-    _stub_jwks(monkeypatch, jwks)
-
-    claims = asyncio.run(auth_service.verify_token(_mint(private)))
-
-    assert claims["sub"] == "user-1"
-    assert claims["email"] == "u@example.com"
+# --- token primitives -------------------------------------------------------
 
 
-def test_verify_expired_token(monkeypatch, env_keys, keypair, jwks):
-    from fastapi import HTTPException
-
-    private, _ = keypair
-    _stub_jwks(monkeypatch, jwks)
-    token = _mint(private, claims={"exp": int(time.time()) - 3600})
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(auth_service.verify_token(token))
-    assert exc.value.status_code == 401
+def test_hash_token_is_sha256():
+    assert auth_service.hash_token("abc") == hashlib.sha256(b"abc").hexdigest()
 
 
-def test_verify_tampered_signature(monkeypatch, env_keys, keypair, jwks):
-    from fastapi import HTTPException
-
-    private, _ = keypair
-    _stub_jwks(monkeypatch, jwks)
-    token = _mint(private)
-    header_b64, payload_b64, signature_b64 = token.split(".")
-    raw = bytearray(base64.urlsafe_b64decode(signature_b64 + "=" * (-len(signature_b64) % 4)))
-    raw[10] ^= 0xFF  # flip data bits mid-signature, never padding
-    tampered = f"{header_b64}.{payload_b64}.{_b64(bytes(raw))}"
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(auth_service.verify_token(tampered))
-    assert exc.value.status_code == 401
+def test_issue_token_unique_and_verifiable():
+    raw1, digest1 = auth_service.issue_token()
+    raw2, digest2 = auth_service.issue_token()
+    assert raw1 != raw2
+    assert digest1 == auth_service.hash_token(raw1)
+    assert digest2 == auth_service.hash_token(raw2)
 
 
-def test_verify_unknown_kid(monkeypatch, env_keys, keypair, jwks):
-    from fastapi import HTTPException
-
-    private, _ = keypair
-    _stub_jwks(monkeypatch, jwks)
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(auth_service.verify_token(_mint(private, kid="nope")))
-    assert exc.value.status_code == 401
+def test_sanitize_next_allows_only_local_paths():
+    assert auth_service.sanitize_next("/upload") == "/upload"
+    assert auth_service.sanitize_next("//evil.com") == "/upload"
+    assert auth_service.sanitize_next("https://evil.com") == "/upload"
+    assert auth_service.sanitize_next(None) == "/upload"
 
 
-def test_verify_missing_sub(monkeypatch, env_keys, keypair, jwks):
-    from fastapi import HTTPException
-
-    private, _ = keypair
-    _stub_jwks(monkeypatch, jwks)
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(auth_service.verify_token(_mint(private, claims={"sub": ""})))
-    assert exc.value.status_code == 401
+# --- Google URL / state -----------------------------------------------------
 
 
-def test_verify_wrong_issuer(monkeypatch, env_keys, keypair, jwks):
-    from fastapi import HTTPException
-
-    private, _ = keypair
-    _stub_jwks(monkeypatch, jwks)
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(
-            auth_service.verify_token(_mint(private, claims={"iss": "https://evil.example.com"}))
-        )
-    assert exc.value.status_code == 401
+def test_google_authorize_url(env_google):
+    state, _, challenge = auth_service.new_oauth_state()
+    url = auth_service.google_authorize_url(state, challenge)
+    assert url.startswith("https://accounts.google.com/o/oauth2/v2/auth?")
+    assert "client_id=test-client-id" in url
+    assert "code_challenge=" in url
+    assert "redirect_uri=" in url
 
 
-def test_verify_wrong_alg(monkeypatch, env_keys, keypair, jwks):
-    from fastapi import HTTPException
+def test_google_authorize_url_unconfigured(monkeypatch):
+    from services.auth_service import AuthNotConfiguredError
 
-    private, _ = keypair
-    _stub_jwks(monkeypatch, jwks)
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("GOOGLE_CLIENT_SECRET", raising=False)
+    state, _, challenge = auth_service.new_oauth_state()
+    with pytest.raises(AuthNotConfiguredError):
+        auth_service.google_authorize_url(state, challenge)
 
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(auth_service.verify_token(_mint(private, alg="HS256")))
-    assert exc.value.status_code == 401
+
+def test_oauth_state_single_use(cache):
+    auth_service.store_oauth_state(cache, "s1", "verifier-1", "/upload")
+    first = auth_service.pop_oauth_state(cache, "s1")
+    assert first == {"verifier": "verifier-1", "next": "/upload"}
+    assert auth_service.pop_oauth_state(cache, "s1") is None
+    assert auth_service.pop_oauth_state(cache, "nope") is None
 
 
-def test_verify_issuer_matches_by_origin_not_path(monkeypatch, keypair, jwks):
-    """Regression: Neon Auth issues iss as the bare service host while
-    AUTH_URL carries the mount path (.../neondb/auth)."""
-    monkeypatch.setenv("JWKS_URL", JWKS_URL)
-    monkeypatch.setenv("AUTH_URL", "https://auth.example.com/neondb/auth")
-    private, _ = keypair
-    _stub_jwks(monkeypatch, jwks)
+def test_exchange_code_single_use(cache):
+    code = auth_service.store_exchange_code(cache, "raw-session-token")
+    assert auth_service.pop_exchange_code(cache, code) == "raw-session-token"
+    assert auth_service.pop_exchange_code(cache, code) is None
+    assert auth_service.pop_exchange_code(cache, "nope") is None
 
-    claims = asyncio.run(
-        auth_service.verify_token(_mint(private, claims={"iss": "https://auth.example.com"}))
-    )
 
-    assert claims["sub"] == "user-1"
+# --- sessions ---------------------------------------------------------------
+
+
+def test_create_and_resolve_session():
+    db = _FakeDb(fetchrow_result=_live_row())
+
+    raw = asyncio.run(auth_service.create_session(db, "user-1"))
+    assert raw and len(raw) > 32
+    assert any("INSERT INTO app_sessions" in sql for sql, _ in db.executes)
+
+    user = asyncio.run(auth_service.resolve_session(db, raw))
+
+    assert user == CurrentUser(id="user-1", email="u@example.com")
+    assert any("app_sessions" in sql for sql, _ in db.queries)
+
+
+def test_resolve_expired_revoked_missing():
+    expired = _live_row()
+    expired["expires_at"] = datetime.now(timezone.utc) - timedelta(seconds=1)
+    revoked = _live_row()
+    revoked["revoked_at"] = datetime.now(timezone.utc)
+
+    for row in (expired, revoked, None):
+        db = _FakeDb(fetchrow_result=row)
+        assert asyncio.run(auth_service.resolve_session(db, "any-token")) is None
+
+
+def test_resolve_db_error_fails_closed():
+    class _BoomDb(_FakeDb):
+        async def fetchrow(self, query, *args):
+            raise RuntimeError("db down")
+
+    assert asyncio.run(auth_service.resolve_session(_BoomDb(), "any-token")) is None
 
 
 def test_get_current_user_without_credentials():
@@ -174,14 +188,79 @@ def test_get_current_user_without_credentials():
     assert exc.value.status_code == 401
 
 
-def test_get_current_user_valid(monkeypatch, env_keys, keypair, jwks):
-    private, _ = keypair
-    _stub_jwks(monkeypatch, jwks)
-    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=_mint(private))
+def test_get_current_user_unknown_token_is_401():
+    from fastapi import HTTPException
 
-    user = asyncio.run(get_current_user(creds))
+    db = _FakeDb(fetchrow_result=None)
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(get_current_user(_bearer("deadbeefdeadbeefdeadbeefdeadbeef"), db))
+    assert exc.value.status_code == 401
 
-    assert user == CurrentUser(id="user-1", email="u@example.com")
+
+def test_get_current_user_db_error_is_401():
+    from fastapi import HTTPException
+
+    class _BoomDb(_FakeDb):
+        async def fetchrow(self, query, *args):
+            raise RuntimeError("db down")
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(get_current_user(_bearer("Av0QG2p8hyAMYeGgRwqofb5fapiWfb3v"), _BoomDb()))
+    assert exc.value.status_code == 401
+
+
+def test_garbage_token_is_401():
+    from fastapi import HTTPException
+
+    db = _FakeDb(fetchrow_result=None)
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(get_current_user(_bearer("not-a-token!!!"), db))
+    assert exc.value.status_code == 401
+
+
+# --- user upsert ------------------------------------------------------------
+
+
+def test_upsert_existing_google_sub():
+    db = _FakeDb(results=[{"id": "u-1", "email": "old@example.com"}])
+
+    user = asyncio.run(
+        auth_service.upsert_user_from_google(
+            db, google_sub="g-1", email="new@example.com", name="N"
+        )
+    )
+
+    assert user == {"id": "u-1", "email": "new@example.com"}
+    assert any("UPDATE app_users" in sql for sql, _ in db.executes)
+
+
+def test_upsert_adopts_same_email_row():
+    db = _FakeDb(results=[None, {"id": "u-2"}])
+
+    user = asyncio.run(
+        auth_service.upsert_user_from_google(
+            db, google_sub="g-9", email="same@example.com", name="S"
+        )
+    )
+
+    assert user == {"id": "u-2", "email": "same@example.com"}
+    assert any("google_sub" in sql for sql, _ in db.executes)
+
+
+def test_upsert_creates_new_user():
+    db = _FakeDb(results=[None, None, {"id": "u-3", "email": "fresh@example.com"}])
+
+    user = asyncio.run(
+        auth_service.upsert_user_from_google(
+            db, google_sub="g-3", email="fresh@example.com", name="F"
+        )
+    )
+
+    assert user == {"id": "u-3", "email": "fresh@example.com"}
+    assert any("INSERT INTO app_users" in sql for sql, _ in db.queries)
+
+
+# --- routes -----------------------------------------------------------------
 
 
 def test_me_route_requires_auth():
@@ -205,6 +284,128 @@ def test_me_route_returns_profile():
     assert response.json() == {"id": "user-1", "email": "u@example.com"}
 
 
+def test_google_url_route(env_google, cache):
+    app = create_app()
+    app.dependency_overrides[get_cache] = lambda: cache
+    client = TestClient(app)
+
+    response = client.get("/v1/auth/google/url?next=/goal")
+
+    assert response.status_code == 200
+    assert response.json()["url"].startswith("https://accounts.google.com/")
+
+
+def test_google_url_route_unconfigured(monkeypatch, cache):
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("GOOGLE_CLIENT_SECRET", raising=False)
+    app = create_app()
+    app.dependency_overrides[get_cache] = lambda: cache
+    client = TestClient(app)
+
+    response = client.get("/v1/auth/google/url")
+
+    assert response.status_code == 500
+
+
+def test_callback_rejects_google_error(cache):
+    app = create_app()
+    app.dependency_overrides[get_cache] = lambda: cache
+    client = TestClient(app)
+
+    response = client.get("/v1/auth/google/callback?error=access_denied", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert "error=google_rejected" in response.headers["location"]
+
+
+def test_callback_rejects_bad_state(cache):
+    app = create_app()
+    app.dependency_overrides[get_cache] = lambda: cache
+    client = TestClient(app)
+
+    response = client.get("/v1/auth/google/callback?code=x&state=replayed", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert "error=invalid_state" in response.headers["location"]
+
+
+def test_callback_to_token_roundtrip(monkeypatch, cache):
+    async def fake_exchange(code, verifier):
+        assert code == "auth-code" and verifier == "v"
+        return {"access_token": "google-at"}
+
+    async def fake_userinfo(access_token):
+        assert access_token == "google-at"
+        return {"sub": "g-1", "email": "u@example.com", "email_verified": True, "name": "U"}
+
+    monkeypatch.setattr(auth_service, "exchange_google_code", fake_exchange)
+    monkeypatch.setattr(auth_service, "fetch_google_userinfo", fake_userinfo)
+
+    auth_service.store_oauth_state(cache, "state-1", "v", "/goal")
+    db = _FakeDb(
+        fetchrow_result=_live_row(user_id="u-1", email="u@example.com"),
+        results=[None, None, {"id": "u-1", "email": "u@example.com"}],
+    )
+
+    app = create_app()
+    app.dependency_overrides[get_cache] = lambda: cache
+    app.dependency_overrides[get_db] = lambda: db
+    client = TestClient(app)
+
+    callback = client.get(
+        "/v1/auth/google/callback?code=auth-code&state=state-1", follow_redirects=False
+    )
+    assert callback.status_code == 302
+    location = callback.headers["location"]
+    assert "/auth/callback?code=" in location and "next=%2Fgoal" in location
+
+    exchange_code = location.split("code=")[1].split("&")[0]
+    first = client.post("/v1/auth/token", json={"code": exchange_code})
+    assert first.status_code == 200
+    body = first.json()
+    assert body["user"] == {"id": "u-1", "email": "u@example.com"}
+    assert body["token"]
+
+    replay = client.post("/v1/auth/token", json={"code": exchange_code})
+    assert replay.status_code == 401
+
+
+def test_token_exchange_unknown_code_is_401(cache):
+    app = create_app()
+    app.dependency_overrides[get_cache] = lambda: cache
+    app.dependency_overrides[get_db] = lambda: _FakeDb()
+    client = TestClient(app)
+
+    response = client.post("/v1/auth/token", json={"code": "nope"})
+
+    assert response.status_code == 401
+
+
+def test_logout_revokes_session():
+    db = _FakeDb(fetchrow_result=_live_row())
+    raw = asyncio.run(auth_service.create_session(db, "user-1"))
+
+    app = create_app()
+    app.dependency_overrides[get_db] = lambda: db
+    client = TestClient(app)
+
+    response = client.post("/v1/auth/logout", headers={"Authorization": f"Bearer {raw}"})
+
+    assert response.status_code == 200
+    assert any("revoked_at" in sql for sql, _ in db.executes)
+
+
+def test_logout_without_credentials_is_ok():
+    app = create_app()
+    app.dependency_overrides[get_db] = lambda: _FakeDb()
+    client = TestClient(app)
+
+    assert client.post("/v1/auth/logout").status_code == 200
+
+
+# --- per-user ownership (unchanged contract) --------------------------------
+
+
 class _FakeCache:
     def __init__(self, state=None):
         self.state = state
@@ -217,25 +418,6 @@ class _FakeCache:
 
     def delete(self, key):
         self.state = None
-
-
-class _FakeDb:
-    def __init__(self, fetchrow_result=None):
-        self.executes = []
-        self.queries = []
-        self.fetchrow_result = fetchrow_result
-
-    async def execute(self, query, *args):
-        self.executes.append((query, args))
-        return "OK"
-
-    async def fetchrow(self, query, *args):
-        self.queries.append((query, args))
-        return self.fetchrow_result
-
-    async def fetch(self, query, *args):
-        self.queries.append((query, args))
-        return []
 
 
 def test_submit_answer_wrong_user_reads_as_missing():

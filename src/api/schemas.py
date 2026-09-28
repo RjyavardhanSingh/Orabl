@@ -225,11 +225,25 @@ class SttTokenResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# 8. Auth — verified caller profile (Neon Auth owns identity; we verify only)
-# GET /v1/auth/me
+# 8. Auth — own Google OAuth + session tokens
+# GET /v1/auth/google/url · GET /v1/auth/google/callback · POST /v1/auth/token
+# GET /v1/auth/me · POST /v1/auth/logout
 # ---------------------------------------------------------------------------
 
 
 class MeResponse(BaseModel):
     id: str
     email: str | None = None
+
+
+class GoogleUrlResponse(BaseModel):
+    url: str
+
+
+class TokenExchangeRequest(BaseModel):
+    code: str
+
+
+class TokenResponse(BaseModel):
+    token: str
+    user: MeResponse

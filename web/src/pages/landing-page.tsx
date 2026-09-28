@@ -7,12 +7,6 @@ import { Header } from '../components/ui/hero-parallax'
 export function LandingPage() {
   return (
     <div className="min-h-dvh overflow-x-clip bg-canvas text-ink">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
-      >
-        Skip to main content
-      </a>
 
       <PublicNav />
 
@@ -24,12 +18,13 @@ export function LandingPage() {
 
       <div className="font-pt-serif relative h-[420px] w-full overflow-hidden sm:h-[520px]">
         <AnimatedFooter
-          headingLines={['Recall']}
+          headingLines={['Abhyas']}
           leftImage="/animated-footer/hand-left.jpg"
           rightImage="/animated-footer/hand-right.jpg"
           background="transparent"
           textColor="#1e4d33"
           charColor="#803500"
+          className="recall-heading-gradient"
         />
       </div>
       <div className="bg-transparent">
