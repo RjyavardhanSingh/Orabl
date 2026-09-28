@@ -45,15 +45,17 @@ function SectionCard({
   count,
   children,
   tone = 'default',
+  className,
 }: {
   icon: React.ReactNode
   title: string
   count?: number
   children: React.ReactNode
   tone?: 'default' | 'muted'
+  className?: string
 }) {
   return (
-    <Card>
+    <Card className={cn(className)}>
       <div className="flex items-center justify-between gap-4 p-5 pb-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <span
@@ -143,13 +145,64 @@ export function ResultsPage() {
           <PageHeader
             title="How You Did"
             description="Your readiness score, what to fix next, and the mix-ups that kept showing up."
+            action={
+              expired ? undefined : (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    className="flex-1 bg-green-900 hover:bg-green-800 rounded-xl"
+                    disabled={retest.isPending || weakTopics.length === 0}
+                    onClick={() => retest.mutate(true)}
+                  >
+                    {retest.isPending ? (
+                      <>
+                        <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                        Starting…
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="size-4" aria-hidden="true" />
+                        Retest Weak Areas
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={retest.isPending}
+                    onClick={() => retest.mutate(false)}
+                    className='rounded-xl'
+                  >
+                    <RefreshCw className="size-4" aria-hidden="true" />
+                    Full Test Again
+                  </Button>
+                </div>
+              )
+            }
           />
+          {expired ? (
+            <Alert className="mt-4">
+              This session’s 24-hour review window has closed. Generate a fresh practice set
+              to keep going.
+            </Alert>
+          ) : null}
+          {weakTopics.length === 0 && !expired ? (
+            <p className="mt-3 text-xs text-ink-muted">
+              No weak areas to retest — every topic cleared the bar.
+            </p>
+          ) : null}
+          {retest.isError &&
+          !(retest.error instanceof ApiError && retest.error.status === 410) ? (
+            <Alert className="mt-4">
+              {retest.error instanceof ApiError
+                ? retest.error.message
+                : 'Could not start retest. Try again in a moment.'}
+            </Alert>
+          ) : null}
         </div>
 
         <div className="scroll-area mx-auto mt-5 min-h-0 w-full max-w-6xl flex-1">
           <div className="grid items-start gap-4 pb-2 lg:grid-cols-2">
             <div className="space-y-4">
-              <Card>
+              <Card className='rounded-xs'>
                 <CardContent className="flex items-center gap-5 p-5">
                   <span className="tabular grid size-16 shrink-0 place-items-center rounded-2xl bg-ink text-2xl font-bold text-white">
                     {results.readiness_score}
@@ -173,6 +226,7 @@ export function ResultsPage() {
                 title="What’s Solid"
                 count={strongTopics.length}
                 tone={strongTopics.length === 0 ? 'muted' : 'default'}
+                className='rounded-xs'
               >
                 {strongTopics.length === 0 ? (
                   <p className="text-sm text-ink-muted">
@@ -199,6 +253,7 @@ export function ResultsPage() {
                 icon={<Target className="size-4" aria-hidden="true" />}
                 title="What to Fix"
                 count={weakTopics.length}
+                className='rounded-xs'
               >
                 {weakTopics.length === 0 ? (
                   <p className="text-sm text-ink-muted">
@@ -207,9 +262,9 @@ export function ResultsPage() {
                 ) : (
                   <ul className="space-y-2.5">
                     {weakTopics.map(([topic, data]) => (
-                      <li key={topic} className="rounded-xl border border-warn-tint bg-warn-tint/60 p-3.5">
+                      <li key={topic} className="rounded-xl bg-stone-100 p-3.5">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="min-w-0 truncate text-sm font-medium text-warn">
+                          <span className="min-w-0 truncate text-sm font-medium text-ink-soft">
                             {topic}
                           </span>
                           <span className="tabular shrink-0 text-sm font-semibold text-warn">
@@ -233,12 +288,13 @@ export function ResultsPage() {
                   icon={<AlertTriangle className="size-4" aria-hidden="true" />}
                   title="Common Mix-Ups We Noticed"
                   count={mixUps.length}
+                  className='rounded-xs'
                 >
                   <ul className="space-y-2">
                     {mixUps.map((mixUp) => (
                       <li
                         key={mixUp}
-                        className="text-pretty rounded-xl bg-sunk px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
+                        className="text-pretty rounded-xl bg-stone-100 px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
                       >
                         {mixUp}
                       </li>
@@ -249,7 +305,7 @@ export function ResultsPage() {
             </div>
 
             <div className="space-y-4">
-              <Card>
+              <Card className='rounded-xs'>
                 <div className="p-5 pb-3">
                   <h2 className="text-sm font-semibold tracking-tight">Every Question</h2>
                   <p className="mt-1 text-xs text-ink-muted">
@@ -308,64 +364,6 @@ export function ResultsPage() {
                       })}
                     </ul>
                   )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <div className="p-5 pb-3">
-                  <h2 className="text-sm font-semibold tracking-tight">Retest</h2>
-                  <p className="text-pretty mt-1 text-xs text-ink-muted">
-                    Come back after the ideas settle — or take another shot right now.
-                  </p>
-                </div>
-                <CardContent className="p-5 pt-0">
-                  {expired ? (
-                    <Alert>
-                      This session’s 24-hour review window has closed. Generate a fresh practice set
-                      to keep going.
-                    </Alert>
-                  ) : (
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button
-                        className="flex-1"
-                        disabled={retest.isPending || weakTopics.length === 0}
-                        onClick={() => retest.mutate(true)}
-                      >
-                        {retest.isPending ? (
-                          <>
-                            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                            Starting…
-                          </>
-                        ) : (
-                          <>
-                            <RotateCcw className="size-4" aria-hidden="true" />
-                            Retest Weak Areas
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        disabled={retest.isPending}
-                        onClick={() => retest.mutate(false)}
-                      >
-                        <RefreshCw className="size-4" aria-hidden="true" />
-                        Full Test Again
-                      </Button>
-                    </div>
-                  )}
-                  {weakTopics.length === 0 && !expired ? (
-                    <p className="mt-3 text-xs text-ink-muted">
-                      No weak areas to retest — every topic cleared the bar.
-                    </p>
-                  ) : null}
-                  {retest.isError &&
-                  !(retest.error instanceof ApiError && retest.error.status === 410) ? (
-                    <Alert className="mt-4">
-                      {retest.error instanceof ApiError
-                        ? retest.error.message
-                        : 'Could not start retest. Try again in a moment.'}
-                    </Alert>
-                  ) : null}
                 </CardContent>
               </Card>
 

@@ -234,7 +234,7 @@ export function PracticePage() {
                       <span className="text-ink-faint">{voice.partial}</span>
                       {!voice.committed && !voice.partial ? 'Speak now…' : null}
                     </p>
-                    <Button className="mt-4 w-full" onClick={handleStop}>
+                    <Button className="mt-4 w-full rounded-xl bg-green-900 hover:bg-green-800" onClick={handleStop}>
                       <Square className="size-4" aria-hidden="true" />
                       Stop &amp; Review
                     </Button>
@@ -268,7 +268,7 @@ export function PracticePage() {
                     />
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Button
-                        className="flex-1"
+                        className="flex-1 bg-green-900 text-white hover:bg-green-800 rounded-xl"
                         disabled={submit.isPending || draft.trim().length === 0}
                         onClick={() => submit.mutate({ answer_text: draft.trim() })}
                       >
@@ -285,6 +285,7 @@ export function PracticePage() {
                         )}
                       </Button>
                       <Button
+                        className="rounded-xl"
                         variant="secondary"
                         disabled={submit.isPending}
                         onClick={() => {
@@ -292,7 +293,7 @@ export function PracticePage() {
                           voice.reset()
                         }}
                       >
-                        <RotateCcw className="size-4" aria-hidden="true" />
+                        <RotateCcw className="size-" aria-hidden="true" />
                         Re-record
                       </Button>
                     </div>
@@ -312,7 +313,7 @@ export function PracticePage() {
                     : 'Your full report with readiness score and per-question feedback is ready.'}
                 </p>
                 <Button
-                  className="mt-5 w-full"
+                  className="mt-5 w-full bg-green-900 hover:bg-green-800 rounded-xl"
                   size="lg"
                   disabled={finish.isPending}
                   onClick={() => finish.mutate()}
