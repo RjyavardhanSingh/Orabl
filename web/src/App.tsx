@@ -1,9 +1,9 @@
 import { Suspense, lazy } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { LoaderCircle } from 'lucide-react'
 
 import { RequireAuth, AuthProvider } from './lib/auth-state'
+import { WorkspaceSkeleton } from './components/ui/workspace-skeleton'
 
 // Route-level code splitting: each page (+ its heavy deps: gsap, motion,
 // elevenlabs, animated canvases) loads on first visit instead of bloating
@@ -42,11 +42,7 @@ function NotFoundPage() {
 }
 
 function RouteFallback() {
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-canvas">
-      <LoaderCircle className="size-6 animate-spin text-ink-muted" aria-hidden="true" />
-    </div>
-  )
+  return <WorkspaceSkeleton />
 }
 
 export default function App() {

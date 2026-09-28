@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
+
 import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
@@ -60,7 +61,14 @@ export function PreparingPage() {
     return (
       <AppShell>
         <EmptyState
-          icon={<Sparkles className="size-6" aria-hidden="true" />}
+          // icon={
+          //   <img
+          //     src={AppLogoUrl}
+          //     alt=""
+          //     aria-hidden="true"
+          //     className="size-8 rounded-lg object-cover"
+          //   />
+          // }
           title="Your Context Is Missing"
           description="Start again by uploading a material and setting your goal."
           action={
@@ -89,7 +97,7 @@ export function PreparingPage() {
           }
         />
 
-        <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xs">
           <CardContent className="scroll-area min-h-0 flex-1 p-5">
             {isLoading ? (
               <p
@@ -103,9 +111,6 @@ export function PreparingPage() {
 
             {!isLoading && visible.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong p-8 text-center">
-                <span className="grid size-11 place-items-center rounded-2xl bg-sunk">
-                  <Sparkles className="size-5 text-ink-muted" aria-hidden="true" />
-                </span>
                 <p className="text-pretty mt-4 text-sm font-semibold">
                   Your questions will appear here.
                 </p>
@@ -161,6 +166,7 @@ export function PreparingPage() {
                   variant="secondary"
                   onClick={() => generate.mutate()}
                   disabled={busy}
+                  className="rounded-xl"
                 >
                   {generate.isPending ? (
                     <>
@@ -181,6 +187,7 @@ export function PreparingPage() {
                   visible.length > 0 ? startPractice.mutate() : generate.mutate()
                 }
                 disabled={busy}
+                className='bg-green-900 hover:bg-green-800 rounded-xl'
               >
                 {startPractice.isPending ? (
                   <>

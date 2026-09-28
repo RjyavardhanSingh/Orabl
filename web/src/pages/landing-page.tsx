@@ -18,7 +18,7 @@ export function LandingPage() {
 
       <div className="font-pt-serif relative h-[420px] w-full overflow-hidden sm:h-[520px]">
         <AnimatedFooter
-          headingLines={['Recall']}
+          headingLines={['Abhyas']}
           leftImage="/animated-footer/hand-left.jpg"
           rightImage="/animated-footer/hand-right.jpg"
           background="transparent"

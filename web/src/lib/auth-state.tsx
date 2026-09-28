@@ -1,5 +1,4 @@
 import { useEffect, type ReactNode } from 'react'
-import { LoaderCircle } from 'lucide-react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { create } from 'zustand'
 
@@ -9,6 +8,7 @@ import {
   onInvalidToken,
   signOut as requestSignOut,
 } from './auth'
+import { WorkspaceSkeleton } from '../components/ui/workspace-skeleton'
 
 export type AuthUser = { id: string; email: string | null }
 export type AuthStatus = 'loading' | 'in' | 'out'
@@ -79,11 +79,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation()
 
   if (status === 'loading') {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-canvas">
-        <LoaderCircle className="size-6 animate-spin text-ink-muted" aria-hidden="true" />
-      </div>
-    )
+    return <WorkspaceSkeleton />
   }
   if (status === 'out') {
     const next = encodeURIComponent(location.pathname + location.search)

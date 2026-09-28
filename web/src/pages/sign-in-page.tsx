@@ -46,7 +46,7 @@ export function SignInPage() {
                 variant="secondary"
                 disabled={googlePending}
                 onClick={handleGoogle}
-                className="w-full rounded-xl bg-surface text-ink hover:bg-surface-hover hover:text-ink-faint"
+                className="w-full rounded-xl bg-green-900 text-canvas hover:bg-green-800 hover:text-surface"
               >
                 {googlePending ? (
                   <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />

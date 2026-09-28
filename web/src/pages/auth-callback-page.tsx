@@ -1,10 +1,11 @@
-import { LoaderCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { Alert } from '../components/ui/alert'
+import { WorkspaceSkeleton } from '../components/ui/workspace-skeleton'
 import { ApiError } from '../lib/api'
 import { exchangeCode, setAccessToken } from '../lib/auth'
+import { useAuthStore } from '../lib/auth-state'
 
 /** Landing point for our Google OAuth: redeem the one-time code for a session. */
 export function AuthCallbackPage() {
@@ -34,8 +35,13 @@ export function AuthCallbackPage() {
     // login must always store the token and navigate; setState-after-unmount
     // is a harmless no-op in React 18+.
     exchangeCode(code)
-      .then(({ token }) => {
+      .then(({ token, user }) => {
         setAccessToken(token)
+        // Sync the store: it still says 'out' from boot (no token then),
+        // and nothing else re-validates — without this, RequireAuth bounces
+        // straight back to /signin. The profile ships with the exchange, so
+        // no extra /me round-trip.
+        useAuthStore.setState({ user, status: 'in' })
         const next = searchParams.get('next')
         const destination =
           next && next.startsWith('/') && !next.startsWith('//') ? next : '/upload'
@@ -56,26 +62,21 @@ export function AuthCallbackPage() {
         ? null
         : 'Sign-in did not complete. Please try again.')
 
-  return (
-    <div className="min-h-dvh bg-canvas text-ink">
-      <div className="mx-auto flex min-h-dvh w-full max-w-sm flex-col items-center justify-center px-4 text-center">
-        {displayError ? (
-          <>
-            <Alert>{displayError}</Alert>
-            <Link
-              to="/signin"
-              className="mt-6 text-sm font-semibold text-ink underline-offset-4 hover:underline"
-            >
-              Back to sign in
-            </Link>
-          </>
-        ) : (
-          <>
-            <LoaderCircle className="size-6 animate-spin text-ink-muted" aria-hidden="true" />
-            <p className="mt-4 text-sm text-ink-muted">Finishing sign in…</p>
-          </>
-        )}
+  if (displayError) {
+    return (
+      <div className="min-h-dvh bg-canvas text-ink">
+        <div className="mx-auto flex min-h-dvh w-full max-w-sm flex-col items-center justify-center px-4 text-center">
+          <Alert>{displayError}</Alert>
+          <Link
+            to="/signin"
+            className="mt-6 text-sm font-semibold text-ink underline-offset-4 hover:underline"
+          >
+            Back to sign in
+          </Link>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  return <WorkspaceSkeleton />
 }

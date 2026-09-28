@@ -24,7 +24,7 @@ MODELS = [
     ).split(",")
     if m.strip()
 ]
-RETRY_DELAYS = [3, 10, 20]
+RETRY_DELAYS = [5, 15, 30]
 MAX_INPUT_TOKENS = 800000  # Leave room for prompt template + output
 
 
@@ -219,6 +219,14 @@ async def _call_model(messages: list[dict], model: str) -> dict:
                     "OpenRouter refused the request (402 Payment Required). "
                     "The key is valid but has no credits / free-tier allowance left."
                 ) from e
+            if status == 429:
+                raise RuntimeError(
+                    "OpenRouter is rate-limiting this key (429 Too Many Requests). "
+                    "Free-tier models allow only a few requests per minute — "
+                    "wait a minute and retry. If it keeps happening, check usage at "
+                    "https://openrouter.ai/activity or set OPENROUTER_MODEL to a "
+                    "paid model with quota."
+                ) from e
             raise
         data = resp.json()
     try:
@@ -326,4 +334,11 @@ async def generate_questions(
             await asyncio.sleep(delay)
 
     logger.error(f"OpenRouter failed after all retries: {last_error}")
+    # Preserve actionable provider errors (rate limits) instead of burying
+    # them under the generic message — the route forwards detail to the UI.
+    if last_error is not None and _status_code(last_error) == 429:
+        raise RuntimeError(
+            "OpenRouter is still rate-limiting this key (429). "
+            "Wait a minute and retry, or set OPENROUTER_MODEL to a paid model."
+        ) from last_error
     raise RuntimeError("Something went wrong, try again")

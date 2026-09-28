@@ -34,7 +34,7 @@ const QuestionCard = memo(function QuestionCard({
   total: number
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-surface p-5">
+    <div className="rounded-xs border border-line bg-surface p-5">
       <div className="flex items-start justify-between gap-4">
         <p className="tabular text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
           Question {position} of {total}
@@ -160,12 +160,12 @@ export function PracticePage() {
           }
         />
 
-        <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xs">
           <CardContent className="scroll-area min-h-0 flex-1 space-y-4 p-5">
             {!done && question ? <QuestionCard question={question} position={index + 1} total={total} /> : null}
 
             {!done && question ? (
-              <div className="rounded-2xl border border-line bg-sunk/60 p-5">
+              <div className="rounded-xs bg-stone-100 p-5">
                 {voice.phase === 'idle' && draft === null && !submit.isPending ? (
                   <div className="flex flex-col items-center py-4 text-center">
                     <Button
@@ -196,7 +196,7 @@ export function PracticePage() {
 
                 {voice.phase === 'connecting' ? (
                   <p
-                    className="flex items-center gap-2 rounded-xl bg-surface p-4 text-sm text-ink-muted"
+                    className="flex items-center gap-2 rounded-xs bg-surface p-4 text-sm text-ink-muted"
                     role="status"
                   >
                     <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />

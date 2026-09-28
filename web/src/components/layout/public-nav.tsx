@@ -1,28 +1,19 @@
-import { Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../lib/auth-state'
 import { WorkflowModal } from '../workflow-modal'
+import mainLogo from '../../assets/Main-logo-transparent.svg'
 
 export function PublicBrand() {
   return (
     <Link to="/" className="flex items-center gap-3 text-ink">
-      <span
-        className="grid size-9 shrink-0 place-items-center rounded-xl text-white transition-transform duration-200 hover:rotate-0 -rotate-6"
-        style={{
-          background:
-            'black',
-        }}
-      >
-        <Sparkles className="size-4" strokeWidth={2.5} aria-hidden="true" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-bold tracking-tight">recall</span>
-        <span className="block text-[10px] font-medium uppercase tracking-[0.2em] text-ink-faint">
-          Learn out loud
-        </span>
-      </span>
+      <img
+        src={mainLogo}
+        alt=""
+        aria-hidden="true"
+        className="size-12 shrink-0 rounded-xl"
+      />
     </Link>
   )
 }
