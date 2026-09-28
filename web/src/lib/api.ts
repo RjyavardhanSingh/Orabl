@@ -93,6 +93,19 @@ export type SessionResults = {
   topic_summary: Record<string, TopicBreakdown>
   weak_topics: string[]
   next_review_suggestion: string | null
+  is_saved?: boolean
+  title?: string | null
+}
+
+export type SavedSession = {
+  id: string
+  title: string | null
+  subject: string | null
+  readiness_score: number
+  question_count: number
+  weak_count: number
+  completed_at: string | null
+  saved_at: string | null
 }
 
 export type RetestResult = {
@@ -213,6 +226,23 @@ export const api = {
     request<RetestResult>(`/sessions/${sessionId}/retest`, {
       method: 'POST',
       body: JSON.stringify({ weak_only: true, ...payload }),
+    }),
+
+  listSaved: () => request<SavedSession[]>('/sessions/saved'),
+
+  saveSession: (sessionId: string, title?: string) =>
+    request<SavedSession>(`/sessions/${sessionId}/save`, {
+      method: 'POST',
+      body: JSON.stringify({ title: title ?? null }),
+    }),
+
+  unsaveSession: (sessionId: string) =>
+    request<{ ok: boolean }>(`/sessions/${sessionId}/save`, { method: 'DELETE' }),
+
+  renameSession: (sessionId: string, title: string) =>
+    request<{ id: string; title: string }>(`/sessions/${sessionId}/title`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
     }),
 
   mintSttToken: () => request<SttToken>('/stt/token'),

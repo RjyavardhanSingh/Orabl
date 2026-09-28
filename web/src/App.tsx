@@ -24,6 +24,9 @@ const PracticePage = lazy(() =>
 const ResultsPage = lazy(() =>
   import('./pages/results-page').then((m) => ({ default: m.ResultsPage })),
 )
+const SessionsPage = lazy(() =>
+  import('./pages/sessions-page').then((m) => ({ default: m.SessionsPage })),
+)
 const SignInPage = lazy(() =>
   import('./pages/sign-in-page').then((m) => ({ default: m.SignInPage })),
 )
@@ -58,6 +61,7 @@ export default function App() {
             <Route path="/preparing" element={<RequireAuth><PreparingPage /></RequireAuth>} />
             <Route path="/practice" element={<RequireAuth><PracticePage /></RequireAuth>} />
             <Route path="/results" element={<RequireAuth><ResultsPage /></RequireAuth>} />
+            <Route path="/sessions" element={<RequireAuth><SessionsPage /></RequireAuth>} />
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="*" element={<NotFoundPage />} />

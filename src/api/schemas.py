@@ -186,6 +186,32 @@ class SessionResultsResponse(BaseModel):
     topic_summary: dict = Field(default_factory=dict)
     weak_topics: list[str] = Field(default_factory=list)
     next_review_suggestion: str | None = None
+    is_saved: bool = False
+    title: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# 7. Saved sessions — bookmark completed sessions for later
+# ---------------------------------------------------------------------------
+
+
+class SavedSessionResponse(BaseModel):
+    id: str
+    title: str | None = None
+    subject: str | None = None
+    readiness_score: int = 0
+    question_count: int = 0
+    weak_count: int = 0
+    completed_at: str | None = None
+    saved_at: str | None = None
+
+
+class SaveSessionRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=80)
+
+
+class RenameSessionRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=80)
 
 
 # ---------------------------------------------------------------------------

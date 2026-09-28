@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  Bookmark,
   CheckCircle2,
   LoaderCircle,
   RefreshCw,
@@ -79,8 +80,30 @@ function SectionCard({
 
 export function ResultsPage() {
   const navigate = useNavigate()
-  const [results] = useState<SessionResults | null>(readResults)
+  const [results, setResults] = useState<SessionResults | null>(readResults)
   const [expired, setExpired] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  async function handleSave() {
+    if (!results || results.is_saved || isSaving) return
+    setIsSaving(true)
+    try {
+      await api.saveSession(results.id)
+      const saved = { ...results, is_saved: true }
+      setResults(saved)
+      try {
+        window.sessionStorage.setItem('recall.results', JSON.stringify(saved))
+      } catch {
+        // storage full/blocked — session continues in memory
+      }
+      toast.success('Session saved. Find it under your profile.')
+      navigate('/upload')
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : 'Could not save this session.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const retest = useMutation({
     mutationFn: (weakOnly: boolean) =>
@@ -148,6 +171,25 @@ export function ResultsPage() {
             action={
               expired ? undefined : (
                 <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    variant="secondary"
+                    disabled={retest.isPending || isSaving || results.is_saved}
+                    onClick={handleSave}
+                    className='rounded-xl'
+                    title={results.is_saved ? 'Already saved' : 'Save this session'}
+                  >
+                    {isSaving ? (
+                      <>
+                        <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark className="size-4" aria-hidden="true" />
+                        {results.is_saved ? 'Saved' : 'Save Session'}
+                      </>
+                    )}
+                  </Button>
                   <Button
                     className="flex-1 bg-green-900 hover:bg-green-800 rounded-xl"
                     disabled={retest.isPending || weakTopics.length === 0}

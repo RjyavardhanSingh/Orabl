@@ -2,6 +2,7 @@ import {
   BookOpen,
   Check,
   ChevronUp,
+  History,
   FileText,
   LoaderCircle,
   Lock,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 
 import { useAuthStore } from '../../lib/auth-state'
 import { cn } from '../../lib/utils'
@@ -244,6 +245,7 @@ function ProfileMenu({
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
+  const navigate = useNavigate()
   const initial = (email?.trim()?.[0] ?? 'Y').toUpperCase()
 
   // The menu belongs to the route it was opened on: navigating (including
@@ -344,6 +346,18 @@ function ProfileMenu({
                 </div>
               </div>
               <div className="border-t border-line">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenPath(null)
+                    navigate('/sessions')
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-sunk hover:text-ink"
+                >
+                  <History className="size-4 shrink-0" aria-hidden="true" />
+                  Saved sessions
+                </button>
                 <button
                   type="button"
                   role="menuitem"

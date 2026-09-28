@@ -853,3 +853,91 @@ def _score_answer(answer_text: str) -> int:
     if length < 200:
         return 85
     return 95
+
+
+# ---------------------------------------------------------------------------
+# Saved sessions — bookmark completed sessions (flag on the row, no copies)
+# ---------------------------------------------------------------------------
+
+
+def _clean_title(title: str | None) -> str | None:
+    if title is None:
+        return None
+    cleaned = title.strip()
+    return cleaned or None
+
+
+async def save_session(
+    db: Database,
+    session_id: str,
+    user_id: str | None,
+    title: str | None = None,
+) -> dict:
+    """Bookmark a completed session. Raises SessionNotFoundError unless the
+    row exists, belongs to the caller, and is completed."""
+    row = await db.fetchrow(
+        "UPDATE sessions SET is_saved = TRUE, saved_at = NOW(), "
+        "title = COALESCE($3, title) "
+        "WHERE id = $1 AND user_id = $2 AND completed_at IS NOT NULL "
+        "RETURNING id, title, is_saved, saved_at",
+        session_id,
+        user_id,
+        _clean_title(title),
+    )
+    if row is None:
+        raise SessionNotFoundError(f"Session not found: {session_id}")
+    record = dict(row)
+    if record.get("saved_at") is not None:
+        record["saved_at"] = record["saved_at"].isoformat()
+    return record
+
+
+async def unsave_session(db: Database, session_id: str, user_id: str | None) -> None:
+    """Remove the bookmark (row kept). Raises SessionNotFoundError on miss."""
+    row = await db.fetchrow(
+        "UPDATE sessions SET is_saved = FALSE, saved_at = NULL "
+        "WHERE id = $1 AND user_id = $2 RETURNING id",
+        session_id,
+        user_id,
+    )
+    if row is None:
+        raise SessionNotFoundError(f"Session not found: {session_id}")
+
+
+async def rename_session(db: Database, session_id: str, user_id: str | None, title: str) -> dict:
+    """Rename a saved session. Raises SessionNotFoundError on miss."""
+    cleaned = _clean_title(title)
+    if not cleaned or len(cleaned) > 80:
+        raise ValueError("Title must be 1-80 characters")
+    row = await db.fetchrow(
+        "UPDATE sessions SET title = $3 "
+        "WHERE id = $1 AND user_id = $2 AND is_saved RETURNING id, title",
+        session_id,
+        user_id,
+        cleaned,
+    )
+    if row is None:
+        raise SessionNotFoundError(f"Session not found: {session_id}")
+    return dict(row)
+
+
+async def list_saved_sessions(db: Database, user_id: str | None) -> list[dict]:
+    """Newest-first saved sessions with their context subject for display."""
+    rows = await db.fetch(
+        "SELECT s.id, s.title, c.subject, s.readiness_score, "
+        "COALESCE(jsonb_array_length(s.questions), 0) AS question_count, "
+        "COALESCE(jsonb_array_length(s.weak_topics), 0) AS weak_count, "
+        "s.completed_at, s.saved_at "
+        "FROM sessions s LEFT JOIN contexts c ON c.id = s.context_id "
+        "WHERE s.user_id = $1 AND s.is_saved ORDER BY s.saved_at DESC",
+        user_id,
+    )
+    result = []
+    for row in rows:
+        record = dict(row)
+        if record.get("completed_at") is not None:
+            record["completed_at"] = record["completed_at"].isoformat()
+        if record.get("saved_at") is not None:
+            record["saved_at"] = record["saved_at"].isoformat()
+        result.append(record)
+    return result
