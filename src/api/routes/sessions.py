@@ -6,8 +6,11 @@ from api.schemas import (
     AnswerResponse,
     AnswerSubmit,
     QuestionResponse,
+    RenameSessionRequest,
     RetestCreate,
     RetestResponse,
+    SavedSessionResponse,
+    SaveSessionRequest,
     SessionCompleteResponse,
     SessionCreate,
     SessionResponse,
@@ -66,6 +69,22 @@ async def create_session(
         pending_count=pending,
         scored_count=scored,
     )
+
+
+@router.get(
+    "/saved",
+    response_model=list[SavedSessionResponse],
+    tags=["Saved"],
+    summary="Saved — list bookmarked sessions",
+)
+async def list_saved(
+    db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Newest-first saved sessions. NOTE: registered before /{session_id}
+    so 'saved' is never captured as an id."""
+    rows = await session_service.list_saved_sessions(db, user.id)
+    return [SavedSessionResponse(**row) for row in rows]
 
 
 @router.get(
@@ -215,7 +234,69 @@ async def get_results(
         topic_summary=_load(record.get("topic_summary"), {}),
         weak_topics=_load(record.get("weak_topics"), []),
         next_review_suggestion=None,
+        is_saved=bool(record.get("is_saved", False)),
+        title=record.get("title"),
     )
+
+
+@router.post(
+    "/{session_id}/save",
+    response_model=SavedSessionResponse,
+    tags=["Saved"],
+    summary="Saved — bookmark a completed session",
+)
+async def save_session(
+    session_id: str,
+    body: SaveSessionRequest,
+    db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Bookmark a completed session (optionally titled). Only completed rows
+    can be saved; чужой/missing/active rows read as 404."""
+    try:
+        record = await session_service.save_session(db, session_id, user.id, body.title)
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Session not found") from e
+    saved = await session_service.list_saved_sessions(db, user.id)
+    match = next((row for row in saved if row["id"] == session_id), {**record})
+    return SavedSessionResponse(**match)
+
+
+@router.delete(
+    "/{session_id}/save",
+    tags=["Saved"],
+    summary="Saved — remove bookmark (row kept)",
+)
+async def unsave_session(
+    session_id: str,
+    db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        await session_service.unsave_session(db, session_id, user.id)
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Session not found") from e
+    return {"ok": True}
+
+
+@router.patch(
+    "/{session_id}/title",
+    tags=["Saved"],
+    summary="Saved — rename a bookmarked session",
+)
+async def rename_session(
+    session_id: str,
+    body: RenameSessionRequest,
+    db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        record = await session_service.rename_session(db, session_id, user.id, body.title)
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Session not found") from e
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return record
 
 
 @router.post(
