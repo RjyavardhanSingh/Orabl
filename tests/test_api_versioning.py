@@ -28,6 +28,23 @@ def test_health_is_available_at_versioned_and_root_paths():
     assert versioned_response.headers["x-request-id"]
 
 
+def test_cors_preflight_accepts_origin_when_config_has_trailing_slash(monkeypatch):
+    monkeypatch.setenv("CORS_ORIGINS", "http://localhost:5173/")
+    client = TestClient(create_app())
+
+    response = client.options(
+        "/v1/auth/google/url?next=/upload",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
 def test_legacy_routes_are_deprecated_compatibility_aliases():
     client = TestClient(create_app())
 

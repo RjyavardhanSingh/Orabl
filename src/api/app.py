@@ -52,7 +52,15 @@ async def lifespan(app: FastAPI):
 
 
 def _cors_origins() -> list[str]:
-    return [origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",") if origin.strip()]
+    # Browsers send Origin without a trailing slash. A trailing slash in
+    # CORS_ORIGINS fails that exact match and Starlette answers preflight
+    # with 400 "Disallowed CORS origin".
+    origins = []
+    for origin in os.getenv("CORS_ORIGINS", "").split(","):
+        normalized = origin.strip().rstrip("/")
+        if normalized:
+            origins.append(normalized)
+    return origins
 
 
 def _request_id(request: Request) -> str:
