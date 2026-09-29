@@ -190,6 +190,54 @@ def _is_auth_error(exc: Exception) -> bool:
     return _status_code(exc) in (401, 403)
 
 
+_INVALID_KEY_MESSAGE = (
+    "OpenRouter rejected the API key (401 Unauthorized). "
+    "OPENROUTER_API_KEY must be an inference key from https://openrouter.ai/keys, "
+    "not a management key from https://openrouter.ai/settings/management-keys. "
+    "Update .env and restart the server (a running server does not pick up .env changes)."
+)
+
+_MANAGEMENT_KEY_MESSAGE = (
+    "OPENROUTER_API_KEY is an OpenRouter management key, so model calls are "
+    "rejected with 401. Management keys only administer other keys. Create an "
+    "inference key at https://openrouter.ai/keys, replace OPENROUTER_API_KEY in "
+    ".env, and restart the server."
+)
+
+
+def _key_endpoint() -> str:
+    marker = "/chat/completions"
+    if API_URL.endswith(marker):
+        return API_URL[: -len(marker)] + "/key"
+    return "https://openrouter.ai/api/v1/key"
+
+
+def _unauthorized_message(key_payload: dict | None) -> str:
+    """Explain a 401. Management keys authenticate but cannot call models."""
+    data = {}
+    if isinstance(key_payload, dict):
+        raw = key_payload.get("data")
+        if isinstance(raw, dict):
+            data = raw
+    if data.get("is_management_key") or data.get("is_provisioning_key"):
+        return _MANAGEMENT_KEY_MESSAGE
+    return _INVALID_KEY_MESSAGE
+
+
+async def _lookup_key_payload(client: httpx.AsyncClient) -> dict | None:
+    try:
+        resp = await client.get(_key_endpoint(), headers=_build_headers())
+    except httpx.HTTPError:
+        return None
+    if resp.status_code != 200:
+        return None
+    try:
+        payload = resp.json()
+    except ValueError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 async def _call_model(messages: list[dict], model: str) -> dict:
     """Call OpenRouter chat completions for a single model.
 
@@ -208,12 +256,8 @@ async def _call_model(messages: list[dict], model: str) -> dict:
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
             if status == 401:
-                raise RuntimeError(
-                    "OpenRouter rejected the API key (401 Unauthorized). "
-                    "Check that OPENROUTER_API_KEY in your .env is a valid key "
-                    "from https://openrouter.ai/keys, then restart the server "
-                    "(a running server does not pick up .env changes)."
-                ) from e
+                key_payload = await _lookup_key_payload(client)
+                raise RuntimeError(_unauthorized_message(key_payload)) from e
             if status == 402:
                 raise RuntimeError(
                     "OpenRouter refused the request (402 Payment Required). "

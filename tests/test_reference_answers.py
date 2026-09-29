@@ -5,6 +5,22 @@ from services import openrouter_service as ors
 from services import session_service
 
 
+def test_unauthorized_message_flags_management_keys():
+    payload = {"data": {"is_management_key": True, "is_provisioning_key": True}}
+
+    message = ors._unauthorized_message(payload)
+
+    assert "management key" in message
+    assert "https://openrouter.ai/keys" in message
+
+
+def test_unauthorized_message_for_rejected_inference_key():
+    message = ors._unauthorized_message(None)
+
+    assert "401 Unauthorized" in message
+    assert "https://openrouter.ai/keys" in message
+
+
 def test_prompt_requests_reference_answer():
     prompt = ors._build_prompt("some material", {"subject": "bio"}, 5)
 

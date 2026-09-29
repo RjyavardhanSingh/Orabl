@@ -40,9 +40,9 @@ const CLEAR_TILED = `${CLEAR_UNIT}${CLEAR_UNIT}${CLEAR_UNIT}`;
 const TILED_LENGTH = 1380;
 const TILE_UNIT = TILED_LENGTH / 3;
 
-// Flowing rail text uses the hero voice. Story Script ships 400 only,
-// so weight stays 400 everywhere here — never bold it.
-const RAIL_FONT = { fontFamily: "var(--font-story)", fontWeight: 400 } as const;
+// Spoken notes on the curve. Shantell's weight-only cut has an even stroke,
+// so the glyphs stay intact when the path bends. 600 keeps that stroke solid.
+const RAIL_FONT = { fontFamily: "var(--font-voice)", fontWeight: 600 } as const;
 
 const STATUS_WORDS = ["Struggling?", "Learn", "Improve", "Conquer"];
 

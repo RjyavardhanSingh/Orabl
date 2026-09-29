@@ -3,27 +3,22 @@
 /* Self-hosted variable fonts. Fontsource emits @font-face with
    font-display: swap and per-subset unicode-ranges, so an English UI pulls
    only the latin woff2 and nothing hits a third-party CDN. */
-@import "@fontsource-variable/inter/wght.css";
-/* `full` exposes all four Fraunces axes (wght, opsz, SOFT, WONK). We drive
-   SOFT + WONK from CSS to get the warm-but-characterful cut; opsz stays on
-   font-optical-sizing: auto so large headlines tighten automatically. */
+@import "@fontsource-variable/plus-jakarta-sans/wght.css";
+/* `full` exposes Fraunces axes (wght, opsz, SOFT, WONK). WONK stays off:
+   its alternates are what made headings look chopped. opsz follows type size. */
 @import "@fontsource-variable/fraunces/full.css";
-/* Story Script is single-weight (400) — used only for the hero voice lines.
-   Self-hosted like the rest: no third-party font CDN. */
-@import "@fontsource/story-script/400.css";
-/* PT Serif — hero subcopy only. */
-@import "@fontsource/pt-serif/400.css";
+/* Spoken rail only. The wght cut is the even, non-bouncy Shantell — the
+   brush script it replaced broke apart on curves and at display sizes. */
+@import "@fontsource-variable/shantell-sans/wght.css";
 
 @theme {
   /* ---- Type ---------------------------------------------------------- */
-  /* Body, UI, controls, every number in the app. */
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  /* Display. Fraunces is the voice: literary, warm, a little unusual. */
+  /* Body, UI, controls, every number in the app. Even stroke, built for screens. */
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Display. Fraunces, with the wonk axis left off so serifs stay even. */
   --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
-  /* Handwritten voice, hero only. Single 400 weight — never bold it. */
-  --font-story: "Story Script", "Segoe Script", cursive;
-  /* Editorial serif, hero subcopy only. */
-  --font-pt-serif: "PT Serif", Georgia, serif;
+  /* Handwritten voice on the clarity rail. Weight is set at the call site. */
+  --font-voice: "Shantell Sans Variable", "Segoe Print", cursive;
 
   /* ---- Neutrals: warm paper, never cool grey ------------------------- */
   --color-canvas: #f7f5ef; /* page background — warm paper */
@@ -76,14 +71,14 @@
 }
 
 @layer base {
-  /* Fraunces carries the personality. SOFT rounds the terminals so it reads
-     calm rather than sharp; WONK adds the slight asymmetry that keeps it from
-     looking like a generic book serif. Tune SOFT 0–100, WONK 0–1. */
+  /* Even Fraunces: SOFT 0 keeps terminals crisp, WONK 0 keeps glyphs regular.
+     Optical size still follows the font-size, so big titles stay refined. */
   h1,
-  h2 {
+  h2,
+  .font-display {
     font-family: var(--font-display);
     font-optical-sizing: auto;
-    font-variation-settings: "SOFT" 40, "WONK" 1;
+    font-variation-settings: "SOFT" 0, "WONK" 0;
     font-weight: 600;
   }
 
