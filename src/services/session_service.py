@@ -408,7 +408,9 @@ async def complete_session(
     await _upsert_concept_mastery(db, state)
 
     cache.delete(f"session:{session_id}")
-    cache.delete(f"questions:{state['context_id']}")
+    # NOTE: the questions cache entry is deliberately kept (24h TTL survives
+    # here). The completed set also persists in the sessions row, but preparing
+    # reads the cache — evicting it orphaned back-navigation with a 404.
 
     return state
 

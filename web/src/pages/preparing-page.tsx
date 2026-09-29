@@ -1,8 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+
+import { MultiStepLoader } from '../components/ui/multi-step-loader'
 
 
 import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
@@ -12,15 +14,74 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { api, ApiError, type LearningContext, type Question } from '../lib/api'
 
+const GENERATION_STEPS = ['Request sent', 'LLM working', 'Questions received']
+
+const WAITING_TEXTS = [
+  'Contacting the model…',
+  'Still working — free-tier queues can take a minute.',
+  'While you wait: picture one idea from your notes and say it back.',
+]
+
+type LoaderPhase = { status: 'loading' } | { status: 'success' } | { status: 'error'; message: string }
+
 function readContext(): LearningContext | null {
   const stored = window.sessionStorage.getItem('recall.context')
   return stored ? (JSON.parse(stored) as LearningContext) : null
 }
 
+/**
+ * Restore the generated list across back-navigation, guarded by the stable
+ * question-id prefix (`{contextId}:qN`). Anything else — another context's
+ * set, legacy items without ids, garbage — is ignored so the GET refetch
+ * (which 404s cleanly into the Generate CTA) stays authoritative.
+ */
+function readStoredQuestions(contextId: string | undefined): Question[] {
+  if (!contextId) return []
+  try {
+    const stored = window.sessionStorage.getItem('recall.questions')
+    if (!stored) return []
+    const parsed: unknown = JSON.parse(stored)
+    if (!Array.isArray(parsed) || parsed.length === 0) return []
+    const prefix = `${contextId}:`
+    const items = parsed as Question[]
+    const owned = items.every(
+      (item) => typeof item?.id === 'string' && item.id.startsWith(prefix),
+    )
+    return owned ? items : []
+  } catch {
+    return []
+  }
+}
+
 export function PreparingPage() {
   const navigate = useNavigate()
   const context = readContext()
-  const [generated, setGenerated] = useState<Question[]>([])
+  const [generated, setGenerated] = useState<Question[]>(() => readStoredQuestions(context?.id))
+  const [loader, setLoader] = useState<LoaderPhase | null>(null)
+  // Fresh loader state per run (flip index resets via remount).
+  const [runId, setRunId] = useState(0)
+  // Minimum time the loading phase stays visible so each truth step is
+  // perceivable — fast responses would otherwise flash past unreadably.
+  // Only the success reveal is held; completions still fire on real events.
+  const MIN_DWELL_MS = 2000
+  const runStartedAt = useRef<number>(0)
+  // Staging timer: step 0 ("Request sent") starts active (spinner) and
+  // reveals its check shortly after — the dispatch already happened, the
+  // beat only lets the eye witness it. Skipped if success lands first.
+  const stepTimer = useRef<number | null>(null)
+  // Truth-owned completion count: 1 on dispatch (request sent), all on
+  // parsed response. Nothing else moves a checkmark.
+  const [completedSteps, setCompletedSteps] = useState(0)
+  const successTimer = useRef<number | null>(null)
+
+  // Success auto-dismiss + staging cleanup on unmount.
+  useEffect(
+    () => () => {
+      if (successTimer.current !== null) window.clearTimeout(successTimer.current)
+      if (stepTimer.current !== null) window.clearTimeout(stepTimer.current)
+    },
+    [],
+  )
 
   const { data, isLoading } = useQuery({
     queryKey: ['questions', context?.id],
@@ -31,15 +92,39 @@ export function PreparingPage() {
 
   const generate = useMutation({
     mutationFn: () => api.generateQuestions(context?.id ?? '', 5),
+    onMutate: () => {
+      if (successTimer.current !== null) window.clearTimeout(successTimer.current)
+      if (stepTimer.current !== null) window.clearTimeout(stepTimer.current)
+      setRunId((id) => id + 1)
+      runStartedAt.current = Date.now()
+      setCompletedSteps(0)
+      stepTimer.current = window.setTimeout(() => {
+        setCompletedSteps((done) => (done === 0 ? 1 : done))
+      }, 700)
+      setLoader({ status: 'loading' })
+    },
     onSuccess: (result) => {
-      setGenerated(result.questions)
-      window.sessionStorage.setItem('recall.questions', JSON.stringify(result.questions))
-      toast.success(
-        `${result.questions.length} practice questions are ready.`,
-      )
+      const reveal = () => {
+        setGenerated(result.questions)
+        window.sessionStorage.setItem('recall.questions', JSON.stringify(result.questions))
+        toast.success(
+          `${result.questions.length} practice questions are ready.`,
+        )
+        setCompletedSteps(GENERATION_STEPS.length)
+        setLoader({ status: 'success' })
+        successTimer.current = window.setTimeout(() => setLoader(null), 1600)
+      }
+      const elapsed = Date.now() - runStartedAt.current
+      if (elapsed < MIN_DWELL_MS) {
+        successTimer.current = window.setTimeout(reveal, MIN_DWELL_MS - elapsed)
+      } else {
+        reveal()
+      }
     },
     onError: (error) => {
-      toast.error(error instanceof ApiError ? error.message : 'Question generation failed.')
+      const message = error instanceof ApiError ? error.message : 'Question generation failed.'
+      setLoader({ status: 'error', message })
+      toast.error(message)
     },
   })
 
@@ -86,6 +171,19 @@ export function PreparingPage() {
 
   return (
     <AppShell>
+      <MultiStepLoader
+        key={runId}
+        open={loader !== null}
+        steps={GENERATION_STEPS}
+        status={loader?.status ?? 'loading'}
+        completedCount={completedSteps}
+        waitingIndex={completedSteps === 0 ? 0 : 1}
+        waitingTexts={WAITING_TEXTS}
+        errorMessage={loader?.status === 'error' ? loader.message : undefined}
+        successText={`${generated.length > 0 ? generated.length : 5} questions ready`}
+        onRetry={() => generate.mutate()}
+        onClose={() => setLoader(null)}
+      />
       <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
         <PageHeader
           title="Let's Make This Yours"
@@ -153,7 +251,7 @@ export function PreparingPage() {
           </CardContent>
 
           <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-sunk p-5 sm:flex-row sm:items-center sm:justify-between">
-            <Button asChild variant="ghost" className="disabled:pointer-events-none disabled:opacity-50">
+            <Button asChild variant="ghost" className="disabled:pointer-events-none disabled:opacity-50 rounded-xl">
               <Link to="/goal" aria-disabled={busy || undefined}>
                 <ArrowLeft className="size-4" aria-hidden="true" />
                 Back to Goal

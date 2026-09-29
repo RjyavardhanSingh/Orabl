@@ -12,7 +12,7 @@ export function SprintPlaceholderPage({ title, description }: { title: string; d
         title={title}
         description={description}
         action={
-          <Button asChild variant="secondary">
+          <Button asChild variant="secondary" className='rounded-xl'>
             <Link to="/">
               <ArrowLeft className="size-4" aria-hidden="true" />
               Back to Home

@@ -141,7 +141,7 @@ export function ResultsPage() {
           title="No Results Yet"
           description="Complete a practice session to unlock your full report."
           action={
-            <Button asChild>
+            <Button asChild className='rounded-xl'>
               <Link to="/practice">
                 Back to Practice
                 <ArrowRight className="size-4" aria-hidden="true" />
@@ -409,7 +409,7 @@ export function ResultsPage() {
                 </CardContent>
               </Card>
 
-              <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted">
+              <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted rounded-xl">
                 <Link to="/preparing">
                   <ArrowLeft className="size-3.5" aria-hidden="true" />
                   Back to Preparing

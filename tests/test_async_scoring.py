@@ -219,6 +219,48 @@ def test_create_retest_window_expired():
         asyncio.run(session_service.create_retest(cache, db, "p1", weak_only=True))
 
 
+def test_complete_session_keeps_questions_cache():
+    """Regression: completing must not evict the generated set — preparing
+    reads it on back-navigation (DB row is durable, cache is the fast path)."""
+    cache = _FakeCache(
+        {
+            "id": "s1",
+            "context_id": "c1",
+            "questions": [_question(0, topic="A"), _question(1, topic="B")],
+            "answers": [
+                {
+                    "question_index": 0,
+                    "question_id": "c1:q0",
+                    "answer_text": "good answer here",
+                    "score": 90,
+                    "status": "scored",
+                },
+                {
+                    "question_index": 1,
+                    "question_id": "c1:q1",
+                    "answer_text": "weak",
+                    "score": 40,
+                    "status": "scored",
+                },
+            ],
+            "scores": [
+                {"question_index": 0, "score": 90},
+                {"question_index": 1, "score": 40},
+            ],
+            "current_index": 2,
+            "status": "active",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    cache.store["questions:c1"] = [_question(0, topic="A"), _question(1, topic="B")]
+    db = _FakeDb()
+
+    asyncio.run(session_service.complete_session(cache, db, "s1"))
+
+    assert cache.store.get("questions:c1") is not None
+    assert cache.store.get("session:s1") is None
+
+
 def test_complete_session_persists_summary_and_mastery():
     cache = _FakeCache(
         {

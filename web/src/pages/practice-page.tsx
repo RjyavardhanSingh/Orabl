@@ -128,7 +128,7 @@ export function PracticePage() {
           title="No Active Practice Session"
           description="Generate questions first, then start a practice session."
           action={
-            <Button asChild>
+            <Button asChild className='rounded-xl'>
               <Link to="/preparing">
                 Back to Preparing
                 <ArrowRight className="size-4" aria-hidden="true" />
@@ -342,7 +342,7 @@ export function PracticePage() {
           </CardContent>
 
           <div className="shrink-0 border-t border-sunk p-5">
-            <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted">
+            <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted rounded-xl">
               <Link to="/preparing">
                 <ArrowLeft className="size-3.5" aria-hidden="true" />
                 Back to Preparing

@@ -23,6 +23,22 @@ async def require_context_owner(db: Database, context_id: str, user_id: str | No
         raise ValueError(f"Context not found: {context_id}")
 
 
+def _goal_matches(existing: dict, new_goal: dict) -> bool:
+    """True when the stored goal fields equal the incoming ones.
+
+    Normalizes through str() so asyncpg dates/None compare sanely against
+    freshly built values (None and '' count as equal — both mean 'unset').
+    """
+    for key in ("subject", "target", "level", "deadline", "language"):
+        old = existing.get(key)
+        new = new_goal.get(key)
+        old_norm = "" if old is None else str(old)
+        new_norm = "" if new in (None, "") else str(new)
+        if old_norm != new_norm:
+            return False
+    return True
+
+
 async def build_and_store_context(
     db: Database,
     cache: CacheService,
@@ -33,9 +49,12 @@ async def build_and_store_context(
     """Build a LearningContext from materials + goal, store in DB and cache.
 
     Every material must belong to the caller; чужой IDs read as missing (404).
-    Returns the context as a dict.
+    Identity is flow-pinned (user + materials): resubmits reuse the row.
+    Identical resubmits are no-ops (generated questions kept); goal edits
+    update the row and invalidate the generated set (it was built for the
+    old goal). Returns the context as a dict.
     """
-    builder = ContextBuilder().with_goal(goal)
+    builder = ContextBuilder().with_goal(goal).for_user(user_id)
 
     for mid in material_ids:
         if user_id is None:
@@ -56,23 +75,61 @@ async def build_and_store_context(
 
     context = builder.build()
 
-    await db.execute(
-        """INSERT INTO contexts (id, user_id, subject, target, level, deadline, language,
-              source_count, page_count, word_count, reading_minutes)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-           ON CONFLICT (id) DO NOTHING""",
+    new_goal = {
+        "subject": context.goal.subject,
+        "target": context.goal.target,
+        "level": context.goal.level.value,
+        "deadline": context.goal.deadline,
+        "language": context.goal.language,
+    }
+    existing_row = await db.fetchrow(
+        "SELECT subject, target, level, deadline, language FROM contexts WHERE id = $1",
         context.context_id,
-        user_id,
-        context.goal.subject,
-        context.goal.target,
-        context.goal.level.value,
-        context.goal.deadline,
-        context.goal.language,
-        context.stats.source_count,
-        context.stats.page_count,
-        context.stats.word_count,
-        context.stats.reading_minutes,
     )
+    existing = dict(existing_row) if existing_row is not None else None
+    if existing is not None:
+        same = _goal_matches(existing, new_goal)
+        if same:
+            cached = context.model_dump(mode="json")
+            cached["user_id"] = user_id
+            cache.set(f"context:{context.context_id}", cached, ttl=86400)
+            return cached
+        await db.execute(
+            """UPDATE contexts SET user_id = $2, subject = $3, target = $4, level = $5,
+                  deadline = $6, language = $7, source_count = $8, page_count = $9,
+                  word_count = $10, reading_minutes = $11 WHERE id = $1""",
+            context.context_id,
+            user_id,
+            context.goal.subject,
+            context.goal.target,
+            context.goal.level.value,
+            context.goal.deadline,
+            context.goal.language,
+            context.stats.source_count,
+            context.stats.page_count,
+            context.stats.word_count,
+            context.stats.reading_minutes,
+        )
+        # Goal changed: the cached set was built for the old goal.
+        cache.delete(f"questions:{context.context_id}")
+    else:
+        await db.execute(
+            """INSERT INTO contexts (id, user_id, subject, target, level, deadline, language,
+                  source_count, page_count, word_count, reading_minutes)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+               ON CONFLICT (id) DO NOTHING""",
+            context.context_id,
+            user_id,
+            context.goal.subject,
+            context.goal.target,
+            context.goal.level.value,
+            context.goal.deadline,
+            context.goal.language,
+            context.stats.source_count,
+            context.stats.page_count,
+            context.stats.word_count,
+            context.stats.reading_minutes,
+        )
 
     for mid in material_ids:
         await db.execute(

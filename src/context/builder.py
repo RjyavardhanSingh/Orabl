@@ -29,10 +29,17 @@ def _estimate_reading_minutes(word_count: int) -> int:
     return max(1, round(word_count / WORDS_PER_MINUTE))
 
 
-def _make_context_id(sources: list[SourceDocument], goal: LearningGoal) -> str:
-    digest = hashlib.sha1(goal.model_dump_json().encode("utf-8"))
-    for source in sources:
-        digest.update(source.source_id.encode("utf-8"))
+def _make_context_id(sources: list[SourceDocument], user_id: str | None = None) -> str:
+    """Flow-pinned identity: user + material set only.
+
+    Goal text is deliberately EXCLUDED so back-navigation and goal edits
+    reuse one context per flow instead of forking an orphan per keystroke.
+    Different materials (or user) still fork correctly.
+    """
+    digest = hashlib.sha1()
+    digest.update((user_id or "").encode("utf-8"))
+    for source_id in sorted(source.source_id for source in sources):
+        digest.update(source_id.encode("utf-8"))
     return digest.hexdigest()[:12]
 
 
@@ -46,6 +53,7 @@ class ContextBuilder:
     def __init__(self) -> None:
         self._sources: list[SourceDocument] = []
         self._goal: LearningGoal | None = None
+        self._user_id: str | None = None
 
     def add_file(self, path: str | Path) -> ContextBuilder:
         """Ingest a PDF, Markdown, or text file."""
@@ -73,6 +81,11 @@ class ContextBuilder:
         self._goal = goal
         return self
 
+    def for_user(self, user_id: str | None) -> ContextBuilder:
+        """Scope the context identity to a user (flow pinning)."""
+        self._user_id = user_id
+        return self
+
     def build(self) -> LearningContext:
         """Validate the inputs and produce an immutable context snapshot."""
         if self._goal is None:
@@ -91,7 +104,7 @@ class ContextBuilder:
         )
 
         return LearningContext(
-            context_id=_make_context_id(sources, self._goal),
+            context_id=_make_context_id(sources, self._user_id),
             goal=self._goal,
             sources=sources,
             stats=stats,

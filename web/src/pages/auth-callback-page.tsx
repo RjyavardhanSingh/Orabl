@@ -69,7 +69,7 @@ export function AuthCallbackPage() {
           <Alert>{displayError}</Alert>
           <Link
             to="/signin"
-            className="mt-6 text-sm font-semibold text-ink underline-offset-4 hover:underline"
+            className="mt-6 text-sm font-semibold text-ink underline-offset-4 hover:underline rounded-xl"
           >
             Back to sign in
           </Link>
