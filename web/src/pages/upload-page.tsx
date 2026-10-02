@@ -174,28 +174,6 @@ export function UploadPage() {
 
   const hasAnyMaterial = materials.length > 0
 
-  function startOver() {
-    persistMaterials([])
-    setFiles([])
-    setError('')
-    textForm.reset()
-    for (const key of [
-      'recall.material',
-      'recall.context',
-      'recall.questions',
-      'recall.results',
-      'recall.session',
-      'recall.goal.draft',
-    ]) {
-      try {
-        window.sessionStorage.removeItem(key)
-      } catch {
-        // already gone — harmless
-      }
-    }
-    toast.success('Started fresh. Upload materials to begin a new session.')
-  }
-
   return (
     <AppShell>
       <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
@@ -420,7 +398,7 @@ export function UploadPage() {
               )}
             </Button>
             <Button
-              className="w-full bg-green-900 hover:bg-green-800 sm:w-80"
+              className="w-full bg-green-900 hover:bg-green-800 rounded-xl sm:w-80"
               size="lg"
               onClick={() => navigate('/goal')}
               disabled={!hasAnyMaterial}
@@ -428,15 +406,6 @@ export function UploadPage() {
             >
               Move to Your Goal
               <ArrowRight className="size-4" aria-hidden="true" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={startOver}
-              className="w-full text-ink-muted sm:w-auto"
-              title="Clear all materials and session state to start from scratch"
-            >
-              Start over
             </Button>
           </div>
         </Card>

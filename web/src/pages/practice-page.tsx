@@ -10,7 +10,7 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { Label } from '../components/ui/label'
-import { Waveform } from '../components/ui/waveform'
+import FluidOrb from '../components/ui/fluid-orb'
 import { api, ApiError, type PracticeSession, type Question } from '../lib/api'
 import { formatClock, useVoiceAnswer } from '../lib/use-voice-answer'
 
@@ -220,10 +220,10 @@ export function PracticePage() {
                         {formatClock(voice.elapsedSecs + voice.remainingSecs)}
                       </p>
                     </div>
-                    {/* Signature voice mark, from the reference. Decorative:
-                        the transcript below carries the real announcement. */}
-                    <div className="mt-4 flex h-14 items-center justify-center text-bad">
-                      <Waveform active className="h-full w-40" />
+                    {/* Fluid orb pulses while the mic is live; the transcript
+                        below carries the real announcement. */}
+                    <div className="mt-4 flex justify-center">
+                      <FluidOrb size={140} color="#2e6a4e" aria-hidden="true" />
                     </div>
                     <p
                       className="mt-4 min-h-16 text-sm leading-6 text-ink-soft"
