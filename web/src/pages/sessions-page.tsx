@@ -50,7 +50,7 @@ function ScoreBadge({ score }: { score: number }) {
 export function SessionsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [view, setView] = useState<View>('list')
+  const [view, setView] = useState<View>('board')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
 
@@ -142,7 +142,7 @@ export function SessionsPage() {
             description="Sessions you kept. Open one to review it, or retest the weak spots."
             action={
               <div className="grid shrink-0 grid-cols-2 gap-1 rounded-xl bg-sunk p-1" role="group" aria-label="Change view">
-                {(['list', 'board'] as View[]).map((option) => {
+                {(['board', 'list'] as View[]).map((option) => {
                   const selected = view === option
                   const Icon = option === 'list' ? LayoutList : LayoutGrid
                   return (

@@ -29,7 +29,7 @@ export function PublicNav() {
 
   return (
     <>
-      <header className="sticky top-3 z-40 mx-auto mt-3 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border bg-transparent">
+      <header className="z-40 mx-auto mt-3 w-[calc(100%-1.5rem)] max-w-3xl rounded-b-xs border-b  bg-transparent">
         <div className="flex h-14 items-center justify-between gap-2 px-4 sm:gap-4 sm:px-5">
           <PublicBrand />
           <button

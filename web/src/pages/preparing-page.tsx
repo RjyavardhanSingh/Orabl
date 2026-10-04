@@ -29,34 +29,14 @@ function readContext(): LearningContext | null {
   return stored ? (JSON.parse(stored) as LearningContext) : null
 }
 
-/**
- * Restore the generated list across back-navigation, guarded by the stable
- * question-id prefix (`{contextId}:qN`). Anything else — another context's
- * set, legacy items without ids, garbage — is ignored so the GET refetch
- * (which 404s cleanly into the Generate CTA) stays authoritative.
- */
-function readStoredQuestions(contextId: string | undefined): Question[] {
-  if (!contextId) return []
-  try {
-    const stored = window.sessionStorage.getItem('recall.questions')
-    if (!stored) return []
-    const parsed: unknown = JSON.parse(stored)
-    if (!Array.isArray(parsed) || parsed.length === 0) return []
-    const prefix = `${contextId}:`
-    const items = parsed as Question[]
-    const owned = items.every(
-      (item) => typeof item?.id === 'string' && item.id.startsWith(prefix),
-    )
-    return owned ? items : []
-  } catch {
-    return []
-  }
-}
-
 export function PreparingPage() {
   const navigate = useNavigate()
   const context = readContext()
-  const [generated, setGenerated] = useState<Question[]>(() => readStoredQuestions(context?.id))
+  // No sessionStorage hydration: the GET below is the single source of
+  // truth. Hydrating from storage resurrected questions the backend had
+  // invalidated (e.g. after a goal edit), so the page showed a question
+  // list while "Let's Go Champ" failed with 404 — a lying button.
+  const [generated, setGenerated] = useState<Question[]>([])
   const [loader, setLoader] = useState<LoaderPhase | null>(null)
   // Fresh loader state per run (flip index resets via remount).
   const [runId, setRunId] = useState(0)
