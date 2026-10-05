@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ingestion.clean import clean_text
 from models import MaterialKind, SourceDocument, SourcePage, build_source_document
 
 
@@ -12,7 +13,7 @@ def extract_text(content: str, *, name: str = "pasted-notes.txt") -> SourceDocum
     return build_source_document(
         name=name,
         kind=MaterialKind.TEXT,
-        pages=[SourcePage(page_number=1, text=content.strip())],
+        pages=[SourcePage(page_number=1, text=clean_text(content))],
     )
 
 

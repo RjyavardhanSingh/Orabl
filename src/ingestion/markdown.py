@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ingestion.clean import clean_text
 from models import MaterialKind, SourceDocument, SourcePage, build_source_document
 
 _HEADING = re.compile(r"^#{1,6}\s+.*$", re.MULTILINE)
@@ -33,8 +34,9 @@ def split_sections(content: str) -> list[str]:
 def extract_markdown(content: str, *, name: str = "pasted-notes.md") -> SourceDocument:
     """Wrap Markdown as a source document with one section per heading."""
     pages = [
-        SourcePage(page_number=index + 1, text=section)
+        SourcePage(page_number=index + 1, text=clean_text(section))
         for index, section in enumerate(split_sections(content))
+        if clean_text(section)
     ]
     return build_source_document(name=name, kind=MaterialKind.MARKDOWN, pages=pages)
 

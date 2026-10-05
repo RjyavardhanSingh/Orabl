@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pymupdf
 
+from ingestion.clean import clean_pages
 from models import MaterialKind, SourceDocument, SourcePage, build_source_document
 
 
@@ -21,9 +22,13 @@ def extract_pdf(path: str | Path) -> SourceDocument:
 
     pages: list[SourcePage] = []
 
+    raw: list[str] = []
+
     with pymupdf.open(path) as document:
         for index, page in enumerate(document):
-            text = page.get_text("text").strip()
-            pages.append(SourcePage(page_number=index + 1, text=text))
+            raw.append(page.get_text("text").strip())
+
+    for index, text in enumerate(clean_pages(raw)):
+        pages.append(SourcePage(page_number=index + 1, text=text))
 
     return build_source_document(name=path.name, kind=MaterialKind.PDF, pages=pages)

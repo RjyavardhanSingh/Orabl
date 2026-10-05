@@ -60,16 +60,20 @@ def _truncate_content(content: str, max_chars: int = 3000000) -> str:
     return content[:max_chars]
 
 
-def _build_prompt(material_content: str, goal: dict, count: int) -> str:
+def _build_prompt(material_content: str, goal: dict, count: int, keywords: list[str] | None = None) -> str:
     """Build prompt for enriched question + rubric generation."""
     subject = goal.get("subject", "general")
     target = goal.get("target", "general understanding")
     level = goal.get("level", "intermediate")
 
-    return (
+    prompt = (
         "You are a learning assistant. Generate practice questions "
         "based on the following material and learning goal.\n\n"
         f"MATERIAL:\n{material_content}\n\n"
+    )
+    if keywords:
+        prompt += f"KEY TERMS (focus questions on these):\n{', '.join(keywords[:50])}\n\n"
+    prompt += (
         f"LEARNING GOAL:\n"
         f"- Subject: {subject}\n"
         f"- Target: {target}\n"
@@ -96,6 +100,7 @@ def _build_prompt(material_content: str, goal: dict, count: int) -> str:
         '"scoring_rubric": {"excellent": "...", "good": "...", "needs_work": "..."}, '
         '"source_citations": ["..."]}]'
     )
+    return prompt
 
 
 def _normalize_questions(raw: object) -> list[dict]:
@@ -336,6 +341,7 @@ async def generate_questions(
     goal: dict,
     word_count: int,
     count: int | None = None,
+    keywords: list[str] | None = None,
 ) -> list[dict]:
     """Generate questions using OpenRouter with retry logic.
 
@@ -350,7 +356,7 @@ async def generate_questions(
         return cached
 
     truncated_content = _truncate_content(material_content)
-    prompt = _build_prompt(truncated_content, goal, requested_count)
+    prompt = _build_prompt(truncated_content, goal, requested_count, keywords)
 
     last_error = None
     for delay in RETRY_DELAYS:

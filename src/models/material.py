@@ -30,6 +30,7 @@ class SourceDocument(BaseModel):
     name: str
     kind: MaterialKind
     pages: list[SourcePage] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
 
     @computed_field
     @property
@@ -57,9 +58,17 @@ def build_source_document(
     digest = hashlib.sha1(name.encode("utf-8"))
     for page in pages:
         digest.update(page.text.encode("utf-8"))
+    full = "\n\n".join(page.text for page in pages if page.text.strip())
+    try:
+        from ingestion.clean import extract_keywords
+
+        keywords = extract_keywords(full)
+    except Exception:
+        keywords = []
     return SourceDocument(
         source_id=digest.hexdigest()[:12],
         name=name,
         kind=kind,
         pages=pages,
+        keywords=keywords,
     )
