@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1000" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="paper" cx="46%" cy="42%" r="78%">
+      <stop offset="0%" stop-color="#f8f7ef"/>
+      <stop offset="65%" stop-color="#edf2e8"/>
+      <stop offset="100%" stop-color="#dfe9dc"/>
+    </radialGradient>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.09"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+
+  <path fill="url(#paper)" d="M0 0h1200v1000H0z"/>
+
+  <g fill="none" stroke="#719b7e" stroke-linecap="round" opacity="0.38">
+    <path stroke-width="3" d="M-100 790C120 660 240 820 430 735s330-143 530-74 269 23 390-39"/>
+    <path stroke-width="2" d="M-90 835C130 705 248 866 444 780s340-135 531-69 260 21 365-32"/>
+    <path stroke-width="2" d="M-80 880C140 750 255 907 460 826s347-125 530-61 248 18 350-29"/>
+  </g>
+
+  <g fill="none" stroke="#aa8f6f" stroke-linecap="round" opacity="0.31">
+    <path stroke-width="3" d="M-130 165C70 90 200 244 398 182S715 72 902 157s248 90 408 11"/>
+    <path stroke-width="2" d="M-130 207C77 134 205 287 407 226S719 116 904 201s245 89 405 12"/>
+  </g>
+
+  <path fill="#7f897c" filter="url(#grain)" opacity="0.7" d="M0 0h1200v1000H0z"/>
+</svg>

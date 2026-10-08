@@ -20,31 +20,30 @@ const LEG_FOG =
   "C 100 210, 115 260, 155 285 " +
   "C 195 310, 218 303, 242 306";
 
-const FOG_UNIT = "umm so like photosynthesis is umm when plants • ";
+const FOG_UNIT = "I know some of this... how do I put it into words? • ";
 const FOG_TILED = `${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}`;
 const FOG_TILED_LENGTH = 1800;
 const FOG_TILE_UNIT = FOG_TILED_LENGTH / 5;
 
-const FOG_STATIC =
-  "umm so like photosynthesis is umm when plants take in sunlight…";
+const FOG_STATIC = "How do I put this into words?";
 
-const CLEAR_TEXT = "Light + water + CO₂ → glucose + oxygen.";
+const CLEAR_TEXT = "I can explain it in my own words.";
 
 // Tiled marquee math: one unit repeated 3× with textLength forcing exact
-// equal units. Animating startOffset over exactly one unit (-460 → 0) is
+// equal units. Animating startOffset over exactly one unit (-350 → 0) is
 // seamless because the window shows identical content on both sides of the
-// jump, and the total (1380) always covers leg + one unit, so the ribbon
+// jump, and the total (1050) always covers leg + one unit, so the ribbon
 // is never empty.
 const CLEAR_UNIT = `${CLEAR_TEXT} • `;
 const CLEAR_TILED = `${CLEAR_UNIT}${CLEAR_UNIT}${CLEAR_UNIT}`;
-const TILED_LENGTH = 1380;
+const TILED_LENGTH = 1050;
 const TILE_UNIT = TILED_LENGTH / 3;
 
 // Spoken notes on the curve. Shantell's weight-only cut has an even stroke,
 // so the glyphs stay intact when the path bends. 600 keeps that stroke solid.
 const RAIL_FONT = { fontFamily: "var(--font-voice)", fontWeight: 600 } as const;
 
-const STATUS_WORDS = ["Struggling?", "Learn", "Improve", "Conquer"];
+const STATUS_WORDS = ["Thinking...", "Finding words", "Getting clearer", "Ready to explain"];
 
 const POP_IN_MS =600;
 const HOLD_MS = 600;
@@ -189,9 +188,19 @@ export function ClarityRail() {
     <div
       className="relative w-full overflow-hidden bg-transparent"
       role="img"
-      aria-label="Rambling study notes flow into the practice machine and come out as a clear revision sentence."
+      aria-label="An uncertain thought flows into Orabl and becomes a clear spoken explanation."
     >
-      <svg viewBox="0 0 600 560" className="block h-auto w-full bg-transparent">
+      <svg viewBox="70 25 530 470" className="block h-auto w-full bg-transparent">
+        <defs>
+          <linearGradient id="clarity-ribbon-fade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="white" />
+            <stop offset="78%" stopColor="white" />
+            <stop offset="100%" stopColor="white" stopOpacity="0" />
+          </linearGradient>
+          <mask id="clarity-ribbon-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="600" height="560">
+            <rect width="600" height="560" fill="url(#clarity-ribbon-fade)" />
+          </mask>
+        </defs>
         {/* Invisible geometry for the foggy textPath to reference. */}
         <path id="clarity-rail-fog" d={LEG_FOG} fill="none" stroke="none" />
         {/* Exit ribbon backdrop — the clear text below references this
@@ -203,6 +212,7 @@ export function ClarityRail() {
           stroke="var(--color-ink)"
           strokeWidth={38}
           strokeLinecap="round"
+          mask="url(#clarity-ribbon-mask)"
         />
         {/* Foggy study-speak: one continuous tiled rail looping into the
             machine — same seamless marquee math as the clear ribbon, so the
@@ -250,6 +260,7 @@ export function ClarityRail() {
             fill="#ffffff"
             transform="translate(492,392) rotate(14)"
             style={RAIL_FONT}
+            mask="url(#clarity-ribbon-mask)"
           >
             {CLEAR_TEXT}
           </text>
@@ -261,6 +272,7 @@ export function ClarityRail() {
             textLength={TILED_LENGTH}
             lengthAdjust="spacing"
             style={RAIL_FONT}
+            mask="url(#clarity-ribbon-mask)"
           >
             <textPath href="#clarity-rail-clear">
               {CLEAR_TILED}

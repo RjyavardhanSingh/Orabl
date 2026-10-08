@@ -28,6 +28,8 @@ export interface AnimatedFooterLink {
 export interface AnimatedFooterProps {
   /** The large display words along the bottom edge. Defaults to ["VengeanceUI"]. */
   headingLines?: string[];
+  /** Short line displayed below the heading. */
+  subtitle?: string;
   /** Left image URL, sampled into ASCII art. Must be same-origin or CORS-enabled. */
   leftImage?: string;
   /** Right image URL, sampled into ASCII art. Must be same-origin or CORS-enabled. */
@@ -184,6 +186,7 @@ function getScrollParent(node: HTMLElement | null): HTMLElement | null {
 
 export function AnimatedFooter({
   headingLines = ["VengeanceUI"],
+  subtitle,
   leftImage = "/animated-footer/hand-left.jpg",
   rightImage = "/animated-footer/hand-right.jpg",
   background,
@@ -499,14 +502,14 @@ export function AnimatedFooter({
       <div className="pointer-events-none absolute inset-0 flex items-center justify-between">
         <div
           ref={leftWrapRef}
-          className="relative w-2/5 min-w-[200px] will-change-transform"
+          className="relative w-[38%] max-w-[430px] min-w-[145px] opacity-55 will-change-transform sm:w-[34%] sm:opacity-80"
           style={{ transform: `translateX(-${offEdge}%)` }}
         >
           <canvas ref={leftCanvasRef} className="block h-auto w-full" />
         </div>
         <div
           ref={rightWrapRef}
-          className="relative w-2/5 min-w-[200px] will-change-transform"
+          className="relative w-[38%] max-w-[430px] min-w-[145px] opacity-55 will-change-transform sm:w-[34%] sm:opacity-80"
           style={{ transform: `translateX(${offEdge}%)` }}
         >
           <canvas ref={rightCanvasRef} className="block h-auto w-full" />
@@ -514,26 +517,29 @@ export function AnimatedFooter({
       </div>
 
       {/* Display headings */}
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-center gap-4 p-8">
-        {headingLines.map((word, wi) => (
-          <h2
-            key={`${word}-${wi}`}
-            aria-label={word}
-            className="overflow-hidden font-medium leading-none tracking-tight pb-[0.15em] -mb-[0.15em]"
-            style={{ fontSize: "clamp(2rem, 13cqw, 11rem)" }}
-          >
-            {Array.from(word).map((ch, ci) => (
-              <span
-                key={ci}
-                data-af-char
-                aria-hidden="true"
-                className="inline-block"
-              >
-                {ch === "" ? "" : ch}
-              </span>
-            ))}
-          </h2>
-        ))}
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 px-4">
+        <div className="flex items-center justify-center gap-4">
+          {headingLines.map((word, wi) => (
+            <h2
+              key={`${word}-${wi}`}
+              aria-label={word}
+              className="overflow-hidden pb-[0.15em] -mb-[0.15em] font-medium leading-none tracking-tight"
+              style={{ fontSize: "clamp(4rem, 12cqw, 10rem)" }}
+            >
+              {Array.from(word).map((ch, ci) => (
+                <span
+                  key={ci}
+                  data-af-char
+                  aria-hidden="true"
+                  className="inline-block"
+                >
+                  {ch}
+                </span>
+              ))}
+            </h2>
+          ))}
+        </div>
+        {subtitle ? <p className="font-sans text-sm font-medium tracking-wide text-ink-muted">{subtitle}</p> : null}
       </div>
     </footer>
   );
