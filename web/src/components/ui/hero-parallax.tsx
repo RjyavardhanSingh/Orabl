@@ -1,7 +1,5 @@
 import { ClarityRail } from './clarity-rail'
 
-const steps = ['Bring your material', 'Practice out loud', 'See what to fix']
-
 export function Header() {
   return (
     <section className="grid w-full items-center gap-12 px-6 py-20 sm:px-10 lg:grid-cols-2 lg:gap-16 lg:px-16 lg:py-24 xl:px-24">
