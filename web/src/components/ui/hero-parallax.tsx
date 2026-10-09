@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom'
 =======
 >>>>>>> f503cbc (feat: update UI components with new styles, add framer-motion dependency, and enhance landing page structure)
 import { ClarityRail } from './clarity-rail'
-import { useAuthStore } from '../../lib/auth-state'
 
 export function Header() {
 <<<<<<< HEAD
