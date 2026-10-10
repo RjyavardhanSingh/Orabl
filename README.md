@@ -1,4 +1,4 @@
-# Aभ्यास — Adaptive Oral Learning Platform
+# Orabl — Adaptive Oral Learning Platform
 
 Upload what you're studying, say what you need to achieve, practice by speaking your answers out loud, then get a clear report on what you know, what's weak, and what to retest.
 
