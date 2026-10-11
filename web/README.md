@@ -1,6 +1,6 @@
-# Recall web
+# Orabl Web
 
-The session based learning workspace for Orabl.
+The session based learning workspace for Orabl, Orabl.
 
 ## Stack
 
