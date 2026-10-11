@@ -1,6 +1,6 @@
-# Recall web
+# Orabl Web
 
-The user-facing learning workspace for the Adaptive Oral Learning Platform.
+The user-facing learning workspace for Orabl, the Adaptive Oral Learning Platform.
 
 ## Stack
 
