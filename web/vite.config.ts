@@ -13,6 +13,6 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    allowedHosts: ['femoral-dannette-snobbishly.ngrok-free.dev'],
+    // allowedHosts: ['femoral-dannette-snobbishly.ngrok-free.dev'],
   },
 })
