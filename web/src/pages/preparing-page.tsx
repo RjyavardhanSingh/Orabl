@@ -205,7 +205,7 @@ export function PreparingPage() {
                     key={question.id ?? `${question.text}-${index}`}
                     className="flex min-w-0 gap-3 rounded-xl border border-line p-4"
                   >
-                    <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-white">
+                    <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-canvas">
                       {index + 1}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -265,7 +265,7 @@ export function PreparingPage() {
                   visible.length > 0 ? startPractice.mutate() : generate.mutate()
                 }
                 disabled={busy}
-                className='bg-green-900 hover:bg-green-800 rounded-xl'
+                className='bg-accent text-black hover:bg-accent-hover rounded-xl'
               >
                 {startPractice.isPending ? (
                   <>

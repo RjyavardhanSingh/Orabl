@@ -184,7 +184,7 @@ export function UploadPage() {
 
         <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden border-line-strong rounded-xs">
           <CardHeader className="shrink-0 border-b border-line p-5">
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1">
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-sunk p-1">
               {(['text', 'pdf'] as UploadMode[]).map((option) => {
                 const selected = mode === option
                 return (
@@ -196,8 +196,8 @@ export function UploadPage() {
                     className={cn(
                       'rounded-xl px-4 py-2 text-sm font-semibold transition-colors duration-150',
                       selected
-                        ? 'bg-green-800 text-white shadow'
-                        : 'text-black hover:text-zinc-700',
+                        ? 'bg-ink text-canvas shadow'
+                        : 'text-ink hover:text-ink-soft',
                     )}
                   >
                     {option === 'text' ? 'Paste Text' : 'Upload PDF'}
@@ -220,7 +220,7 @@ export function UploadPage() {
                     aria-describedby={nameError ? 'material-name-error' : undefined}
                     {...textForm.register('name')}
                     placeholder="biology-notes.md"
-                    className="bg-stone-100"
+                    className="bg-sunk"
                   />
                   {nameError ? (
                     <p id="material-name-error" className="text-xs text-bad">
@@ -243,7 +243,7 @@ export function UploadPage() {
                     aria-describedby={contentError ? 'material-content-error' : undefined}
                     {...textForm.register('content')}
                     placeholder="Paste a chapter, lecture notes, or an article…"
-                    className="h-full min-h-40 resize-none bg-stone-100"
+                    className="h-full min-h-40 resize-none bg-sunk"
                   />
                   {contentError ? (
                     <p id="material-content-error" className="text-xs text-bad">
@@ -285,9 +285,9 @@ export function UploadPage() {
                     event.preventDefault()
                     selectFiles(Array.from(event.dataTransfer.files ?? []))
                   }}
-                  className="flex min-h-48 flex-1 flex-col items-center justify-center rounded-xs bg-stone-100 px-5 py-8 text-center"
+                  className="flex min-h-48 flex-1 flex-col items-center justify-center rounded-xs bg-sunk px-5 py-8 text-center"
                 >
-                  <span className="grid size-12 place-items-center rounded-2xl bg-stone-100 shadow-sm">
+                  <span className="grid size-12 place-items-center rounded-2xl bg-sunk shadow-sm">
                     <UploadCloud className="size-5 text-ink-muted" aria-hidden="true" />
                   </span>
                   <span className="mt-5 text-sm font-semibold text-ink">
@@ -301,7 +301,7 @@ export function UploadPage() {
                 {files.map((pending, index) => (
                   <div
                     key={`${pending.name}-${pending.size}-${index}`}
-                    className="mt-4 flex items-center gap-3 rounded-xl bg-stone-100 px-4 py-3"
+                    className="mt-4 flex items-center gap-3 rounded-xl bg-sunk px-4 py-3"
                   >
                     <FileText className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
                     <div className="min-w-0 flex-1">
@@ -325,7 +325,7 @@ export function UploadPage() {
                     key={item.id}
                     className="mt-4 flex items-center gap-3 rounded-xl border border-good-tint bg-good-tint px-4 py-3"
                   >
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-good text-white">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-good text-canvas">
                       <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -355,7 +355,7 @@ export function UploadPage() {
                     key={item.id}
                     className="flex items-center gap-3 rounded-xl border border-good-tint bg-good-tint px-4 py-3"
                   >
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-good text-white">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-good text-canvas">
                       <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -380,7 +380,7 @@ export function UploadPage() {
 
           <div className="flex w-full flex-col gap-2 p-5 sm:flex-row">
             <Button
-              className="w-full bg-green-900 hover:bg-green-800 sm:w-80 rounded-xl"
+              className="w-full bg-accent text-black hover:bg-accent-hover sm:w-80 rounded-xl"
               size="lg"
               onClick={mode === 'text' ? submitText : uploadPdf}
               disabled={isUploading}
@@ -398,7 +398,7 @@ export function UploadPage() {
               )}
             </Button>
             <Button
-              className="w-full bg-green-900 hover:bg-green-800 rounded-xl sm:w-80"
+              className="w-full bg-accent text-black hover:bg-accent-hover rounded-xl sm:w-80"
               size="lg"
               onClick={() => navigate('/goal')}
               disabled={!hasAnyMaterial}

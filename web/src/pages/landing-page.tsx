@@ -1,34 +1,86 @@
+import { ArrowUpRight } from 'lucide-react'
+import { useReducedMotion } from 'motion/react'
 import { Link } from 'react-router-dom'
 
 import { AnimatedFooter } from '../components/ui/animated-footer'
 import { Header } from '../components/ui/hero-parallax'
 
+const steps = [
+  { number: '01', title: 'Bring Your Material', description: 'Upload a PDF or paste your notes.' },
+  { number: '02', title: 'Explain It', description: 'Answer questions in your own words.' },
+  { number: '03', title: 'See What Sticks', description: 'Find strengths and gaps worth revisiting.' },
+]
+
 export function LandingPage() {
+  const reduceMotion = useReducedMotion() ?? false
+
   return (
     <div className="min-h-dvh overflow-x-clip bg-canvas text-ink">
-      <header className="mx-auto flex w-full max-w-7xl items-center px-6 py-6 sm:px-10 lg:px-12">
-        <Link to="/" className="text-2xl font-extrabold tracking-[-0.06em] text-good" aria-label="Orabl home">
-          Orabl
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-cream focus:px-4 focus:py-2 focus:text-black">
+        Skip to Main Content
+      </a>
+      <header className="flex h-[88px] items-center justify-between border-b border-line px-6 sm:px-10 lg:px-16 xl:px-24">
+        <Link to="/" translate="no" className="font-sans text-2xl font-extrabold tracking-[-0.08em] text-white transition-colors hover:text-accent" aria-label="Orabl home">
+          Orabl<span className="text-accent">.</span>
         </Link>
+        <nav aria-label="Main" className="flex items-center gap-5 sm:gap-9">
+          <a href="#how-it-works" className="hidden text-sm font-medium text-ink-muted transition-colors hover:text-white sm:inline">How It Works</a>
+          <Link to="/upload" className="inline-flex min-h-10 items-center gap-2 text-sm font-bold text-accent transition-colors hover:text-white">
+            Start Learning <ArrowUpRight className="size-4" aria-hidden="true" />
+          </Link>
+        </nav>
       </header>
+
       <main id="main-content">
-        <div id="how-it-works" className="scroll-mt-16">
-          <Header />
-        </div>
+        <Header />
+
+        <section id="how-it-works" className="scroll-mt-8 bg-slate px-6 py-20 text-white sm:px-10 lg:px-16 lg:py-28 xl:px-24" aria-labelledby="how-title">
+          <div className="mx-auto max-w-7xl">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-cream">How It Works</p>
+            <h2 id="how-title" className="mt-7 max-w-[13ch] font-sans text-[clamp(2.75rem,5vw,5.5rem)] font-bold leading-[1.04] tracking-[-0.065em] text-balance">
+              From Notes to Knowing.
+            </h2>
+            <ol className="mt-14 border-t border-white/30">
+              {steps.map((step) => (
+                <li key={step.number} className="grid gap-3 border-b border-white/30 py-7 sm:grid-cols-[5rem_minmax(0,0.9fr)_minmax(0,1fr)] sm:items-baseline sm:gap-8 sm:py-9">
+                  <span className="tabular text-sm font-bold text-cream">{step.number}</span>
+                  <h3 className="text-balance text-xl font-semibold tracking-[-0.035em] sm:text-2xl">{step.title}</h3>
+                  <p className="max-w-md text-pretty text-sm leading-6 text-white/90 sm:text-base sm:leading-7">{step.description}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section className="bg-accent px-6 py-20 text-black sm:px-10 lg:px-16 lg:py-28 xl:px-24" aria-labelledby="cta-title">
+          <div className="mx-auto flex max-w-7xl flex-col gap-9 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em]">Your Turn</p>
+              <h2 id="cta-title" className="mt-5 max-w-[11ch] font-sans text-[clamp(3rem,6vw,6.5rem)] font-bold leading-[1] tracking-[-0.07em] text-balance">
+                Put It Into Words.
+              </h2>
+            </div>
+            <Link to="/upload" className="inline-flex min-h-12 w-fit items-center gap-5 border-b-2 border-black text-sm font-bold text-black transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-white focus-visible:outline-black active:translate-y-0">
+              Start Learning <ArrowUpRight className="size-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
       </main>
 
-      <div className="font-display relative mt-10 h-[360px] w-full overflow-hidden border-y border-line-strong bg-[#eef1e7] sm:h-[430px]">
+      <div className="h-[350px] border-b border-line bg-black sm:h-[440px]">
         <AnimatedFooter
           headingLines={['Orabl']}
-          subtitle="Focused practice for curious people."
+          subtitle="Thoughts become understanding."
           leftImage="/animated-footer/hand-left.jpg"
           rightImage="/animated-footer/hand-right.jpg"
-          background="transparent"
-          textColor="#1e4d33"
-          charColor="#916547"
+          background="#000000"
+          textColor="#ffffff"
+          charColor="#9aabc2"
+          hoverColor="#f3701e"
+          hoverCharColor="#000000"
           columns={56}
-          parallaxStrength={6}
-          className="orabl-heading-gradient"
+          parallaxStrength={reduceMotion ? 0 : 4}
+          revealOnScroll={!reduceMotion}
         />
       </div>
     </div>

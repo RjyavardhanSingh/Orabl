@@ -7,8 +7,7 @@ import { WorkflowModal } from '../workflow-modal'
 
 export function PublicBrand() {
   return (
-    <Link to="/" className="flex items-center gap-3 text-ink">
-    </Link>
+    <Link to="/" className="text-2xl font-extrabold tracking-[-0.06em] text-ink" aria-label="Orabl home">Orabl</Link>
   )
 }
 
@@ -41,13 +40,13 @@ export function PublicNav() {
                 </span>
                 <button
                   onClick={() => void signOut().then(() => navigate('/'))}
-                  className="bg-green-900 text-white px-4 py-2 rounded-xl hover:bg-green-800"
+                  className="bg-accent text-black px-4 py-2 rounded-xl hover:bg-accent-hover"
                 >
                   Sign out
                 </button>
               </>
             ) : (
-              <button onClick={goSignIn} className='bg-green-900 text-white px-4 py-2 rounded-xl hover:bg-green-800'>
+              <button onClick={goSignIn} className='bg-accent text-black px-4 py-2 rounded-xl hover:bg-accent-hover'>
                 Let's Begin
               </button>
             )}

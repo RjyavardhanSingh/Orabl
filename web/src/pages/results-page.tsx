@@ -32,7 +32,7 @@ function readResults(): SessionResults | null {
 
 function scoreTone(score: number | null): string {
   if (score === null) return 'bg-sunk text-ink-muted'
-  if (score > WEAK_THRESHOLD) return 'bg-ink text-white'
+  if (score > WEAK_THRESHOLD) return 'bg-ink text-canvas'
   return 'bg-warn-tint text-warn'
 }
 
@@ -191,7 +191,7 @@ export function ResultsPage() {
                     )}
                   </Button>
                   <Button
-                    className="flex-1 bg-green-900 hover:bg-green-800 rounded-xl"
+                    className="flex-1 bg-accent text-black hover:bg-accent-hover rounded-xl"
                     disabled={retest.isPending || weakTopics.length === 0}
                     onClick={() => retest.mutate(true)}
                   >
@@ -246,7 +246,7 @@ export function ResultsPage() {
             <div className="space-y-4">
               <Card className='rounded-xs'>
                 <CardContent className="flex items-center gap-5 p-5">
-                  <span className="tabular grid size-16 shrink-0 place-items-center rounded-2xl bg-ink text-2xl font-bold text-white">
+                  <span className="tabular grid size-16 shrink-0 place-items-center rounded-2xl bg-ink text-2xl font-bold text-canvas">
                     {results.readiness_score}
                   </span>
                   <div className="min-w-0">
@@ -304,7 +304,7 @@ export function ResultsPage() {
                 ) : (
                   <ul className="space-y-2.5">
                     {weakTopics.map(([topic, data]) => (
-                      <li key={topic} className="rounded-xl bg-stone-100 p-3.5">
+                      <li key={topic} className="rounded-xl bg-sunk p-3.5">
                         <div className="flex items-center justify-between gap-3">
                           <span className="min-w-0 truncate text-sm font-medium text-ink-soft">
                             {topic}
@@ -336,7 +336,7 @@ export function ResultsPage() {
                     {mixUps.map((mixUp) => (
                       <li
                         key={mixUp}
-                        className="text-pretty rounded-xl bg-stone-100 px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
+                        className="text-pretty rounded-xl bg-sunk px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
                       >
                         {mixUp}
                       </li>
@@ -365,7 +365,7 @@ export function ResultsPage() {
                           <li key={question.id ?? position}>
                             <details className="group rounded-xl border border-line transition-colors open:border-line-strong">
                               <summary className="flex cursor-pointer list-none items-center gap-3 p-3.5">
-                                <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-white">
+                                <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-canvas">
                                   {position + 1}
                                 </span>
                                 <span className="text-pretty min-w-0 flex-1 text-sm font-medium leading-6">

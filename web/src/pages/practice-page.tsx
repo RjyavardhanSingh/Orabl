@@ -165,7 +165,7 @@ export function PracticePage() {
             {!done && question ? <QuestionCard question={question} position={index + 1} total={total} /> : null}
 
             {!done && question ? (
-              <div className="rounded-xs bg-stone-100 p-5">
+              <div className="rounded-xs bg-sunk p-5">
                 {voice.phase === 'idle' && draft === null && !submit.isPending ? (
                   <div className="flex flex-col items-center py-4 text-center">
                     <Button
@@ -223,7 +223,7 @@ export function PracticePage() {
                     {/* Fluid orb pulses while the mic is live; the transcript
                         below carries the real announcement. */}
                     <div className="mt-4 flex justify-center">
-                      <FluidOrb size={140} color="#2e6a4e" aria-hidden="true" />
+                      <FluidOrb size={140} color="#f3701e" aria-hidden="true" />
                     </div>
                     <p
                       className="mt-4 min-h-16 text-sm leading-6 text-ink-soft"
@@ -234,7 +234,7 @@ export function PracticePage() {
                       <span className="text-ink-faint">{voice.partial}</span>
                       {!voice.committed && !voice.partial ? 'Speak now…' : null}
                     </p>
-                    <Button className="mt-4 w-full rounded-xl bg-green-900 hover:bg-green-800" onClick={handleStop}>
+                    <Button className="mt-4 w-full rounded-xl bg-accent text-black hover:bg-accent-hover" onClick={handleStop}>
                       <Square className="size-4" aria-hidden="true" />
                       Stop &amp; Review
                     </Button>
@@ -268,7 +268,7 @@ export function PracticePage() {
                     />
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Button
-                        className="flex-1 bg-green-900 text-white hover:bg-green-800 rounded-xl"
+                        className="flex-1 bg-accent text-black hover:bg-accent-hover rounded-xl"
                         disabled={submit.isPending || draft.trim().length === 0}
                         onClick={() => submit.mutate({ answer_text: draft.trim() })}
                       >
@@ -313,7 +313,7 @@ export function PracticePage() {
                     : 'Your full report with readiness score and per-question feedback is ready.'}
                 </p>
                 <Button
-                  className="mt-5 w-full bg-green-900 hover:bg-green-800 rounded-xl"
+                  className="mt-5 w-full bg-accent text-black hover:bg-accent-hover rounded-xl"
                   size="lg"
                   disabled={finish.isPending}
                   onClick={() => finish.mutate()}

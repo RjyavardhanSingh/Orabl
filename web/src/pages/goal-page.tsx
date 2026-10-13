@@ -215,7 +215,7 @@ export function GoalPage() {
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleMaterial(item.id)}
-                          className="size-4 shrink-0 accent-green-900"
+                          className="size-4 shrink-0 accent-accent"
                           aria-label={`Include ${item.name}`}
                         />
                         <span className="min-w-0 flex-1">
@@ -331,7 +331,7 @@ export function GoalPage() {
                 Back
               </Link>
             </Button>
-            <Button type="submit" form="goal-form" disabled={isSubmitting} className='bg-green-900 hover:bg-green-800 rounded-xl'>
+            <Button type="submit" form="goal-form" disabled={isSubmitting} className='bg-accent text-black hover:bg-accent-hover rounded-xl'>
               {isSubmitting ? (
                 <>
                   <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />

@@ -38,8 +38,8 @@ function ScoreBadge({ score }: { score: number }) {
   return (
     <span
       className={cn(
-        'tabular grid size-11 shrink-0 place-items-center rounded-xl text-base font-bold text-white',
-        score > 60 ? 'bg-ink' : 'bg-warn text-white',
+        'tabular grid size-11 shrink-0 place-items-center rounded-xl text-base font-bold text-canvas',
+        score > 60 ? 'bg-ink' : 'bg-warn text-canvas',
       )}
     >
       {score}
@@ -154,8 +154,8 @@ export function SessionsPage() {
                       className={cn(
                         'flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold capitalize transition-colors duration-150',
                         selected
-                          ? 'bg-green-900 text-white hover:bg-green-800'
-                          : 'bg-stone-100 text-ink-muted hover:text-ink',
+                          ? 'bg-accent text-black hover:bg-accent-hover'
+                          : 'bg-sunk text-ink-muted hover:text-ink',
                       )}
                     >
                       <Icon className="size-4" aria-hidden="true" />
@@ -318,7 +318,7 @@ export function SessionsPage() {
                         size="sm"
                         disabled={openSession.isPending}
                         onClick={() => openSession.mutate(item.id)}
-                        className="flex-1 rounded-xl bg-green-900 hover:bg-green-800"
+                        className="flex-1 rounded-xl bg-accent text-black hover:bg-accent-hover"
                       >
                         Open
                       </Button>

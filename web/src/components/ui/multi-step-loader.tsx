@@ -17,7 +17,7 @@ export type LoaderStatus = 'loading' | 'success' | 'error'
  * in flight, and never marks anything complete.
  *
  * - Overlay is translucent + blurred; content has no panel (transparent).
- * - Icons green-900 on white; text ink. App is light-only.
+ * - Muted status colors on dark surfaces.
  * - `useReducedMotion` freezes flips and transitions to a static list.
  */
 export function MultiStepLoader({
@@ -104,9 +104,9 @@ export function MultiStepLoader({
                     className="flex items-center gap-3"
                   >
                     {done ? (
-                      <CheckCircle2 className="size-6 shrink-0 text-green-900" aria-hidden="true" />
+                      <CheckCircle2 className="size-6 shrink-0 text-good" aria-hidden="true" />
                     ) : waiting ? (
-                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-green-900 text-white">
+                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-ink text-canvas">
                         <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
                       </span>
                     ) : (
@@ -141,7 +141,7 @@ export function MultiStepLoader({
                   animate={{ opacity: 1 }}
                   className="flex items-center gap-3 border-t border-line pt-4"
                 >
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-green-900 text-white">
+                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-ink text-canvas">
                     <CheckCircle2 className="size-4" aria-hidden="true" />
                   </span>
                   <span className="text-sm font-semibold text-ink">{successText}</span>
@@ -163,7 +163,7 @@ export function MultiStepLoader({
                   ) : null}
                   <span className="flex gap-2 pl-9">
                     {onRetry ? (
-                      <Button size="sm" onClick={onRetry} className="rounded-xl bg-green-900 hover:bg-green-800">
+                      <Button size="sm" onClick={onRetry} className="rounded-xl bg-accent text-black hover:bg-accent-hover">
                         Try again
                       </Button>
                     ) : null}

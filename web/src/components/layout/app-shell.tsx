@@ -69,19 +69,17 @@ function useUnlockedSteps(): boolean[] {
 
 function BrandIcon({ className }: { className?: string }) {
   return (
-    <img
-     
-      alt=""
-      aria-hidden="true"
-      className={cn('shrink-0 rounded-xl object-cover', className ?? 'size-9')}
-    />
+    <span aria-hidden="true" className={cn('grid shrink-0 place-items-center rounded-xl bg-accent-tint text-accent-ink', className ?? 'size-9')}>
+      <BookOpen className="size-5" strokeWidth={2.2} />
+    </span>
   )
 }
 
 function Brand() {
   return (
-      <div className='bg-canvas rounded-xl flex items-center justify-center'>
-      <BrandIcon className="h-14 w-24" />
+      <div className="flex items-center gap-2.5">
+        <BrandIcon className="size-10" />
+        <span className="text-lg font-bold tracking-[-0.05em] text-ink">Orabl</span>
       </div>
   )
 }
@@ -103,13 +101,13 @@ function Sidebar({
   return (
     <aside
       className={cn(
-        'flex h-full w-full flex-col overflow-y-auto overscroll-contain bg-green-900 px-4 py-5 text-white transition-[width] duration-200',
+        'flex h-full w-full flex-col overflow-y-auto overscroll-contain bg-surface px-4 py-5 text-ink transition-[width] duration-200',
         collapsed ? 'lg:w-[76px] lg:px-3' : 'lg:w-[248px] lg:shrink-0 xl:w-[264px]',
       )}
     >
       <div className={cn('flex items-center gap-2', collapsed ? 'flex-col lg:gap-3' : 'justify-between')}>
         {collapsed ? (
-          <div className='bg-canvas rounded-xs'>
+          <div>
             <BrandIcon className="size-10" />
           </div>
         ) : (
@@ -121,7 +119,7 @@ function Sidebar({
           <Button
             variant="ghost"
             size="icon"
-            className="text-white/60 hover:bg-white/10 hover:text-white focus-visible:ring-white lg:hidden"
+            className="text-ink/60 hover:bg-ink/10 hover:text-ink focus-visible:ring-accent lg:hidden"
             onClick={onClose}
           >
             <X className="size-5" aria-hidden="true" />
@@ -133,7 +131,7 @@ function Sidebar({
             size="icon"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             onClick={onToggleCollapse}
-            className="hidden shrink-0 text-white/60 hover:bg-white/10 hover:text-white focus-visible:ring-white lg:inline-flex"
+            className="hidden shrink-0 text-ink/60 hover:bg-ink/10 hover:text-ink focus-visible:ring-accent lg:inline-flex"
           >
             {collapsed ? (
               <PanelLeftOpen className="size-5" aria-hidden="true" />
@@ -148,7 +146,7 @@ function Sidebar({
       <nav className="mt-9 w-full flex-1" aria-label="Main">
         <p
           className={cn(
-            'mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40',
+            'mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/60',
             collapsed && 'lg:sr-only',
           )}
         >
@@ -167,7 +165,7 @@ function Sidebar({
                     aria-disabled="true"
                     title={`${step.label} — finish the previous step first`}
                     className={cn(
-                      'flex cursor-not-allowed items-center gap-3 rounded-full px-3.5 py-2.5 text-sm text-white/35',
+                      'flex cursor-not-allowed items-center gap-3 rounded-full px-3.5 py-2.5 text-sm text-ink/50',
                       collapsed && 'lg:justify-center lg:px-0',
                     )}
                   >
@@ -191,8 +189,8 @@ function Sidebar({
                   className={cn(
                     'group flex items-center gap-3 rounded-full px-3.5 py-2.5 text-sm transition-colors duration-150',
                     isActive
-                      ? 'bg-surface text-ink'
-                      : 'text-white/55 hover:bg-white/10 hover:text-white',
+                      ? 'bg-accent-tint text-accent-ink ring-1 ring-accent-edge/50'
+                      : 'text-ink/70 hover:bg-ink/10 hover:text-ink',
                     collapsed && 'lg:justify-center lg:px-0',
                   )}
                 >
@@ -207,7 +205,7 @@ function Sidebar({
                         {step.label}
                       </span>
                       {isDone ? (
-                        <Check className="size-3.5 shrink-0 text-white/60" strokeWidth={3} aria-hidden="true" />
+                        <Check className="size-3.5 shrink-0 text-ink/60" strokeWidth={3} aria-hidden="true" />
                       ) : null}
                     </>
                   )}
@@ -218,7 +216,7 @@ function Sidebar({
         </ul>
       </nav>
 
-      <div className="mt-8 w-full border-t border-white/10 pt-5">
+      <div className="mt-8 w-full border-t border-ink/10 pt-5">
         <ProfileMenu collapsed={collapsed} email={user?.email ?? null} onSignOut={() => void signOut()} />
       </div>
     </aside>
@@ -306,19 +304,19 @@ function ProfileMenu({
         title={email ?? 'Profile'}
         onClick={toggle}
         className={cn(
-          'flex w-full items-center gap-3 rounded-2xl bg-white/5 px-3 py-2.5 text-left transition-colors hover:bg-white/10',
+          'flex w-full items-center gap-3 rounded-2xl bg-ink/5 px-3 py-2.5 text-left transition-colors hover:bg-ink/10',
           collapsed && 'lg:justify-center lg:rounded-full lg:px-0',
         )}
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white">
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent-tint text-xs font-semibold text-accent-ink">
           {initial}
         </span>
-        <span className={cn('min-w-0 flex-1 truncate text-xs font-medium text-white/80', collapsed && 'lg:sr-only')}>
+        <span className={cn('min-w-0 flex-1 truncate text-xs font-medium text-ink/80', collapsed && 'lg:sr-only')}>
           {email ?? 'Profile'}
         </span>
         <ChevronUp
           className={cn(
-            'size-4 shrink-0 text-white/50 transition-transform duration-150',
+            'size-4 shrink-0 text-ink/50 transition-transform duration-150',
             open && 'rotate-180',
             collapsed && 'lg:sr-only',
           )}
@@ -423,7 +421,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="h-dvh overflow-hidden bg-canvas text-ink">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-canvas"
       >
         Skip to main content
       </a>
@@ -438,7 +436,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               aria-label="Close Navigation"
-              className="absolute inset-0 bg-ink/50"
+              className="absolute inset-0 bg-canvas/80"
               onClick={() => setMobileOpen(false)}
             />
             <div
@@ -524,7 +522,7 @@ export function EmptyState({
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 py-12 text-center">
       {icon ? (
-        <div className="grid size-14 place-items-center rounded-2xl bg-ink text-white">
+        <div className="grid size-14 place-items-center rounded-2xl bg-ink text-canvas">
           {icon}
         </div>
       ) : null}

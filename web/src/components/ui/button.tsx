@@ -10,11 +10,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-ink text-white hover:bg-ink-soft',
-        accent: 'border border-accent-edge bg-accent text-ink hover:bg-accent-hover',
+        default: 'bg-accent text-black hover:bg-accent-hover',
+        accent: 'border border-accent-edge bg-accent text-black hover:bg-accent-hover',
         secondary: 'border border-line-strong bg-surface text-ink hover:bg-sunk',
         ghost: 'text-ink-muted hover:bg-sunk hover:text-ink',
-        light: 'bg-white/10 text-white hover:bg-white/20',
+        light: 'bg-ink/10 text-ink hover:bg-ink/20',
       },
       size: {
         default: 'h-11 px-6',

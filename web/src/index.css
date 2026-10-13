@@ -20,35 +20,32 @@
   /* Handwritten voice on the clarity rail. Weight is set at the call site. */
   --font-voice: "Shantell Sans Variable", "Segoe Print", cursive;
 
-  /* ---- Neutrals: warm paper, never cool grey ------------------------- */
-  --color-canvas: #f7f5ef; /* page background — warm paper */
-  --color-surface: #ffffff; /* cards, inputs */
-  --color-sunk: #f1eee6; /* inset panels: record area, segmented track */
-  --color-line: #e6e2d8; /* hairline border */
-  --color-line-strong: #d5d0c2; /* emphasised border, dividers */
+  /* Black with warm cream, slate blue, and a precise orange accent. */
+  --color-canvas: #000000;
+  --color-surface: #181818;
+  --color-sunk: #111111;
+  --color-line: #3e4550;
+  --color-line-strong: #748299;
 
-  --color-ink: #1b1a17; /* primary text + dark surfaces (sidebar) */
-  --color-ink-soft: #45423c;
-  --color-ink-muted: #5f5b52; /* secondary text */
-  --color-ink-faint: #726e60; /* tertiary + placeholders — AA on canvas */
+  --color-ink: #ffffff;
+  --color-ink-soft: #e8d8c9;
+  --color-ink-muted: #d2c9c1;
+  --color-ink-faint: #b7b5b3;
 
-  /* ---- Accent: exactly one hue (lavender), used sparingly ---------- */
-  /* The light lavender is a FILL colour — pair it with ink text, never
-     white. `accent-ink` is the same hue darkened far enough to be legible
-     as text or a border on light surfaces. */
-  --color-accent: #d9c6f7; /* fills: primary button, active pill */
-  --color-accent-hover: #cbb2f2; /* one step deeper, still a light fill */
-  --color-accent-ink: #5530bd; /* accent text, links, icon strokes */
-  --color-accent-tint: #f1eafd; /* washes: hero glow, badge fill */
-  --color-accent-edge: #c3aaf0; /* accent borders and rules */
+  --color-accent: #f3701e;
+  --color-accent-hover: #ff8b43;
+  --color-accent-ink: #ffa66f;
+  --color-accent-tint: #452817;
+  --color-accent-edge: #b56d41;
 
-  /* ---- Semantic: only where colour carries meaning ------------------- */
-  --color-good: #2e6a4e;
-  --color-good-tint: #e6f0e9;
-  --color-warn: #8a5d14;
-  --color-warn-tint: #f8eedc;
-  --color-bad: #a03328;
-  --color-bad-tint: #f8e9e6;
+  --color-cream: #e8d8c9;
+  --color-slate: #4b607f;
+  --color-good: #e8d8c9;
+  --color-good-tint: #3c4344;
+  --color-warn: #ffb477;
+  --color-warn-tint: #513521;
+  --color-bad: #f0bdbb;
+  --color-bad-tint: #584341;
 
   --radius-xl: 0.875rem;
   --radius-2xl: 1.125rem;
@@ -62,7 +59,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 * {
@@ -115,7 +112,7 @@ label {
 
 /* One consistent focus ring across the app. Never remove it. */
 :focus-visible {
-  outline: 2px solid var(--color-ink);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -143,22 +140,6 @@ label {
   background-color: var(--color-ink-faint);
 }
 
-/* Orabl wordmark shares the hero's green palette. */
-.orabl-heading-gradient [data-af-char] {
-  background: linear-gradient(100deg, #17452f 0%, #2e6a4e 60%, #579174 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.orabl-hero-texture {
-  background-image: url('/orabl-idea-texture.svg?v=3');
-  background-position: center;
-  background-size: 100% 100%;
-  opacity: 0.75;
-  mask-image: radial-gradient(ellipse 72% 60% at 70% 50%, #000 25%, transparent 100%);
-}
-
 /* Numerals line up in score columns and countdowns. */
 .tabular {
   font-variant-numeric: tabular-nums;
@@ -171,6 +152,10 @@ label {
   transform-box: fill-box;
   transform-origin: 50% 50%;
   animation: robot-blink 5.2s ease-in-out infinite;
+}
+
+.motion-paused .robot-eye {
+  animation: none;
 }
 
 @keyframes robot-blink {
