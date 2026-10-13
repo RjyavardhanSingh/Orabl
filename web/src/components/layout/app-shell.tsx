@@ -21,7 +21,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 
 import { useAuthStore } from '../../lib/auth-state'
 import { cn } from '../../lib/utils'
-import mainLogo from '../../assets/Main-logo-transparent.svg'
+
 import { Button } from '../ui/button'
 
 const steps = [
@@ -70,7 +70,7 @@ function useUnlockedSteps(): boolean[] {
 function BrandIcon({ className }: { className?: string }) {
   return (
     <img
-      src={mainLogo}
+     
       alt=""
       aria-hidden="true"
       className={cn('shrink-0 rounded-xl object-cover', className ?? 'size-9')}

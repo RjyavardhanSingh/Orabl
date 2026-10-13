@@ -77,7 +77,7 @@ export function WorkflowModal({ open, onClose }: { open: boolean; onClose: () =>
           exit={{ opacity: 0, transition: { duration: beat ?? 0.15 } }}
           role="dialog"
           aria-modal="true"
-          aria-label="How Recall works"
+          aria-label="How Orabl works"
           onClick={onClose}
         >
           <motion.div

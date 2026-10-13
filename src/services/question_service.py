@@ -66,9 +66,15 @@ async def generate_questions(
 
     goal = context_data.get("goal", {})
     word_count = context_data.get("stats", {}).get("word_count", 0)
+    keywords: list[str] = []
+    for s in sources:
+        keywords.extend(s.get("keywords", []) or [])
+    # dedupe, keep order, cap so the hint stays small
+    keywords = list(dict.fromkeys(keywords))[:50]
 
     questions = await openrouter_generate(
-        cache, context_id, material_content, goal, word_count, count=count
+        cache, context_id, material_content, goal, word_count, count=count,
+        keywords=keywords,
     )
     assign_question_ids(questions, context_id)
 

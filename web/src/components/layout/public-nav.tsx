@@ -3,17 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../lib/auth-state'
 import { WorkflowModal } from '../workflow-modal'
-import mainLogo from '../../assets/Main-logo-transparent.svg'
+
 
 export function PublicBrand() {
   return (
     <Link to="/" className="flex items-center gap-3 text-ink">
-      <img
-        src={mainLogo}
-        alt=""
-        aria-hidden="true"
-        className="size-12 shrink-0 rounded-xl"
-      />
     </Link>
   )
 }
