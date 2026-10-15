@@ -11,6 +11,8 @@ const CRIMSON = '#E61E32'
 const WHITE = '#FFFFFF'
 
 export function LandingPage() {
+  const reduceMotion = useReducedMotion() ?? false
+
   return (
     <div className="min-h-dvh overflow-x-clip bg-white text-[#E61E32]">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-60 focus:bg-white focus:px-4 focus:py-2 focus:text-[#E61E32]">
@@ -23,7 +25,7 @@ export function LandingPage() {
       {/* Hero card wrapper — adds thin padding for white frame */}
       <div className="flex min-h-screen flex-col p-4 pt-32 md:p-6 md:pt-36">
         {/* Floating editorial card — full viewport, warm off-white canvas */}
-        <div className="relative flex flex-1 overflow-hidden rounded-xl border border-zinc-200 bg-[#FDFBF7] shadow-sm">
+        <div className="relative flex flex-1 overflow-hidden rounded-xs border-2 border-black bg-[#FDFBF7]">
           {/* Hero — warm off-white. Rail theme vars overridden to crimson/white so the
               marquee is pure crimson-on-white with no other hues. */}
           <div
@@ -53,7 +55,7 @@ export function LandingPage() {
       <footer className="w-full h-87.5 sm:h-110" style={{ backgroundColor: '#000000' }}>
         <AnimatedFooter
           headingLines={['Orabl']}
-          subtitle="Focused practice for curious people."
+          subtitle="Thoughts become understanding."
           leftImage="/animated-footer/hand-left.jpg"
           rightImage="/animated-footer/hand-right.jpg"
           background="#000000"
@@ -62,8 +64,8 @@ export function LandingPage() {
           hoverColor={WHITE}
           hoverCharColor={CRIMSON}
           columns={56}
-          parallaxStrength={6}
-          className="orabl-heading-gradient"
+          parallaxStrength={reduceMotion ? 0 : 4}
+          revealOnScroll={!reduceMotion}
         />
       </footer>
     </div>
