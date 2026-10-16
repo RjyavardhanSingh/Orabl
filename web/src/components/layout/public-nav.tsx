@@ -21,7 +21,7 @@ export function PublicNav() {
     <>
       {/* macOS-style frosted glass pill — fixed to global viewport.
           Stays at top-center regardless of scroll position. */}
-      <header className="fixed left-1/2 top-6 z-[100] flex -translate-x-1/2 items-center justify-between gap-2 rounded-xs  bg-mist-50 border border-zinc-200  px-6 py-3 text-black shadow-sm backdrop-blur-md sm:gap-4">
+      <header className="fixed left-1/2 top-6 z-[999] flex -translate-x-1/2 items-center justify-between gap-2 rounded-xs border-2 border-black bg-white/80 px-6 py-3 text-black backdrop-blur-md sm:gap-4">
         <PublicBrand />
         <button
           type="button"
