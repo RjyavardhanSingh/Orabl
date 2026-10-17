@@ -75,6 +75,10 @@ export interface AnimatedFooterProps {
 
 const DEFAULT_ASCII_CHARS = "........:::=+xX#0369";
 
+// Gloss tone for the hands: bright red underlay that reads as a light sheen
+// against the full-crimson base fill.
+const GLOSS = "rgba(255, 120, 140, 0.55)";
+
 const HIGHLIGHT_LIFETIME = 300; // ms a hovered cell stays lit
 const CLUSTER_SIZE = 10; // max cells a hover ripple spreads across
 const PARALLAX_EASE = 0.05;
@@ -322,6 +326,11 @@ export function AnimatedFooter({
         if (isHighlighted) {
           ctx.fillStyle = hc;
           ctx.fillRect(x, y, cs, cs);
+        } else {
+          // Gloss underlay: bright tone raised ~14% of the cell — the base
+          // fill covers its lower half, leaving a light rim at the top.
+          ctx.fillStyle = GLOSS;
+          ctx.fillText(cell.char, x + cs / 2, y + baselineOffset - cs * 0.14);
         }
         ctx.fillStyle = isHighlighted ? hcc : cc;
         ctx.fillText(cell.char, x + cs / 2, y + baselineOffset);
@@ -502,14 +511,14 @@ export function AnimatedFooter({
       <div className="pointer-events-none absolute inset-0 flex items-center justify-between">
         <div
           ref={leftWrapRef}
-          className="relative w-[38%] max-w-[430px] min-w-[145px] opacity-55 will-change-transform sm:w-[34%] sm:opacity-80"
+          className="relative w-[38%] max-w-[430px] min-w-[145px] opacity-70 will-change-transform sm:w-[34%] sm:opacity-90"
           style={{ transform: `translateX(-${offEdge}%)` }}
         >
           <canvas ref={leftCanvasRef} className="block h-auto w-full" />
         </div>
         <div
           ref={rightWrapRef}
-          className="relative w-[38%] max-w-[430px] min-w-[145px] opacity-55 will-change-transform sm:w-[34%] sm:opacity-80"
+          className="relative w-[38%] max-w-[430px] min-w-[145px] opacity-70 will-change-transform sm:w-[34%] sm:opacity-90"
           style={{ transform: `translateX(${offEdge}%)` }}
         >
           <canvas ref={rightCanvasRef} className="block h-auto w-full" />
