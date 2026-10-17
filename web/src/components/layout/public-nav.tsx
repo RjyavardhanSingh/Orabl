@@ -8,7 +8,7 @@ import { WorkflowModal } from '../workflow-modal'
 export function PublicBrand() {
   return (
     <Link to="/" className="font-sans text-2xl font-extrabold tracking-[-0.08em] text-ink transition-colors hover:text-accent" aria-label="Orabl home">
-      Orabl<span className="text-accent">.</span>
+      Orabl
     </Link>
   )
 }

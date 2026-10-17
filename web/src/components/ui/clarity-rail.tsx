@@ -20,14 +20,14 @@ const LEG_FOG =
   "C 100 210, 115 260, 155 285 " +
   "C 195 310, 218 303, 242 306";
 
-const FOG_UNIT = "I know some of this… how do I put it into words? • ";
+const FOG_UNIT = "I know my notes… but can I put it into words? • ";
 const FOG_TILED = `${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}`;
 const FOG_TILED_LENGTH = 1800;
 const FOG_TILE_UNIT = FOG_TILED_LENGTH / 5;
 
-const FOG_STATIC = "How do I put this into words?";
+const FOG_STATIC = "Can I say it in my own words?";
 
-const CLEAR_TEXT = "I can explain it in my own words.";
+const CLEAR_TEXT = "I said it in my own words. Now I know.";
 
 // Tiled marquee math: one unit repeated 3× with textLength forcing exact
 // equal units. Animating startOffset over exactly one unit (-350 → 0) is
@@ -43,7 +43,7 @@ const TILE_UNIT = TILED_LENGTH / 3;
 // so the glyphs stay intact when the path bends. 600 keeps that stroke solid.
 const RAIL_FONT = { fontFamily: "var(--font-voice)", fontWeight: 600 } as const;
 
-const STATUS_WORDS = ["Thinking…", "Finding words", "Getting clearer", "Ready to explain"];
+const STATUS_WORDS = ["Reading notes", "Finding gaps", "Getting clearer", "Ready to explain"];
 
 const POP_IN_MS =600;
 const HOLD_MS = 600;
@@ -188,7 +188,7 @@ export function ClarityRail() {
 
   return (
     <div className={paused ? 'motion-paused min-w-0' : 'min-w-0'}>
-      <div role="img" aria-label="An uncertain thought flows into Orabl and becomes a clear spoken explanation." className="relative w-full overflow-hidden">
+      <div role="img" aria-label="Your notes flow into Orabl and come back as your own words." className="relative w-full overflow-hidden">
       <svg viewBox="70 25 530 470" className="block h-auto w-full bg-transparent">
         <defs>
           <linearGradient id="clarity-ribbon-fade" x1="0" y1="0" x2="1" y2="0">

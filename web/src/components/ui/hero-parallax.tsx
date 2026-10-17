@@ -6,7 +6,7 @@ export function Header() {
       <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-accent">Orabl / Learn Out Loud</p>
         <h1 className="mt-8 max-w-[12ch] font-sans text-[clamp(3.15rem,6.6vw,7rem)] font-bold leading-[1] tracking-[-0.075em] text-balance">
-          Learn It.<br />Say It.<br /><span className="text-cream">Know It.</span>
+          Learn It.<br />Say It.<br /><span className="text-cream">Prove It.</span>
         </h1>
         <p className="mt-8 max-w-md text-pretty text-base leading-7 text-ink-muted sm:text-lg sm:leading-8">
           Practice explaining your own material. Find the gaps, then learn what sticks.

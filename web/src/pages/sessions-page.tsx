@@ -47,7 +47,7 @@ export function SessionsPage() {
     <div className="min-h-dvh bg-[#f6f2e9] text-[#25261e]">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3">Skip to content</a>
       <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 sm:px-10">
-        <Link to="/sessions" className="text-2xl font-extrabold tracking-[-0.08em] hover:opacity-90">Orabl<span className="text-[#d56130]">.</span></Link>
+        <Link to="/sessions" className="text-2xl font-extrabold tracking-[-0.08em] hover:opacity-90">Orabl</Link>
         <div className="flex items-center gap-3">
           <Link to="/" className="hidden text-xs font-semibold uppercase tracking-[0.16em] text-[#666455] hover:text-[#25261e] sm:inline">Home</Link>
           <span className="hidden rounded-full border border-[#d9d2c3] px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#666455] sm:inline">Your learning space</span>

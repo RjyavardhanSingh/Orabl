@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return <div className="flex h-dvh flex-col overflow-hidden bg-canvas text-ink">
     <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3 focus:text-black">Skip to content</a>
     <header className="flex shrink-0 items-center justify-between gap-4 px-5 py-4 sm:px-9">
-      <button type="button" onClick={() => navigate('/sessions')} className="text-xl font-extrabold tracking-[-0.08em]">Orabl<span className="text-accent">.</span></button>
+      <button type="button" onClick={() => navigate('/sessions')} className="text-xl font-extrabold tracking-[-0.08em]">Orabl</button>
       <div className="flex items-center gap-3">
         {id ? <span className="hidden text-xs font-medium text-ink-faint sm:inline">Session {id.slice(0, 8)}</span> : null}
         <Button type="button" variant="secondary" size="sm" onClick={() => navigate('/sessions')} className="border-line bg-transparent text-ink-muted hover:border-accent hover:text-white">Dashboard</Button>

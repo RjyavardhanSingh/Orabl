@@ -25,7 +25,7 @@ export function LandingPage() {
       </a>
       <header className="flex h-[88px] items-center justify-between border-b border-line px-6 sm:px-10 lg:px-16 xl:px-24">
         <Link to="/" translate="no" className="font-sans text-2xl font-extrabold tracking-[-0.08em] text-white transition-colors hover:text-accent" aria-label="Orabl home">
-          Orabl<span className="text-accent">.</span>
+          Orabl
         </Link>
         <nav aria-label="Main" className="flex items-center gap-5 sm:gap-9">
           <a href="#how-it-works" className="hidden text-sm font-medium text-ink-muted transition-colors hover:text-white sm:inline">How It Works</a>
