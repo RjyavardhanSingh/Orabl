@@ -1,7 +1,9 @@
 import { useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 
-const LOOP_SECONDS = 14;
+// Matched to the hero morph cycle (3 words × 2600ms): both animations share
+// one full-cycle duration so the headline and the marquee move as one rhythm.
+const LOOP_SECONDS = 7.8;
 
 // Exit leg: leaves the machine, eases toward the lower right, and finishes
 // inside the frame. The mask below fades it to nothing before the edge, so
@@ -188,9 +190,15 @@ export function ClarityRail() {
   const staticView = reduceMotion || paused;
 
   return (
+<<<<<<< HEAD
     <div className={paused ? 'motion-paused w-full min-w-0' : 'w-full min-w-0'}>
       <div role="img" aria-label="Your notes flow into Orabl and come back as your own words." className="relative w-full overflow-hidden">
       <svg viewBox="80 30 515 390" className="block h-auto w-full bg-transparent">
+=======
+    <div className="min-w-0">
+      <div role="img" aria-label="An uncertain thought flows into Orabl and becomes a clear spoken explanation." className="relative w-full overflow-hidden">
+      <svg viewBox="70 25 530 470" className="block h-auto w-full bg-transparent" overflow="visible">
+>>>>>>> f503cbc (feat: update UI components with new styles, add framer-motion dependency, and enhance landing page structure)
         <defs>
           <linearGradient id="clarity-ribbon-fade" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="white" />
@@ -233,8 +241,8 @@ export function ClarityRail() {
           <text
             textAnchor="middle"
             fontSize={15}
-            fill="var(--color-ink-faint)"
-            opacity={0.65}
+            fill="#000000"
+            opacity={0.9}
             transform="translate(400,60)"
             style={RAIL_FONT}
           >
@@ -243,8 +251,8 @@ export function ClarityRail() {
         ) : (
           <text
             fontSize={15}
-            fill="var(--color-ink-faint)"
-            opacity={0.65}
+            fill="#000000"
+            opacity={0.9}
             textLength={FOG_TILED_LENGTH}
             lengthAdjust="spacing"
             mask="url(#clarity-fog-mask)"
@@ -316,6 +324,7 @@ export function ClarityRail() {
         </g>
       </svg>
       </div>
+<<<<<<< HEAD
       {!reduceMotion ? (
         <button
           type="button"
@@ -325,6 +334,8 @@ export function ClarityRail() {
           {paused ? 'Play Animation' : 'Pause Animation'}
         </button>
       ) : null}
+=======
+>>>>>>> f503cbc (feat: update UI components with new styles, add framer-motion dependency, and enhance landing page structure)
     </div>
   );
 }

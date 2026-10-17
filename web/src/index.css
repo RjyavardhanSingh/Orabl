@@ -7,6 +7,7 @@
 /* `full` exposes Fraunces axes (wght, opsz, SOFT, WONK). WONK stays off:
    its alternates are what made headings look chopped. opsz follows type size. */
 @import "@fontsource-variable/fraunces/full.css";
+@import "@fontsource-variable/fraunces/full-italic.css";
 /* Spoken rail only. The wght cut is the even, non-bouncy Shantell — the
    brush script it replaced broke apart on curves and at display sizes. */
 @import "@fontsource-variable/shantell-sans/wght.css";
@@ -89,12 +90,14 @@ html {
   min-width: 320px;
   overflow-x: clip;
   scroll-behavior: smooth;
+  background: #ffffff;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   overflow-x: clip;
+  background: #ffffff;
 }
 
 /* Kill the double-tap zoom delay on interactive controls. */
