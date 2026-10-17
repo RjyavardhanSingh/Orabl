@@ -3,12 +3,12 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { create } from 'zustand'
 
 import { api } from './api'
+import { clearActiveStudySession } from './study-session'
 import {
   getAccessToken,
   onInvalidToken,
   signOut as requestSignOut,
 } from './auth'
-import { WorkspaceSkeleton } from '../components/ui/workspace-skeleton'
 
 export type AuthUser = { id: string; email: string | null }
 export type AuthStatus = 'loading' | 'in' | 'out'
@@ -44,14 +44,18 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     }
   },
   signOut: async () => {
-    await requestSignOut()
-    set({ user: null, status: 'out' })
+    try { await requestSignOut() }
+    finally {
+      clearActiveStudySession()
+      set({ user: null, status: 'out' })
+    }
   },
 }))
 
 // Single module-level subscription: any 401 in api.ts drops the session.
 // Runs once (not per component), so no listener fan-out on re-renders.
 onInvalidToken(() => {
+  clearActiveStudySession()
   useAuthStore.setState({ user: null, status: 'out' })
 })
 
@@ -79,7 +83,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation()
 
   if (status === 'loading') {
-    return <WorkspaceSkeleton />
+    return <div className="grid min-h-dvh place-items-center bg-canvas px-6 text-sm text-ink-muted" role="status">Opening your learning space…</div>
   }
   if (status === 'out') {
     const next = encodeURIComponent(location.pathname + location.search)

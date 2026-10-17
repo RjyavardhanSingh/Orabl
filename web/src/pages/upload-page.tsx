@@ -1,17 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, Check, FileText, LoaderCircle, UploadCloud, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { AppShell, PageHeader } from '../components/layout/app-shell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
-import { Card, CardContent, CardHeader } from '../components/ui/card'
 import { Input, Textarea } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { api, ApiError, type Material } from '../lib/api'
+import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { cn } from '../lib/utils'
 import { uploadTextSchema, type UploadTextValues } from '../lib/validation'
 
@@ -32,8 +32,21 @@ function readStoredMaterials(): Material[] {
   }
 }
 
+function readUploadDraft(): UploadTextValues {
+  try {
+    const stored = window.sessionStorage.getItem('recall.upload.draft')
+    if (stored) {
+      const value = JSON.parse(stored) as Partial<UploadTextValues>
+      return { name: value.name || 'pasted-notes.txt', content: value.content || '', kind: value.kind === 'markdown' ? 'markdown' : 'text' }
+    }
+  } catch { /* use defaults */ }
+  return { content: '', name: 'pasted-notes.txt', kind: 'text' }
+}
+
 export function UploadPage() {
   const navigate = useNavigate()
+  const { studyId } = useParams()
+  const currentStudyId = studyId || activeStudySessionId()
   const fileInput = useRef<HTMLInputElement>(null)
   const [mode, setMode] = useState<UploadMode>('text')
   const [files, setFiles] = useState<File[]>([])
@@ -43,13 +56,25 @@ export function UploadPage() {
 
   const textForm = useForm<UploadTextValues>({
     resolver: zodResolver(uploadTextSchema),
-    defaultValues: { content: '', name: 'pasted-notes.txt', kind: 'text' },
+    defaultValues: readUploadDraft(),
     mode: 'onBlur',
   })
   const content = useWatch({ control: textForm.control, name: 'content' }) ?? ''
+  const name = useWatch({ control: textForm.control, name: 'name' }) ?? 'pasted-notes.txt'
   const kind = useWatch({ control: textForm.control, name: 'kind' })
   const nameError = textForm.formState.errors.name
   const contentError = textForm.formState.errors.content
+
+  useEffect(() => {
+    const draft = { name, content, kind: kind === 'markdown' ? 'markdown' as const : 'text' as const }
+    try { window.sessionStorage.setItem('recall.upload.draft', JSON.stringify(draft)) } catch { /* private browsing */ }
+    const id = currentStudyId
+    if (!id) return
+    const timer = window.setTimeout(() => {
+      void api.updateStudySession(id, { upload_draft: draft }).catch(() => setError('Could not save your draft. Check your connection.'))
+    }, 700)
+    return () => window.clearTimeout(timer)
+  }, [name, content, kind, currentStudyId])
 
   const selectMode = (nextMode: UploadMode) => {
     setMode(nextMode)
@@ -57,12 +82,20 @@ export function UploadPage() {
     setFiles([])
   }
 
-  function persistMaterials(next: Material[]) {
+  async function persistMaterials(next: Material[]) {
     setMaterials(next)
+    for (const key of ['recall.context', 'recall.questions', 'recall.session', 'recall.results']) {
+      try { window.sessionStorage.removeItem(key) } catch { /* private browsing */ }
+    }
     try {
       window.sessionStorage.setItem(MATERIALS_KEY, JSON.stringify(next))
     } catch {
       // storage full/blocked — session continues in memory
+    }
+    const id = currentStudyId
+    if (id) {
+      try { await api.updateStudySession(id, { material_ids: next.map((item) => item.id), context_id: null, practice_id: null }) }
+      catch { setError('Material uploaded, but session progress could not be saved. Please retry before leaving.'); return }
     }
   }
 
@@ -97,11 +130,11 @@ export function UploadPage() {
   }
 
   function removeMaterial(id: string) {
-    persistMaterials(materials.filter((m) => m.id !== id))
+    void persistMaterials(materials.filter((m) => m.id !== id))
   }
 
-  const saveMaterials = (next: Material[]) => {
-    persistMaterials([...materials, ...next])
+  const saveMaterials = async (next: Material[]) => {
+    await persistMaterials([...materials, ...next])
     for (const item of next) {
       toast.success(`${item.name} is ready to learn from.`)
     }
@@ -140,7 +173,7 @@ export function UploadPage() {
           remaining.push(candidate)
         }
       }
-      if (uploaded.length > 0) saveMaterials(uploaded)
+      if (uploaded.length > 0) await saveMaterials(uploaded)
       setFiles(remaining)
       if (failed.length > 0) {
         if (uploaded.length === 0 && files.length === 1) {
@@ -164,7 +197,7 @@ export function UploadPage() {
     setError('')
     setIsUploading(true)
     try {
-      saveMaterials([await api.uploadText(values)])
+      await saveMaterials([await api.uploadText(values)])
     } catch (uploadError) {
       handleUploadError(uploadError)
     } finally {
@@ -176,15 +209,15 @@ export function UploadPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="mx-auto flex h-full w-full max-w-4xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
         <PageHeader
           title="Bring Something Worth Learning"
           description="Start with a PDF or paste your notes. This material shapes every question you get."
         />
 
-        <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden border-line-strong rounded-xs">
-          <CardHeader className="shrink-0 border-b border-line p-5">
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-sunk p-1">
+        <div className="mt-8 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-line-strong">
+          <div className="shrink-0 border-b border-line py-4">
+            <div className="flex gap-6">
               {(['text', 'pdf'] as UploadMode[]).map((option) => {
                 const selected = mode === option
                 return (
@@ -194,10 +227,10 @@ export function UploadPage() {
                     aria-pressed={selected}
                     onClick={() => selectMode(option)}
                     className={cn(
-                      'rounded-xl px-4 py-2 text-sm font-semibold transition-colors duration-150',
+                      'border-b-2 px-1 py-2 text-sm font-semibold transition-colors duration-150',
                       selected
-                        ? 'bg-ink text-canvas shadow'
-                        : 'text-ink hover:text-ink-soft',
+                        ? 'border-accent text-accent'
+                        : 'border-transparent text-ink-muted hover:text-ink',
                     )}
                   >
                     {option === 'text' ? 'Paste Text' : 'Upload PDF'}
@@ -205,9 +238,9 @@ export function UploadPage() {
                 )
               })}
             </div>
-          </CardHeader>
+          </div>
 
-          <CardContent className="scroll-area min-h-0 flex-1 p-5 pt-0">
+          <div className="scroll-area min-h-0 flex-1 py-6">
             {mode === 'text' ? (
               <div className="space-y-5">
                 <div className="space-y-2">
@@ -285,7 +318,7 @@ export function UploadPage() {
                     event.preventDefault()
                     selectFiles(Array.from(event.dataTransfer.files ?? []))
                   }}
-                  className="flex min-h-48 flex-1 flex-col items-center justify-center rounded-xs bg-sunk px-5 py-8 text-center"
+                  className="flex min-h-48 flex-1 flex-col items-center justify-center border border-dashed border-line-strong bg-sunk px-5 py-8 text-center transition-colors hover:border-accent"
                 >
                   <span className="grid size-12 place-items-center rounded-2xl bg-sunk shadow-sm">
                     <UploadCloud className="size-5 text-ink-muted" aria-hidden="true" />
@@ -376,11 +409,12 @@ export function UploadPage() {
                 ))}
               </div>
             ) : null}
-          </CardContent>
+          </div>
 
-          <div className="flex w-full flex-col gap-2 p-5 sm:flex-row">
+          <div className="flex w-full flex-col gap-2 border-t border-line py-5 sm:flex-row">
             <Button
-              className="w-full bg-accent text-black hover:bg-accent-hover sm:w-80 rounded-xl"
+              className="w-full sm:w-auto"
+              variant={hasAnyMaterial ? 'secondary' : 'default'}
               size="lg"
               onClick={mode === 'text' ? submitText : uploadPdf}
               disabled={isUploading}
@@ -392,23 +426,21 @@ export function UploadPage() {
                 </>
               ) : (
                 <>
-                  Use This Material
+                  {hasAnyMaterial ? 'Add Another Source' : 'Use This Material'}
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </>
               )}
             </Button>
-            <Button
-              className="w-full bg-accent text-black hover:bg-accent-hover rounded-xl sm:w-80"
+            {hasAnyMaterial ? <Button
+              className="w-full sm:w-auto"
               size="lg"
-              onClick={() => navigate('/goal')}
-              disabled={!hasAnyMaterial}
-              title={hasAnyMaterial ? 'Continue to Your Goal' : 'Upload a material first'}
+              onClick={() => navigate(sessionStepPath('goal', currentStudyId))}
             >
-              Move to Your Goal
+              Continue to Goal
               <ArrowRight className="size-4" aria-hidden="true" />
-            </Button>
+            </Button> : null}
           </div>
-        </Card>
+        </div>
       </div>
     </AppShell>
   )

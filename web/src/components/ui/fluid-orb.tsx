@@ -194,4 +194,5 @@ const FluidOrb = ({
   )
 }
 
+export { FluidOrb }
 export default FluidOrb

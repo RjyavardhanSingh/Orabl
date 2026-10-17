@@ -1,5 +1,3 @@
-import { ArrowDownRight } from 'lucide-react'
-
 import { ClarityRail } from './clarity-rail'
 
 export function Header() {
@@ -13,9 +11,6 @@ export function Header() {
         <p className="mt-8 max-w-md text-pretty text-base leading-7 text-ink-muted sm:text-lg sm:leading-8">
           Practice explaining your own material. Find the gaps, then learn what sticks.
         </p>
-        <a href="#how-it-works" className="mt-10 inline-flex items-center gap-3 border-b border-accent pb-2 text-sm font-bold text-white transition-colors hover:text-accent">
-          See How It Works <ArrowDownRight className="size-4" aria-hidden="true" />
-        </a>
       </div>
 
       <div className="min-w-0 border-t border-line pt-8 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0">

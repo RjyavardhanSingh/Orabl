@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from api.routes import auth, contexts, materials, questions, sessions, stt
+from api.routes import auth, contexts, materials, questions, sessions, stt, study_sessions
 from cache import get_cache
 from db.connection import Database, close_pool, get_db
 
@@ -103,7 +103,7 @@ def create_app() -> FastAPI:
             CORSMiddleware,
             allow_origins=origins,
             allow_credentials=True,
-            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
             expose_headers=["X-Request-ID", "X-API-Version"],
         )
@@ -143,6 +143,7 @@ def create_app() -> FastAPI:
         contexts.router,
         questions.router,
         sessions.router,
+        study_sessions.router,
         stt.router,
         auth.router,
     )

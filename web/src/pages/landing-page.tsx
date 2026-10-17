@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 
 import { AnimatedFooter } from '../components/ui/animated-footer'
 import { Header } from '../components/ui/hero-parallax'
+import { useAuthStore } from '../lib/auth-state'
 
 const steps = [
   { number: '01', title: 'Bring Your Material', description: 'Upload a PDF or paste your notes.' },
@@ -13,6 +14,9 @@ const steps = [
 
 export function LandingPage() {
   const reduceMotion = useReducedMotion() ?? false
+  const status = useAuthStore((s) => s.status)
+  const signOut = useAuthStore((s) => s.signOut)
+  const learningPath = status === 'in' ? '/sessions' : '/signin?next=%2Fsessions'
 
   return (
     <div className="min-h-dvh overflow-x-clip bg-canvas text-ink">
@@ -25,9 +29,29 @@ export function LandingPage() {
         </Link>
         <nav aria-label="Main" className="flex items-center gap-5 sm:gap-9">
           <a href="#how-it-works" className="hidden text-sm font-medium text-ink-muted transition-colors hover:text-white sm:inline">How It Works</a>
-          <Link to="/upload" className="inline-flex min-h-10 items-center gap-2 text-sm font-bold text-accent transition-colors hover:text-white">
-            Start Learning <ArrowUpRight className="size-4" aria-hidden="true" />
-          </Link>
+          {status === 'in' ? (
+            <>
+              <Link to="/sessions" className="inline-flex min-h-10 items-center gap-2 text-sm font-bold text-accent transition-colors hover:text-white">
+                Dashboard <ArrowUpRight className="size-4" aria-hidden="true" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="text-sm font-medium text-ink-muted transition-colors hover:text-white"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/signin" className="hidden text-sm font-medium text-ink-muted transition-colors hover:text-white sm:inline">
+                Sign In
+              </Link>
+              <Link to={learningPath} className="inline-flex min-h-10 items-center gap-2 text-sm font-bold text-accent transition-colors hover:text-white">
+                Start Learning <ArrowUpRight className="size-4" aria-hidden="true" />
+              </Link>
+            </>
+          )}
         </nav>
       </header>
 
@@ -60,8 +84,8 @@ export function LandingPage() {
                 Put It Into Words.
               </h2>
             </div>
-            <Link to="/upload" className="inline-flex min-h-12 w-fit items-center gap-5 border-b-2 border-black text-sm font-bold text-black transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-white focus-visible:outline-black active:translate-y-0">
-              Start Learning <ArrowUpRight className="size-4" aria-hidden="true" />
+            <Link to={learningPath} className="inline-flex min-h-12 w-fit items-center gap-5 border-b-2 border-black text-sm font-bold text-black transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-white focus-visible:outline-black active:translate-y-0">
+              {status === 'in' ? 'Go to Dashboard' : 'Start Learning'} <ArrowUpRight className="size-4" aria-hidden="true" />
             </Link>
           </div>
         </section>

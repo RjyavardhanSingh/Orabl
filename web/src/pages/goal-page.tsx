@@ -2,16 +2,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, ArrowRight, BookOpen, LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
-import { Card, CardContent } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { api, ApiError, type Material } from '../lib/api'
+import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { cn } from '../lib/utils'
 import { goalSchema, type GoalValues } from '../lib/validation'
 
@@ -69,6 +69,8 @@ function readStoredContext(): { subject: string; target: string } | null {
 
 export function GoalPage() {
   const navigate = useNavigate()
+  const { studyId } = useParams()
+  const currentStudyId = studyId || activeStudySessionId()
   const materials = readMaterials()
   const [selectedIds, setSelectedIds] = useState<string[]>(() => materials.map((m) => m.id))
   const [error, setError] = useState('')
@@ -110,6 +112,18 @@ export function GoalPage() {
       // storage full/blocked — session continues in memory
     }
   }, [draftValues])
+  useEffect(() => {
+    const id = currentStudyId
+    if (!id) return
+    const timer = window.setTimeout(() => {
+      void api.updateStudySession(id, { goal_draft: {
+        subject: draftValues.subject ?? '', target: draftValues.target ?? '',
+        level: draftValues.level ?? 'intermediate', deadline: draftValues.deadline ?? '',
+        language: draftValues.language ?? 'en',
+      } }).catch(() => setError('Could not save your goal draft. Check your connection.'))
+    }, 600)
+    return () => window.clearTimeout(timer)
+  }, [draftValues, currentStudyId])
   const level = useWatch({ control: form.control, name: 'level' })
   const subjectError = form.formState.errors.subject
   const targetError = form.formState.errors.target
@@ -135,13 +149,17 @@ export function GoalPage() {
         language: values.language,
       })
       window.sessionStorage.setItem('recall.context', JSON.stringify(context))
+      for (const key of ['recall.questions', 'recall.session', 'recall.results']) {
+        window.sessionStorage.removeItem(key)
+      }
+      if (currentStudyId) await api.updateStudySession(currentStudyId, { title: values.subject, context_id: context.id, practice_id: null, goal_draft: values })
       try {
         window.sessionStorage.removeItem(DRAFT_KEY)
       } catch {
         // already gone — harmless
       }
       toast.success('Your learning context is ready.')
-      navigate('/preparing')
+      navigate(sessionStepPath('preparing', currentStudyId))
     } catch (submitError) {
       if (submitError instanceof ApiError) {
         setError(
@@ -166,7 +184,7 @@ export function GoalPage() {
           description="We need something to learn from before we can shape your goal."
           action={
             <Button asChild>
-              <Link to="/upload">
+              <Link to={sessionStepPath('upload', currentStudyId)}>
                 Upload Material
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
@@ -191,24 +209,24 @@ export function GoalPage() {
           description="A clear goal keeps every question relevant to you. Three details are enough to begin."
         />
 
-        <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xs">
-          <CardContent className="scroll-area min-h-0 flex-1 p-5">
+        <div className="mt-8 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-line-strong">
+          <div className="scroll-area min-h-0 flex-1 py-6">
             <form id="goal-form" onSubmit={submit} className="space-y-5" noValidate>
               <fieldset className="space-y-2">
                 <legend className="text-sm font-medium text-ink-soft">
                   Materials in this session ({selectedIds.length} of {materials.length})
                 </legend>
-                <div className="space-y-2">
+                <div className="divide-y divide-line border-t border-line">
                   {materials.map((item) => {
                     const checked = selectedIds.includes(item.id)
                     return (
                       <label
                         key={item.id}
                         className={cn(
-                          'flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors',
+                          'flex cursor-pointer items-center gap-3 py-4 transition-colors',
                           checked
-                            ? 'border-line-strong bg-surface'
-                            : 'border-line bg-sunk text-ink-muted',
+                            ? 'text-ink'
+                            : 'text-ink-muted hover:text-ink',
                         )}
                       >
                         <input
@@ -269,17 +287,17 @@ export function GoalPage() {
                 <legend className="mb-2 text-sm font-medium text-ink-soft">
                   How Familiar Is This?
                 </legend>
-                <div className="grid gap-2">
+                <div className="divide-y divide-line border-t border-line">
                   {levels.map((option) => {
                     const selected = level === option.value
                     return (
                       <label
                         key={option.value}
                         className={cn(
-                          'flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors duration-150',
+                          'flex cursor-pointer items-center gap-3 py-4 transition-colors duration-150',
                           selected
-                            ? 'border-ink bg-sunk'
-                            : 'border-line hover:border-ink-faint',
+                            ? 'text-ink'
+                            : 'text-ink-muted hover:text-ink',
                         )}
                       >
                         <input
@@ -322,11 +340,11 @@ export function GoalPage() {
 
               {error ? <Alert>{error}</Alert> : null}
             </form>
-          </CardContent>
+          </div>
 
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-sunk p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-line py-5 sm:flex-row sm:items-center sm:justify-between">
             <Button asChild variant="ghost">
-              <Link to="/upload">
+              <Link to={sessionStepPath('upload', currentStudyId)}>
                 <ArrowLeft className="size-4" aria-hidden="true" />
                 Back
               </Link>
@@ -339,13 +357,13 @@ export function GoalPage() {
                 </>
               ) : (
                 <>
-                  Create My Session
+                  Prepare Questions
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </>
               )}
             </Button>
           </div>
-        </Card>
+        </div>
       </div>
     </AppShell>
   )

@@ -60,6 +60,20 @@ CREATE TABLE IF NOT EXISTS score_jobs (
 CREATE INDEX IF NOT EXISTS idx_score_jobs_pending ON score_jobs(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_score_jobs_session ON score_jobs(session_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE TABLE IF NOT EXISTS study_sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT 'New session',
+  material_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+  upload_draft JSONB NOT NULL DEFAULT '{}'::jsonb,
+  goal_draft JSONB NOT NULL DEFAULT '{}'::jsonb,
+  context_id TEXT,
+  practice_id TEXT,
+  practice_state JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_study_sessions_owner ON study_sessions(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_materials_user_id ON materials(user_id);
 CREATE INDEX IF NOT EXISTS idx_contexts_user_id ON contexts(user_id);
 

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { Alert } from '../components/ui/alert'
-import { WorkspaceSkeleton } from '../components/ui/workspace-skeleton'
 import { ApiError } from '../lib/api'
 import { exchangeCode, setAccessToken } from '../lib/auth'
 import { useAuthStore } from '../lib/auth-state'
@@ -44,7 +43,7 @@ export function AuthCallbackPage() {
         useAuthStore.setState({ user, status: 'in' })
         const next = searchParams.get('next')
         const destination =
-          next && next.startsWith('/') && !next.startsWith('//') ? next : '/upload'
+          next && next.startsWith('/') && !next.startsWith('//') && next !== '/' ? next : '/sessions'
         navigate(destination, { replace: true })
       })
       .catch((err: unknown) => {
@@ -78,5 +77,5 @@ export function AuthCallbackPage() {
     )
   }
 
-  return <WorkspaceSkeleton />
+  return <div className="grid min-h-dvh place-items-center bg-canvas px-6 text-sm text-ink-muted" role="status">Signing you in…</div>
 }

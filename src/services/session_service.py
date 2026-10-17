@@ -289,6 +289,11 @@ async def process_score_job(cache: CacheService, db: Database, job: dict) -> Non
         if not updated:
             raise InvalidAnswerError(f"Answer for job {job_id} not found in session")
         cache.set(f"session:{job['session_id']}", state, ttl=86400)
+        await db.execute(
+            """UPDATE study_sessions SET practice_state = $2::jsonb, updated_at = NOW()
+               WHERE practice_id = $1""",
+            job["session_id"], json.dumps(state),
+        )
 
         await db.execute("UPDATE score_jobs SET status = 'scored' WHERE id = $1", job_id)
     except (SessionNotFoundError, InvalidAnswerError):
@@ -406,6 +411,12 @@ async def complete_session(
     )
 
     await _upsert_concept_mastery(db, state)
+
+    await db.execute(
+        """UPDATE study_sessions SET practice_state = $2::jsonb, updated_at = NOW()
+           WHERE practice_id = $1""",
+        session_id, json.dumps(state),
+    )
 
     cache.delete(f"session:{session_id}")
     # NOTE: the questions cache entry is deliberately kept (24h TTL survives

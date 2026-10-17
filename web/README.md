@@ -1,6 +1,6 @@
 # Recall web
 
-The user-facing learning workspace for the Adaptive Oral Learning Platform.
+The session based learning workspace for Orabl.
 
 ## Stack
 
@@ -24,6 +24,8 @@ bun run dev
 
 The frontend expects the API at `http://localhost:8000/v1` by default. Set `VITE_API_BASE_URL` in `.env` to point to another environment.
 
+Apply backend migration `007_study_sessions` before opening the dashboard. Signed in users start at `/`, create a session, and continue through `/sessions/:id/upload`, `goal`, `preparing`, `practice`, and `results`. Upload and goal drafts, materials, and practice progress are saved on the server.
+
 ## Available scripts
 
 ```bash
@@ -32,16 +34,3 @@ bun run build     # Typecheck and build for production
 bun run lint      # Run Oxlint
 bun run preview   # Preview the production build
 ```
-
-## Current sprint
-
-Sprint 1 provides the product foundation and the first user journey:
-
-- Welcome screen
-- Material upload with text and PDF support
-- Goal creation form
-- Question preparation screen
-- Responsive black-and-white application shell
-- API health indicator
-- Typed API client for `/v1` endpoints
-- Zod validation and accessible form states

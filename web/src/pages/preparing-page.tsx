@@ -1,67 +1,36 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-
-import { MultiStepLoader } from '../components/ui/multi-step-loader'
-
 
 import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { Card, CardContent } from '../components/ui/card'
 import { api, ApiError, type LearningContext, type Question } from '../lib/api'
-
-const GENERATION_STEPS = ['Request sent', 'LLM working', 'Questions received']
-
-const WAITING_TEXTS = [
-  'Contacting the model…',
-  'Still working — free-tier queues can take a minute.',
-  'While you wait: picture one idea from your notes and say it back.',
-]
-
-type LoaderPhase = { status: 'loading' } | { status: 'success' } | { status: 'error'; message: string }
+import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 
 function readContext(): LearningContext | null {
   const stored = window.sessionStorage.getItem('recall.context')
   return stored ? (JSON.parse(stored) as LearningContext) : null
 }
 
+function readStoredQuestions(): Question[] {
+  try {
+    const stored = window.sessionStorage.getItem('recall.questions')
+    return stored ? (JSON.parse(stored) as Question[]) : []
+  } catch {
+    return []
+  }
+}
+
 export function PreparingPage() {
   const navigate = useNavigate()
+  const { studyId } = useParams()
+  const currentStudyId = studyId || activeStudySessionId()
   const context = readContext()
-  // No sessionStorage hydration: the GET below is the single source of
-  // truth. Hydrating from storage resurrected questions the backend had
-  // invalidated (e.g. after a goal edit), so the page showed a question
-  // list while "Let's Go Champ" failed with 404 — a lying button.
-  const [generated, setGenerated] = useState<Question[]>([])
-  const [loader, setLoader] = useState<LoaderPhase | null>(null)
-  // Fresh loader state per run (flip index resets via remount).
-  const [runId, setRunId] = useState(0)
-  // Minimum time the loading phase stays visible so each truth step is
-  // perceivable — fast responses would otherwise flash past unreadably.
-  // Only the success reveal is held; completions still fire on real events.
-  const MIN_DWELL_MS = 2000
-  const runStartedAt = useRef<number>(0)
-  // Staging timer: step 0 ("Request sent") starts active (spinner) and
-  // reveals its check shortly after — the dispatch already happened, the
-  // beat only lets the eye witness it. Skipped if success lands first.
-  const stepTimer = useRef<number | null>(null)
-  // Truth-owned completion count: 1 on dispatch (request sent), all on
-  // parsed response. Nothing else moves a checkmark.
-  const [completedSteps, setCompletedSteps] = useState(0)
-  const successTimer = useRef<number | null>(null)
-
-  // Success auto-dismiss + staging cleanup on unmount.
-  useEffect(
-    () => () => {
-      if (successTimer.current !== null) window.clearTimeout(successTimer.current)
-      if (stepTimer.current !== null) window.clearTimeout(stepTimer.current)
-    },
-    [],
-  )
+  const [generated, setGenerated] = useState<Question[]>(readStoredQuestions)
 
   const { data, isLoading } = useQuery({
     queryKey: ['questions', context?.id],
@@ -72,47 +41,26 @@ export function PreparingPage() {
 
   const generate = useMutation({
     mutationFn: () => api.generateQuestions(context?.id ?? '', 5),
-    onMutate: () => {
-      if (successTimer.current !== null) window.clearTimeout(successTimer.current)
-      if (stepTimer.current !== null) window.clearTimeout(stepTimer.current)
-      setRunId((id) => id + 1)
-      runStartedAt.current = Date.now()
-      setCompletedSteps(0)
-      stepTimer.current = window.setTimeout(() => {
-        setCompletedSteps((done) => (done === 0 ? 1 : done))
-      }, 700)
-      setLoader({ status: 'loading' })
-    },
     onSuccess: (result) => {
-      const reveal = () => {
-        setGenerated(result.questions)
-        window.sessionStorage.setItem('recall.questions', JSON.stringify(result.questions))
-        toast.success(
-          `${result.questions.length} practice questions are ready.`,
-        )
-        setCompletedSteps(GENERATION_STEPS.length)
-        setLoader({ status: 'success' })
-        successTimer.current = window.setTimeout(() => setLoader(null), 1600)
-      }
-      const elapsed = Date.now() - runStartedAt.current
-      if (elapsed < MIN_DWELL_MS) {
-        successTimer.current = window.setTimeout(reveal, MIN_DWELL_MS - elapsed)
-      } else {
-        reveal()
-      }
+      setGenerated(result.questions)
+      window.sessionStorage.setItem('recall.questions', JSON.stringify(result.questions))
+      toast.success(`${result.questions.length} practice questions are ready.`)
     },
     onError: (error) => {
       const message = error instanceof ApiError ? error.message : 'Question generation failed.'
-      setLoader({ status: 'error', message })
       toast.error(message)
     },
   })
 
   const startPractice = useMutation({
     mutationFn: () => api.createSession(context?.id ?? ''),
-    onSuccess: (session) => {
+    onSuccess: async (session) => {
       window.sessionStorage.setItem('recall.session', JSON.stringify(session))
-      navigate('/practice')
+      if (currentStudyId) {
+        try { await api.updateStudySession(currentStudyId, { practice_id: session.id }) }
+        catch { toast.error('Could not save practice progress. Please try again.'); return }
+      }
+      navigate(sessionStepPath('practice', currentStudyId))
     },
     onError: (error) => {
       toast.error(error instanceof ApiError ? error.message : 'Could not start practice.')
@@ -138,7 +86,7 @@ export function PreparingPage() {
           description="Start again by uploading a material and setting your goal."
           action={
             <Button asChild>
-              <Link to="/upload">
+              <Link to={sessionStepPath('upload', currentStudyId)}>
                 Start Over
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
@@ -151,19 +99,6 @@ export function PreparingPage() {
 
   return (
     <AppShell>
-      <MultiStepLoader
-        key={runId}
-        open={loader !== null}
-        steps={GENERATION_STEPS}
-        status={loader?.status ?? 'loading'}
-        completedCount={completedSteps}
-        waitingIndex={completedSteps === 0 ? 0 : 1}
-        waitingTexts={WAITING_TEXTS}
-        errorMessage={loader?.status === 'error' ? loader.message : undefined}
-        successText={`${generated.length > 0 ? generated.length : 5} questions ready`}
-        onRetry={() => generate.mutate()}
-        onClose={() => setLoader(null)}
-      />
       <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
         <PageHeader
           title="Let's Make This Yours"
@@ -175,8 +110,8 @@ export function PreparingPage() {
           }
         />
 
-        <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xs">
-          <CardContent className="scroll-area min-h-0 flex-1 p-5">
+        <div className="mt-8 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-line-strong">
+          <div className="scroll-area min-h-0 flex-1 py-6">
             {isLoading ? (
               <p
                 className="flex items-center gap-2 text-sm text-ink-muted"
@@ -199,11 +134,11 @@ export function PreparingPage() {
             ) : null}
 
             {visible.length > 0 ? (
-              <ol className="space-y-2.5">
+              <ol className="divide-y divide-line border-t border-line">
                 {visible.map((question, index) => (
                   <li
                     key={question.id ?? `${question.text}-${index}`}
-                    className="flex min-w-0 gap-3 rounded-xl border border-line p-4"
+                    className="flex min-w-0 gap-5 py-5"
                   >
                     <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-canvas">
                       {index + 1}
@@ -228,11 +163,11 @@ export function PreparingPage() {
                   : 'Question generation failed. Check that the API is running, then retry.'}
               </Alert>
             ) : null}
-          </CardContent>
+          </div>
 
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-sunk p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-line py-5 sm:flex-row sm:items-center sm:justify-between">
             <Button asChild variant="ghost" className="disabled:pointer-events-none disabled:opacity-50 rounded-xl">
-              <Link to="/goal" aria-disabled={busy || undefined}>
+              <Link to={sessionStepPath('goal', currentStudyId)} aria-disabled={busy || undefined}>
                 <ArrowLeft className="size-4" aria-hidden="true" />
                 Back to Goal
               </Link>
@@ -279,7 +214,7 @@ export function PreparingPage() {
                   </>
                 ) : visible.length > 0 ? (
                   <>
-                    Let’s Go, Champ
+                    Start Practice
                     <ArrowRight className="size-4" aria-hidden="true" />
                   </>
                 ) : (
@@ -291,7 +226,7 @@ export function PreparingPage() {
               </Button>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
     </AppShell>
   )
