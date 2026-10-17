@@ -1,7 +1,9 @@
 import { useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 
-const LOOP_SECONDS = 14;
+// Matched to the hero morph cycle (3 words × 2600ms): both animations share
+// one full-cycle duration so the headline and the marquee move as one rhythm.
+const LOOP_SECONDS = 7.8;
 
 // Exit leg: leaves the loop and bleeds off the right edge (past the
 // viewBox) so the ribbon touches the edge instead of dying mid-word.
@@ -185,12 +187,9 @@ export function ClarityRail() {
   const reduceMotion = useReducedMotion() ?? false;
 
   return (
-    <div
-      className="relative w-full overflow-hidden bg-transparent"
-      role="img"
-      aria-label="An uncertain thought flows into Orabl and becomes a clear spoken explanation."
-    >
-      <svg viewBox="70 25 530 470" className="block h-auto w-full bg-transparent">
+    <div className="min-w-0">
+      <div role="img" aria-label="An uncertain thought flows into Orabl and becomes a clear spoken explanation." className="relative w-full overflow-hidden">
+      <svg viewBox="70 25 530 470" className="block h-auto w-full bg-transparent" overflow="visible">
         <defs>
           <linearGradient id="clarity-ribbon-fade" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="white" />
@@ -221,8 +220,8 @@ export function ClarityRail() {
           <text
             textAnchor="middle"
             fontSize={15}
-            fill="var(--color-ink-faint)"
-            opacity={0.65}
+            fill="#000000"
+            opacity={0.9}
             transform="translate(400,60)"
             style={RAIL_FONT}
           >
@@ -231,8 +230,8 @@ export function ClarityRail() {
         ) : (
           <text
             fontSize={15}
-            fill="var(--color-ink-faint)"
-            opacity={0.65}
+            fill="#000000"
+            opacity={0.9}
             textLength={FOG_TILED_LENGTH}
             lengthAdjust="spacing"
             style={RAIL_FONT}
@@ -302,6 +301,7 @@ export function ClarityRail() {
           <RobotFace />
         </g>
       </svg>
+      </div>
     </div>
   );
 }
