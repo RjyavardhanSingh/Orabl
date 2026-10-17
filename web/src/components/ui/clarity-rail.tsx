@@ -3,11 +3,12 @@ import { useEffect, useState } from "react";
 
 const LOOP_SECONDS = 14;
 
-// Exit leg: leaves the loop and bleeds off the right edge (past the
-// viewBox) so the ribbon touches the edge instead of dying mid-word.
-// A black stroke under the same geometry doubles as its ribbon.
+// Exit leg: leaves the machine, eases toward the lower right, and finishes
+// inside the frame. The mask below fades it to nothing before the edge, so
+// the ribbon dissolves into the dark instead of being clipped by the
+// viewBox — the whole drawing now stays within its own bounds.
 const LEG_CLEAR =
-  "M 325 296 C 350 300, 380 305, 420 320 C 490 352, 570 395, 660 445";
+  "M 325 296 C 350 300, 380 305, 420 320 C 478 345, 528 373, 566 396";
 
 // Entry leg: one open curl, not a knot. Drops in from the top, sweeps
 // left in a gentle wave, rounds a single spacious bowl, and runs into the
@@ -187,17 +188,29 @@ export function ClarityRail() {
   const staticView = reduceMotion || paused;
 
   return (
-    <div className={paused ? 'motion-paused min-w-0' : 'min-w-0'}>
+    <div className={paused ? 'motion-paused w-full min-w-0' : 'w-full min-w-0'}>
       <div role="img" aria-label="Your notes flow into Orabl and come back as your own words." className="relative w-full overflow-hidden">
-      <svg viewBox="70 25 530 470" className="block h-auto w-full bg-transparent">
+      <svg viewBox="80 30 515 390" className="block h-auto w-full bg-transparent">
         <defs>
           <linearGradient id="clarity-ribbon-fade" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="white" />
-            <stop offset="78%" stopColor="white" />
+            <stop offset="74%" stopColor="white" />
+            <stop offset="95%" stopColor="white" stopOpacity="0" />
             <stop offset="100%" stopColor="white" stopOpacity="0" />
+          </linearGradient>
+          {/* Top fade for the looping narration: the marquee's wrap point
+              sits just under the top edge, so this dissolves it there rather
+              than letting glyphs pop in or get sliced by the frame. */}
+          <linearGradient id="clarity-fog-fade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="white" stopOpacity="0" />
+            <stop offset="5%" stopColor="white" stopOpacity="0" />
+            <stop offset="16%" stopColor="white" />
           </linearGradient>
           <mask id="clarity-ribbon-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="600" height="560">
             <rect width="600" height="560" fill="url(#clarity-ribbon-fade)" />
+          </mask>
+          <mask id="clarity-fog-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="600" height="560">
+            <rect width="600" height="560" fill="url(#clarity-fog-fade)" />
           </mask>
         </defs>
         {/* Invisible geometry for the foggy textPath to reference. */}
@@ -234,6 +247,7 @@ export function ClarityRail() {
             opacity={0.65}
             textLength={FOG_TILED_LENGTH}
             lengthAdjust="spacing"
+            mask="url(#clarity-fog-mask)"
             style={RAIL_FONT}
           >
             <textPath href="#clarity-rail-fog">
@@ -257,7 +271,7 @@ export function ClarityRail() {
             textAnchor="middle"
             fontSize={20}
             fill="var(--color-canvas)"
-            transform="translate(492,392) rotate(14)"
+            transform="translate(497,356) rotate(27)"
             style={RAIL_FONT}
             mask="url(#clarity-ribbon-mask)"
           >
@@ -303,7 +317,11 @@ export function ClarityRail() {
       </svg>
       </div>
       {!reduceMotion ? (
-        <button type="button" onClick={() => setPaused((value) => !value)} className="mt-2 text-xs font-semibold text-ink-muted underline decoration-line-strong underline-offset-4 transition-colors hover:text-accent">
+        <button
+          type="button"
+          onClick={() => setPaused((value) => !value)}
+          className="mt-2 text-[11px] font-bold uppercase tracking-[0.2em] text-ink-muted underline decoration-line-strong underline-offset-[6px] transition-colors hover:text-accent"
+        >
           {paused ? 'Play Animation' : 'Pause Animation'}
         </button>
       ) : null}

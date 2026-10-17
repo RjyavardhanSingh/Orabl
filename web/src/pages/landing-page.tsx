@@ -27,30 +27,25 @@ export function LandingPage() {
         <Link to="/" translate="no" className="font-sans text-2xl font-extrabold tracking-[-0.08em] text-white transition-colors hover:text-accent" aria-label="Orabl home">
           Orabl
         </Link>
-        <nav aria-label="Main" className="flex items-center gap-5 sm:gap-9">
+        <nav aria-label="Main" className="flex items-center gap-4 sm:gap-7">
           <a href="#how-it-works" className="hidden text-sm font-medium text-ink-muted transition-colors hover:text-white sm:inline">How It Works</a>
           {status === 'in' ? (
             <>
-              <Link to="/sessions" className="inline-flex min-h-10 items-center gap-2 text-sm font-bold text-accent transition-colors hover:text-white">
+              <Link to="/sessions" className="inline-flex items-center gap-2 text-sm font-semibold text-ink transition-colors hover:text-accent">
                 Dashboard <ArrowUpRight className="size-4" aria-hidden="true" />
               </Link>
               <button
                 type="button"
                 onClick={() => void signOut()}
-                className="text-sm font-medium text-ink-muted transition-colors hover:text-white"
+                className="hidden text-sm font-medium text-ink-muted transition-colors hover:text-white sm:inline"
               >
                 Sign out
               </button>
             </>
           ) : (
-            <>
-              <Link to="/signin" className="hidden text-sm font-medium text-ink-muted transition-colors hover:text-white sm:inline">
-                Sign In
-              </Link>
-              <Link to={learningPath} className="inline-flex min-h-10 items-center gap-2 text-sm font-bold text-accent transition-colors hover:text-white">
-                Start Learning <ArrowUpRight className="size-4" aria-hidden="true" />
-              </Link>
-            </>
+            <Link to="/signin" className="text-sm font-semibold text-ink underline decoration-accent decoration-2 underline-offset-[6px] transition-colors hover:text-accent">
+              Sign In
+            </Link>
           )}
         </nav>
       </header>
