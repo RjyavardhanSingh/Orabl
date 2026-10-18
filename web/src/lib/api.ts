@@ -123,6 +123,25 @@ export type SttToken = { token: string; expires_in: number }
 
 export type GoalLevel = 'beginner' | 'intermediate' | 'advanced'
 
+export type StudySession = {
+  id: string
+  title: string
+  material_ids: string[]
+  upload_draft: Partial<{ name: string; content: string; kind: 'text' | 'markdown' }>
+  goal_draft: Record<string, string>
+  context_id: string | null
+  practice_id: string | null
+  practice_status: 'active' | 'completed' | null
+  created_at: string
+  updated_at: string
+}
+
+export type StudySessionSummary = Pick<StudySession, 'id' | 'title' | 'context_id' | 'practice_id' | 'practice_status' | 'created_at' | 'updated_at'> & {
+  material_count: number
+}
+
+export type StudySessionPatch = Partial<Pick<StudySession, 'title' | 'material_ids' | 'upload_draft' | 'goal_draft' | 'context_id' | 'practice_id'>>
+
 type ErrorPayload = {
   detail?: string | Array<{ msg?: string }>
   request_id?: string
@@ -160,6 +179,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  listStudySessions: () => request<StudySessionSummary[]>('/study-sessions'),
+  createStudySession: () => request<StudySession>('/study-sessions', { method: 'POST' }),
+  getStudySession: (id: string) => request<StudySession>(`/study-sessions/${id}`),
+  updateStudySession: (id: string, patch: StudySessionPatch) =>
+    request<StudySession>(`/study-sessions/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+
   health: () => request<{ status: string; api_version: string }>('/health'),
 
   me: () => request<{ id: string; email: string | null }>('/auth/me'),
@@ -178,6 +203,9 @@ export const api = {
       body: formData,
     })
   },
+
+  getMaterial: (id: string) => request<Material>(`/materials/${id}`),
+  getContext: (id: string) => request<LearningContext>(`/contexts/${id}`),
 
   createContext: (payload: {
     material_ids: string[]
@@ -207,6 +235,7 @@ export const api = {
     }),
 
   getSession: (sessionId: string) => request<PracticeSession>(`/sessions/${sessionId}`),
+  getSessionQuestions: (sessionId: string) => request<QuestionList>(`/sessions/${sessionId}/questions`),
 
   submitAnswer: (
     sessionId: string,

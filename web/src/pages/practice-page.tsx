@@ -1,17 +1,18 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight, BookOpen, Clock, LoaderCircle, Mic, RotateCcw, SkipForward, Square } from 'lucide-react'
-import { memo, useCallback, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, BookOpen, Clock, Edit3, LoaderCircle, Mic, RotateCcw, SkipForward, Square } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { Card, CardContent } from '../components/ui/card'
+import { Textarea } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import FluidOrb from '../components/ui/fluid-orb'
 import { api, ApiError, type PracticeSession, type Question } from '../lib/api'
+import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { formatClock, useVoiceAnswer } from '../lib/use-voice-answer'
 
 function readSession(): PracticeSession | null {
@@ -24,7 +25,7 @@ function readQuestions(): Question[] {
   return stored ? (JSON.parse(stored) as Question[]) : []
 }
 
-const QuestionCard = memo(function QuestionCard({
+function QuestionPrompt({
   question,
   position,
   total,
@@ -34,7 +35,7 @@ const QuestionCard = memo(function QuestionCard({
   total: number
 }) {
   return (
-    <div className="rounded-xs border border-line bg-surface p-5">
+    <section className="border-b border-line pb-8">
       <div className="flex items-start justify-between gap-4">
         <p className="tabular text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
           Question {position} of {total}
@@ -43,9 +44,9 @@ const QuestionCard = memo(function QuestionCard({
           <Badge className="shrink-0 normal-case tracking-normal">{question.topic}</Badge>
         ) : null}
       </div>
-      <p className="text-pretty mt-3 text-lg font-medium leading-8 text-ink">
+      <h2 className="text-pretty mt-7 font-display text-2xl leading-snug text-ink sm:text-3xl">
         {question.text}
-      </p>
+      </h2>
       {question.previous_attempt ? (
         <div className="mt-4 rounded-xl bg-warn-tint p-4 text-sm leading-6 text-warn">
           Last time you scored{' '}
@@ -56,15 +57,17 @@ const QuestionCard = memo(function QuestionCard({
           .
         </div>
       ) : null}
-    </div>
+    </section>
   )
-})
+}
 
 export function PracticePage() {
   const navigate = useNavigate()
+  const { studyId } = useParams()
+  const currentStudyId = studyId || activeStudySessionId()
   const [session] = useState<PracticeSession | null>(readSession)
   const [questions] = useState<Question[]>(readQuestions)
-  const [index, setIndex] = useState(0)
+  const [index, setIndex] = useState(() => readSession()?.current_index ?? 0)
   const [draft, setDraft] = useState<string | null>(null)
   const [awaitingAck, setAwaitingAck] = useState(false)
 
@@ -92,7 +95,16 @@ export function PracticePage() {
       if (record.status === 'pending') setAwaitingAck(true)
       voice.reset()
       setDraft(null)
-      setIndex((i) => i + 1)
+      const nextIndex = index + 1
+      setIndex(nextIndex)
+      try {
+        const stored = readSession()
+        if (stored) {
+          window.sessionStorage.setItem('recall.session', JSON.stringify({ ...stored, current_index: nextIndex }))
+        }
+      } catch {
+        // private mode
+      }
     },
     onError: (error) => {
       toast.error(error instanceof ApiError ? error.message : 'Could not submit answer.')
@@ -101,9 +113,16 @@ export function PracticePage() {
 
   const finish = useMutation({
     mutationFn: () => api.completeSession(session?.id ?? ''),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       window.sessionStorage.setItem('recall.results', JSON.stringify(result))
-      navigate('/results')
+      if (currentStudyId && session?.id) {
+        try {
+          await api.updateStudySession(currentStudyId, { practice_id: session.id })
+        } catch {
+          // non-blocking sync
+        }
+      }
+      navigate(sessionStepPath('results', currentStudyId))
     },
     onError: (error) => {
       toast.error(error instanceof ApiError ? error.message : 'Could not finish session.')
@@ -129,7 +148,7 @@ export function PracticePage() {
           description="Generate questions first, then start a practice session."
           action={
             <Button asChild className='rounded-xl'>
-              <Link to="/preparing">
+              <Link to={sessionStepPath('preparing', currentStudyId)}>
                 Back to Preparing
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
@@ -160,12 +179,12 @@ export function PracticePage() {
           }
         />
 
-        <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xs">
-          <CardContent className="scroll-area min-h-0 flex-1 space-y-4 p-5">
-            {!done && question ? <QuestionCard question={question} position={index + 1} total={total} /> : null}
+        <div className="mt-8 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-line-strong">
+          <div className="scroll-area min-h-0 flex-1 space-y-6 py-6">
+            {!done && question ? <QuestionPrompt question={question} position={index + 1} total={total} /> : null}
 
             {!done && question ? (
-              <div className="rounded-xs bg-stone-100 p-5">
+              <section className="py-4">
                 {voice.phase === 'idle' && draft === null && !submit.isPending ? (
                   <div className="flex flex-col items-center py-4 text-center">
                     <Button
@@ -181,16 +200,28 @@ export function PracticePage() {
                     <p className="mt-1 text-xs text-ink-muted">
                       Tap the mic, speak your answer, then stop.
                     </p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="mt-4 text-ink-muted"
-                      onClick={() => submit.mutate({ answer_text: '', skipped: true })}
-                    >
-                      <SkipForward className="size-3.5" aria-hidden="true" />
-                      Skip for Now
-                    </Button>
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-ink-muted hover:text-ink"
+                        onClick={() => submit.mutate({ answer_text: '', skipped: true })}
+                      >
+                        <SkipForward className="size-3.5" aria-hidden="true" />
+                        Skip for Now
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-ink-muted hover:text-ink"
+                        onClick={() => setDraft('')}
+                      >
+                        <Edit3 className="size-3.5" aria-hidden="true" />
+                        Type Answer
+                      </Button>
+                    </div>
                   </div>
                 ) : null}
 
@@ -223,7 +254,7 @@ export function PracticePage() {
                     {/* Fluid orb pulses while the mic is live; the transcript
                         below carries the real announcement. */}
                     <div className="mt-4 flex justify-center">
-                      <FluidOrb size={140} color="#2e6a4e" aria-hidden="true" />
+                      <FluidOrb size={140} color="#f3701e" aria-hidden="true" />
                     </div>
                     <p
                       className="mt-4 min-h-16 text-sm leading-6 text-ink-soft"
@@ -234,7 +265,7 @@ export function PracticePage() {
                       <span className="text-ink-faint">{voice.partial}</span>
                       {!voice.committed && !voice.partial ? 'Speak now…' : null}
                     </p>
-                    <Button className="mt-4 w-full rounded-xl bg-green-900 hover:bg-green-800" onClick={handleStop}>
+                    <Button className="mt-4 w-full rounded-xl bg-accent text-black hover:bg-accent-hover" onClick={handleStop}>
                       <Square className="size-4" aria-hidden="true" />
                       Stop &amp; Review
                     </Button>
@@ -257,18 +288,18 @@ export function PracticePage() {
                 {draft !== null && voice.phase !== 'recording' ? (
                   <div className="space-y-3">
                     <Label htmlFor="answer-draft">Your Answer — Edit If Needed</Label>
-                    <textarea
+                    <Textarea
                       id="answer-draft"
                       name="answer"
                       value={draft}
                       onChange={(event) => setDraft(event.target.value)}
                       rows={5}
                       maxLength={12000}
-                      className="w-full resize-y rounded-xl border border-line bg-surface p-4 text-sm leading-6 text-ink transition-colors placeholder:text-ink-faint hover:border-line-strong focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/10"
+                      className="w-full bg-sunk text-sm leading-6"
                     />
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Button
-                        className="flex-1 bg-green-900 text-white hover:bg-green-800 rounded-xl"
+                        className="flex-1 bg-accent text-black hover:bg-accent-hover rounded-xl"
                         disabled={submit.isPending || draft.trim().length === 0}
                         onClick={() => submit.mutate({ answer_text: draft.trim() })}
                       >
@@ -293,17 +324,17 @@ export function PracticePage() {
                           voice.reset()
                         }}
                       >
-                        <RotateCcw className="size-" aria-hidden="true" />
+                        <RotateCcw className="size-4" aria-hidden="true" />
                         Re-record
                       </Button>
                     </div>
                   </div>
                 ) : null}
-              </div>
+              </section>
             ) : null}
 
             {done ? (
-              <div className="rounded-2xl border border-line bg-surface p-5">
+              <section className="border-t border-line py-8">
                 <h2 className="text-base font-semibold tracking-tight">All Questions Answered</h2>
                 <p className="text-pretty mt-1.5 text-sm leading-6 text-ink-muted">
                   {pendingCount > 0
@@ -313,7 +344,7 @@ export function PracticePage() {
                     : 'Your full report with readiness score and per-question feedback is ready.'}
                 </p>
                 <Button
-                  className="mt-5 w-full bg-green-900 hover:bg-green-800 rounded-xl"
+                  className="mt-5 w-full bg-accent text-black hover:bg-accent-hover rounded-xl"
                   size="lg"
                   disabled={finish.isPending}
                   onClick={() => finish.mutate()}
@@ -337,19 +368,19 @@ export function PracticePage() {
                       : 'Could not finish session. Try again in a moment.'}
                   </Alert>
                 ) : null}
-              </div>
+              </section>
             ) : null}
-          </CardContent>
+          </div>
 
-          <div className="shrink-0 border-t border-sunk p-5">
+          <div className="shrink-0 border-t border-line py-5">
             <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted rounded-xl">
-              <Link to="/preparing">
+              <Link to={sessionStepPath('preparing', currentStudyId)}>
                 <ArrowLeft className="size-3.5" aria-hidden="true" />
                 Back to Preparing
               </Link>
             </Button>
           </div>
-        </Card>
+        </div>
       </div>
     </AppShell>
   )

@@ -1,5 +1,7 @@
 """Practice → Results → Retest — session lifecycle."""
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.schemas import (
@@ -96,12 +98,23 @@ async def list_saved(
 async def get_session(
     session_id: str,
     cache: CacheService = Depends(get_cache),
+    db: Database = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
     """Step 4 — Practice: get current session state."""
     state = await session_service.get_session(cache, session_id, user_id=user.id)
     if state is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+        row = await db.fetchrow(
+            "SELECT practice_state FROM study_sessions WHERE practice_id = $1 AND user_id = $2",
+            session_id, user.id,
+        )
+        if row and row["practice_state"]:
+            raw = row["practice_state"]
+            state = json.loads(raw) if isinstance(raw, str) else raw
+            if state.get("status") == "active":
+                cache.set(f"session:{session_id}", state, ttl=86400)
+        if state is None or state.get("status") != "active":
+            raise HTTPException(status_code=404, detail="Session not found")
     pending, scored = _progress(state)
     return SessionResponse(
         id=state["id"],
@@ -112,6 +125,18 @@ async def get_session(
         pending_count=pending,
         scored_count=scored,
     )
+
+
+@router.get("/{session_id}/questions", tags=["Practice"])
+async def get_session_questions(
+    session_id: str,
+    cache: CacheService = Depends(get_cache),
+    db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    await get_session(session_id, cache, db, user)
+    state = await session_service.get_session(cache, session_id, user_id=user.id)
+    return {"questions": state["questions"]}
 
 
 @router.post(
@@ -148,6 +173,13 @@ async def submit_answer(
         raise HTTPException(status_code=409, detail=str(e)) from e
     except InvalidAnswerError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+    state = await session_service.get_session(cache, session_id, user_id=user.id)
+    if state is not None:
+        await db.execute(
+            """UPDATE study_sessions SET practice_state = $3::jsonb, updated_at = NOW()
+               WHERE practice_id = $1 AND user_id = $2""",
+            session_id, user.id, json.dumps(state),
+        )
     return AnswerResponse(**record)
 
 

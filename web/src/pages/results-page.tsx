@@ -12,15 +12,15 @@ import {
   Trophy,
 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { Card, CardContent } from '../components/ui/card'
 import { api, ApiError, type Question, type SessionResults, type TopicBreakdown } from '../lib/api'
+import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { cn } from '../lib/utils'
 
 const WEAK_THRESHOLD = 60
@@ -32,7 +32,7 @@ function readResults(): SessionResults | null {
 
 function scoreTone(score: number | null): string {
   if (score === null) return 'bg-sunk text-ink-muted'
-  if (score > WEAK_THRESHOLD) return 'bg-ink text-white'
+  if (score > WEAK_THRESHOLD) return 'bg-ink text-canvas'
   return 'bg-warn-tint text-warn'
 }
 
@@ -40,7 +40,7 @@ function isWeak(data: TopicBreakdown): boolean {
   return data.status === 'needs_work' || data.average_score <= WEAK_THRESHOLD
 }
 
-function SectionCard({
+function ReportSection({
   icon,
   title,
   count,
@@ -56,8 +56,8 @@ function SectionCard({
   className?: string
 }) {
   return (
-    <Card className={cn(className)}>
-      <div className="flex items-center justify-between gap-4 p-5 pb-3">
+    <section className={cn('border-t border-line pt-5', className)}>
+      <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <span
             className={cn(
@@ -73,13 +73,15 @@ function SectionCard({
           <Badge className="tabular shrink-0">{count}</Badge>
         ) : null}
       </div>
-      <CardContent className="p-5 pt-0">{children}</CardContent>
-    </Card>
+      <div className="py-5">{children}</div>
+    </section>
   )
 }
 
 export function ResultsPage() {
   const navigate = useNavigate()
+  const { studyId } = useParams()
+  const currentStudyId = studyId || activeStudySessionId()
   const [results, setResults] = useState<SessionResults | null>(readResults)
   const [expired, setExpired] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -97,7 +99,7 @@ export function ResultsPage() {
         // storage full/blocked — session continues in memory
       }
       toast.success('Session saved. Find it under your profile.')
-      navigate('/upload')
+      navigate('/sessions')
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : 'Could not save this session.')
     } finally {
@@ -108,7 +110,7 @@ export function ResultsPage() {
   const retest = useMutation({
     mutationFn: (weakOnly: boolean) =>
       api.createRetest(results?.id ?? '', { weak_only: weakOnly }),
-    onSuccess: (retestSession) => {
+    onSuccess: async (retestSession) => {
       window.sessionStorage.setItem(
         'recall.session',
         JSON.stringify({
@@ -122,7 +124,11 @@ export function ResultsPage() {
         }),
       )
       window.sessionStorage.setItem('recall.questions', JSON.stringify(retestSession.questions))
-      navigate('/practice')
+      if (currentStudyId) {
+        try { await api.updateStudySession(currentStudyId, { practice_id: retestSession.id }) }
+        catch { toast.error('Could not save retest progress. Try again.'); return }
+      }
+      navigate(sessionStepPath('practice', currentStudyId))
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 410) {
@@ -142,7 +148,7 @@ export function ResultsPage() {
           description="Complete a practice session to unlock your full report."
           action={
             <Button asChild className='rounded-xl'>
-              <Link to="/practice">
+              <Link to={sessionStepPath('practice', currentStudyId)}>
                 Back to Practice
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
@@ -191,7 +197,7 @@ export function ResultsPage() {
                     )}
                   </Button>
                   <Button
-                    className="flex-1 bg-green-900 hover:bg-green-800 rounded-xl"
+                    className="flex-1 bg-accent text-black hover:bg-accent-hover rounded-xl"
                     disabled={retest.isPending || weakTopics.length === 0}
                     onClick={() => retest.mutate(true)}
                   >
@@ -244,9 +250,9 @@ export function ResultsPage() {
         <div className="scroll-area mx-auto mt-5 min-h-0 w-full max-w-6xl flex-1">
           <div className="grid items-start gap-4 pb-2 lg:grid-cols-2">
             <div className="space-y-4">
-              <Card className='rounded-xs'>
-                <CardContent className="flex items-center gap-5 p-5">
-                  <span className="tabular grid size-16 shrink-0 place-items-center rounded-2xl bg-ink text-2xl font-bold text-white">
+              <section className="border-t border-line-strong py-6">
+                <div className="flex items-center gap-5">
+                  <span className="tabular grid size-16 shrink-0 place-items-center rounded-2xl bg-ink text-2xl font-bold text-canvas">
                     {results.readiness_score}
                   </span>
                   <div className="min-w-0">
@@ -260,10 +266,10 @@ export function ResultsPage() {
                       </p>
                     ) : null}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
 
-              <SectionCard
+              <ReportSection
                 icon={<CheckCircle2 className="size-4" aria-hidden="true" />}
                 title="What’s Solid"
                 count={strongTopics.length}
@@ -289,9 +295,9 @@ export function ResultsPage() {
                     ))}
                   </ul>
                 )}
-              </SectionCard>
+              </ReportSection>
 
-              <SectionCard
+              <ReportSection
                 icon={<Target className="size-4" aria-hidden="true" />}
                 title="What to Fix"
                 count={weakTopics.length}
@@ -304,7 +310,7 @@ export function ResultsPage() {
                 ) : (
                   <ul className="space-y-2.5">
                     {weakTopics.map(([topic, data]) => (
-                      <li key={topic} className="rounded-xl bg-stone-100 p-3.5">
+                      <li key={topic} className="rounded-xl bg-sunk p-3.5">
                         <div className="flex items-center justify-between gap-3">
                           <span className="min-w-0 truncate text-sm font-medium text-ink-soft">
                             {topic}
@@ -323,10 +329,10 @@ export function ResultsPage() {
                     ))}
                   </ul>
                 )}
-              </SectionCard>
+              </ReportSection>
 
               {mixUps.length > 0 ? (
-                <SectionCard
+                <ReportSection
                   icon={<AlertTriangle className="size-4" aria-hidden="true" />}
                   title="Common Mix-Ups We Noticed"
                   count={mixUps.length}
@@ -336,25 +342,25 @@ export function ResultsPage() {
                     {mixUps.map((mixUp) => (
                       <li
                         key={mixUp}
-                        className="text-pretty rounded-xl bg-stone-100 px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
+                        className="text-pretty rounded-xl bg-sunk px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
                       >
                         {mixUp}
                       </li>
                     ))}
                   </ul>
-                </SectionCard>
+                </ReportSection>
               ) : null}
             </div>
 
             <div className="space-y-4">
-              <Card className='rounded-xs'>
-                <div className="p-5 pb-3">
+              <section className="border-t border-line-strong pt-5">
+                <div>
                   <h2 className="text-sm font-semibold tracking-tight">Every Question</h2>
                   <p className="mt-1 text-xs text-ink-muted">
                     Open one to see what you said and the feedback.
                   </p>
                 </div>
-                <CardContent className="p-5 pt-0">
+                <div className="py-5">
                   {results.questions.length === 0 ? (
                     <p className="text-sm text-ink-muted">No questions were recorded.</p>
                   ) : (
@@ -365,7 +371,7 @@ export function ResultsPage() {
                           <li key={question.id ?? position}>
                             <details className="group rounded-xl border border-line transition-colors open:border-line-strong">
                               <summary className="flex cursor-pointer list-none items-center gap-3 p-3.5">
-                                <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-white">
+                                <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-canvas">
                                   {position + 1}
                                 </span>
                                 <span className="text-pretty min-w-0 flex-1 text-sm font-medium leading-6">
@@ -406,11 +412,11 @@ export function ResultsPage() {
                       })}
                     </ul>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </section>
 
               <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted rounded-xl">
-                <Link to="/preparing">
+                <Link to={sessionStepPath('preparing', currentStudyId)}>
                   <ArrowLeft className="size-3.5" aria-hidden="true" />
                   Back to Preparing
                 </Link>

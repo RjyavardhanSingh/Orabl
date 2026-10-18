@@ -1,15 +1,14 @@
 import { useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 
-// Matched to the hero morph cycle (3 words × 2600ms): both animations share
-// one full-cycle duration so the headline and the marquee move as one rhythm.
-const LOOP_SECONDS = 7.8;
+const LOOP_SECONDS = 14;
 
-// Exit leg: leaves the loop and bleeds off the right edge (past the
-// viewBox) so the ribbon touches the edge instead of dying mid-word.
-// A black stroke under the same geometry doubles as its ribbon.
+// Exit leg: leaves the machine, eases toward the lower right, and finishes
+// inside the frame. The mask below fades it to nothing before the edge, so
+// the ribbon dissolves into the dark instead of being clipped by the
+// viewBox — the whole drawing now stays within its own bounds.
 const LEG_CLEAR =
-  "M 325 296 C 350 300, 380 305, 420 320 C 490 352, 570 395, 660 445";
+  "M 325 296 C 350 300, 380 305, 420 320 C 478 345, 528 373, 566 396";
 
 // Entry leg: one open curl, not a knot. Drops in from the top, sweeps
 // left in a gentle wave, rounds a single spacious bowl, and runs into the
@@ -22,14 +21,14 @@ const LEG_FOG =
   "C 100 210, 115 260, 155 285 " +
   "C 195 310, 218 303, 242 306";
 
-const FOG_UNIT = "I know some of this... how do I put it into words? • ";
+const FOG_UNIT = "I know my notes… but can I put it into words? • ";
 const FOG_TILED = `${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}`;
 const FOG_TILED_LENGTH = 1800;
 const FOG_TILE_UNIT = FOG_TILED_LENGTH / 5;
 
-const FOG_STATIC = "How do I put this into words?";
+const FOG_STATIC = "Can I say it in my own words?";
 
-const CLEAR_TEXT = "I can explain it in my own words.";
+const CLEAR_TEXT = "I said it in my own words. Now I know.";
 
 // Tiled marquee math: one unit repeated 3× with textLength forcing exact
 // equal units. Animating startOffset over exactly one unit (-350 → 0) is
@@ -45,7 +44,7 @@ const TILE_UNIT = TILED_LENGTH / 3;
 // so the glyphs stay intact when the path bends. 600 keeps that stroke solid.
 const RAIL_FONT = { fontFamily: "var(--font-voice)", fontWeight: 600 } as const;
 
-const STATUS_WORDS = ["Thinking...", "Finding words", "Getting clearer", "Ready to explain"];
+const STATUS_WORDS = ["Reading notes", "Finding gaps", "Getting clearer", "Ready to explain"];
 
 const POP_IN_MS =600;
 const HOLD_MS = 600;
@@ -108,10 +107,10 @@ function StatusPill({ reduceMotion }: { reduceMotion: boolean }) {
         textAnchor="middle"
         fontSize={14}
         fontWeight={600}
-        fill="#ffffff"
+        fill="var(--color-canvas)"
         style={{ fontFamily: "var(--font-sans)" }}
       >
-        {STATUS_WORDS[wordIndex]}
+        {reduceMotion ? STATUS_WORDS[3] : STATUS_WORDS[wordIndex]}
       </text>
     </g>
   );
@@ -146,8 +145,8 @@ function RobotFace() {
         cx={322}
         cy={309}
         r={15}
-        fill="var(--color-surface)"
-        stroke="var(--color-ink)"
+        fill="var(--color-ink)"
+        stroke="var(--color-canvas)"
         strokeWidth={3}
       />
       {/* antenna stem + tip */}
@@ -168,7 +167,7 @@ function RobotFace() {
         width={5}
         height={11}
         rx={2.5}
-        fill="var(--color-ink)"
+        fill="var(--color-canvas)"
       />
       <rect
         className="robot-eye"
@@ -177,7 +176,7 @@ function RobotFace() {
         width={5}
         height={11}
         rx={2.5}
-        fill="var(--color-ink)"
+        fill="var(--color-canvas)"
       />
     </g>
   );
@@ -185,19 +184,33 @@ function RobotFace() {
 
 export function ClarityRail() {
   const reduceMotion = useReducedMotion() ?? false;
+  const [paused, setPaused] = useState(false);
+  const staticView = reduceMotion || paused;
 
   return (
-    <div className="min-w-0">
-      <div role="img" aria-label="An uncertain thought flows into Orabl and becomes a clear spoken explanation." className="relative w-full overflow-hidden">
-      <svg viewBox="70 25 530 470" className="block h-auto w-full bg-transparent" overflow="visible">
+    <div className={paused ? 'motion-paused w-full min-w-0' : 'w-full min-w-0'}>
+      <div role="img" aria-label="Your notes flow into Orabl and come back as your own words." className="relative w-full overflow-hidden">
+      <svg viewBox="80 30 515 390" className="block h-auto w-full bg-transparent">
         <defs>
           <linearGradient id="clarity-ribbon-fade" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="white" />
-            <stop offset="78%" stopColor="white" />
+            <stop offset="74%" stopColor="white" />
+            <stop offset="95%" stopColor="white" stopOpacity="0" />
             <stop offset="100%" stopColor="white" stopOpacity="0" />
+          </linearGradient>
+          {/* Top fade for the looping narration: the marquee's wrap point
+              sits just under the top edge, so this dissolves it there rather
+              than letting glyphs pop in or get sliced by the frame. */}
+          <linearGradient id="clarity-fog-fade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="white" stopOpacity="0" />
+            <stop offset="5%" stopColor="white" stopOpacity="0" />
+            <stop offset="16%" stopColor="white" />
           </linearGradient>
           <mask id="clarity-ribbon-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="600" height="560">
             <rect width="600" height="560" fill="url(#clarity-ribbon-fade)" />
+          </mask>
+          <mask id="clarity-fog-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="600" height="560">
+            <rect width="600" height="560" fill="url(#clarity-fog-fade)" />
           </mask>
         </defs>
         {/* Invisible geometry for the foggy textPath to reference. */}
@@ -208,7 +221,7 @@ export function ClarityRail() {
           id="clarity-rail-clear"
           d={LEG_CLEAR}
           fill="none"
-          stroke="var(--color-ink)"
+          stroke="var(--color-accent)"
           strokeWidth={38}
           strokeLinecap="round"
           mask="url(#clarity-ribbon-mask)"
@@ -216,12 +229,12 @@ export function ClarityRail() {
         {/* Foggy study-speak: one continuous tiled rail looping into the
             machine — same seamless marquee math as the clear ribbon, so the
             stream never breaks or gaps. */}
-        {reduceMotion ? (
+        {staticView ? (
           <text
             textAnchor="middle"
             fontSize={15}
-            fill="#000000"
-            opacity={0.9}
+            fill="var(--color-ink-faint)"
+            opacity={0.65}
             transform="translate(400,60)"
             style={RAIL_FONT}
           >
@@ -230,10 +243,11 @@ export function ClarityRail() {
         ) : (
           <text
             fontSize={15}
-            fill="#000000"
-            opacity={0.9}
+            fill="var(--color-ink-faint)"
+            opacity={0.65}
             textLength={FOG_TILED_LENGTH}
             lengthAdjust="spacing"
+            mask="url(#clarity-fog-mask)"
             style={RAIL_FONT}
           >
             <textPath href="#clarity-rail-fog">
@@ -252,12 +266,12 @@ export function ClarityRail() {
             on the ribbon curve itself (dy centers it on the stroke), so it
             can never drift off the line. startOffset stays in [0,100%] with
             opacity doing the enter/exit — both loop ends are invisible. */}
-        {reduceMotion ? (
+        {staticView ? (
           <text
             textAnchor="middle"
             fontSize={20}
-            fill="#ffffff"
-            transform="translate(492,392) rotate(14)"
+            fill="var(--color-canvas)"
+            transform="translate(497,356) rotate(27)"
             style={RAIL_FONT}
             mask="url(#clarity-ribbon-mask)"
           >
@@ -266,7 +280,7 @@ export function ClarityRail() {
         ) : (
           <text
             fontSize={20}
-            fill="#ffffff"
+            fill="var(--color-canvas)"
             dy={7}
             textLength={TILED_LENGTH}
             lengthAdjust="spacing"
@@ -287,7 +301,7 @@ export function ClarityRail() {
         )}
         {/* The machine */}
         <g>
-          <StatusPill reduceMotion={reduceMotion} />
+          <StatusPill reduceMotion={staticView} />
           <rect
             x={242}
             y={276}
@@ -302,6 +316,15 @@ export function ClarityRail() {
         </g>
       </svg>
       </div>
+      {!reduceMotion ? (
+        <button
+          type="button"
+          onClick={() => setPaused((value) => !value)}
+          className="mt-2 text-[11px] font-bold uppercase tracking-[0.2em] text-ink-muted underline decoration-line-strong underline-offset-[6px] transition-colors hover:text-accent"
+        >
+          {paused ? 'Play Animation' : 'Pause Animation'}
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -3,13 +3,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 import { RequireAuth, AuthProvider } from './lib/auth-state'
-import { WorkspaceSkeleton } from './components/ui/workspace-skeleton'
+import { SessionGate } from './components/layout/session-gate'
 
-// Route-level code splitting: each page (+ its heavy deps: gsap, motion,
-// elevenlabs, animated canvases) loads on first visit instead of bloating
-// the initial bundle. Landing is the only eager route.
-import { LandingPage } from './pages/landing-page'
+// Keep the public marketing animation out of the authenticated dashboard bundle.
 import { SprintPlaceholderPage } from './pages/sprint-placeholder-page'
+
+const LandingPage = lazy(() => import('./pages/landing-page').then((m) => ({ default: m.LandingPage })))
 
 const UploadPage = lazy(() =>
   import('./pages/upload-page').then((m) => ({ default: m.UploadPage })),
@@ -45,7 +44,7 @@ function NotFoundPage() {
 }
 
 function RouteFallback() {
-  return <WorkspaceSkeleton />
+  return <div className="grid min-h-dvh place-items-center bg-canvas px-6 text-sm text-ink-muted" role="status">Opening Orabl…</div>
 }
 
 export default function App() {
@@ -56,12 +55,16 @@ export default function App() {
           <Suspense fallback={<RouteFallback />}>
             <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/upload" element={<RequireAuth><UploadPage /></RequireAuth>} />
-            <Route path="/goal" element={<RequireAuth><GoalPage /></RequireAuth>} />
-            <Route path="/preparing" element={<RequireAuth><PreparingPage /></RequireAuth>} />
-            <Route path="/practice" element={<RequireAuth><PracticePage /></RequireAuth>} />
-            <Route path="/results" element={<RequireAuth><ResultsPage /></RequireAuth>} />
+            <Route path="/about" element={<LandingPage />} />
             <Route path="/sessions" element={<RequireAuth><SessionsPage /></RequireAuth>} />
+            <Route path="/sessions/:studyId" element={<RequireAuth><SessionGate /></RequireAuth>}>
+              <Route index element={<div className="grid h-dvh place-items-center bg-canvas text-sm text-ink-muted" role="status">Opening your session…</div>} />
+              <Route path="upload" element={<UploadPage />} />
+              <Route path="goal" element={<GoalPage />} />
+              <Route path="preparing" element={<PreparingPage />} />
+              <Route path="practice" element={<PracticePage />} />
+              <Route path="results" element={<ResultsPage />} />
+            </Route>
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="*" element={<NotFoundPage />} />
