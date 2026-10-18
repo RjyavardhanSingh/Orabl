@@ -205,20 +205,20 @@ export function GoalPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[52rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7">
         <PageHeader
           title="What Do You Want to Understand?"
           description="A clear goal keeps every question relevant to you. Three details are enough to begin."
         />
 
-        <div className="mt-8 border-t border-line-strong">
-          <div className="py-6">
-            <form id="goal-form" onSubmit={submit} className="space-y-5" noValidate>
+        <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-sunk px-5 sm:px-7">
+          <div className="scroll-area min-h-0 flex-1 py-6 pr-1">
+            <form id="goal-form" onSubmit={submit} className="space-y-7" noValidate>
               <fieldset className="space-y-2">
                 <legend className="text-sm font-medium text-ink-soft">
                   Materials in this session ({selectedIds.length} of {materials.length})
                 </legend>
-                <div className="divide-y divide-line border-t border-line">
+                <div className="divide-y divide-line rounded-xl border border-line bg-surface px-4">
                   {materials.map((item) => {
                     const checked = selectedIds.includes(item.id)
                     return (
@@ -292,7 +292,7 @@ export function GoalPage() {
                 <RadioGroup.Root
                   value={level}
                   onValueChange={(value) => form.setValue('level', value as GoalValues['level'], { shouldDirty: true, shouldValidate: true })}
-                  className="divide-y divide-line border-t border-line"
+                  className="divide-y divide-line rounded-xl border border-line bg-surface px-4"
                 >
                   {levels.map((option) => {
                     const selected = level === option.value
@@ -349,7 +349,7 @@ export function GoalPage() {
             </form>
           </div>
 
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-line py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-line py-4 sm:flex-row sm:items-center sm:justify-between">
             <Button asChild variant="ghost">
               <Link to={sessionStepPath('upload', currentStudyId)}>
                 <ArrowLeft className="size-4" aria-hidden="true" />

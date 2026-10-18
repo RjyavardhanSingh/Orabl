@@ -121,8 +121,37 @@ label {
 .scroll-area {
   overflow-y: auto;
   overscroll-behavior: contain;
+  scroll-padding-block: 1rem;
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* A short viewport needs room for the overview; keep the app header fixed
+   while the dashboard content scrolls as one pane. */
+@media (min-width: 768px) and (max-height: 700px) {
+  .dashboard-main {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .dashboard-sessions {
+    display: block;
+  }
+
+  .dashboard-table {
+    max-height: 20rem;
+  }
+}
+
+@media (max-height: 540px) {
+  .workflow-main {
+    overflow-y: auto;
+  }
+
+  .workflow-page {
+    height: auto;
+    min-height: 540px;
+  }
 }
 
 .scroll-area::-webkit-scrollbar {

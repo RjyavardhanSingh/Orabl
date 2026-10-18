@@ -32,17 +32,19 @@ _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start the scoring worker, then release shared clients on shutdown."""
-    from services import session_service
+    from services import question_service, session_service
 
     stop_event = asyncio.Event()
     worker = asyncio.create_task(session_service.score_worker_loop(stop_event=stop_event))
+    question_worker = asyncio.create_task(question_service.question_worker_loop(stop_event))
     try:
         yield
     finally:
         stop_event.set()
         worker.cancel()
+        question_worker.cancel()
         try:
-            await worker
+            await asyncio.gather(worker, question_worker)
         except asyncio.CancelledError:
             pass
         await close_pool()

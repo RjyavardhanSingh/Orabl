@@ -2,9 +2,9 @@ import type { ComponentProps } from 'react'
 
 import { cn } from '../../lib/utils'
 
-export function Table({ className, ...props }: ComponentProps<'table'>) {
+export function Table({ className, containerClassName, ...props }: ComponentProps<'table'> & { containerClassName?: string }) {
   return (
-    <div data-slot="table-container" className="w-full overflow-x-auto">
+    <div data-slot="table-container" className={cn('w-full overflow-x-auto rounded-2xl border border-line bg-sunk/70', containerClassName)}>
       <table data-slot="table" className={cn('w-full caption-bottom border-collapse text-left text-sm', className)} {...props} />
     </div>
   )

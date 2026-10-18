@@ -210,14 +210,14 @@ export function UploadPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-4xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[52rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7">
         <PageHeader
           title="Bring Something Worth Learning"
           description="Start with a PDF or paste your notes. This material shapes every question you get."
         />
 
-        <Tabs.Root value={mode} onValueChange={(value) => selectMode(value as UploadMode)} className="mt-8 border-t border-line-strong">
-          <div className="border-b border-line py-4">
+        <Tabs.Root value={mode} onValueChange={(value) => selectMode(value as UploadMode)} className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-sunk px-5 sm:px-7">
+          <div className="shrink-0 border-b border-line py-4">
             <Tabs.List aria-label="Material type" className="flex gap-6">
               {(['text', 'pdf'] as UploadMode[]).map((option) => {
                 const selected = mode === option
@@ -239,7 +239,7 @@ export function UploadPage() {
             </Tabs.List>
           </div>
 
-          <div className="py-6">
+          <div className="scroll-area min-h-0 flex-1 py-6 pr-1">
             <Tabs.Content value="text" className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="material-name">Source Name</Label>
@@ -315,7 +315,7 @@ export function UploadPage() {
                   event.preventDefault()
                   selectFiles(Array.from(event.dataTransfer.files ?? []))
                 }}
-                className="flex min-h-48 flex-1 flex-col items-center justify-center border border-dashed border-line-strong bg-sunk px-5 py-8 text-center transition-colors hover:border-accent"
+                className="flex min-h-48 flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-line-strong bg-surface px-5 py-8 text-center transition-colors hover:border-accent"
               >
                 <span className="grid size-12 place-items-center rounded-2xl bg-sunk shadow-sm">
                   <UploadCloud className="size-5 text-ink-muted" aria-hidden="true" />
@@ -407,9 +407,9 @@ export function UploadPage() {
             ) : null}
           </div>
 
-          <div className="flex w-full flex-col gap-2 border-t border-line py-5 sm:flex-row">
+          <div className="flex w-full shrink-0 flex-col gap-2 border-t border-line py-4 sm:flex-row">
             <Button
-              className="w-full sm:w-auto"
+              className="w-full rounded-xl sm:w-auto"
               variant={hasAnyMaterial ? 'secondary' : 'default'}
               size="lg"
               onClick={mode === 'text' ? submitText : uploadPdf}
@@ -428,7 +428,7 @@ export function UploadPage() {
               )}
             </Button>
             {hasAnyMaterial ? <Button
-              className="w-full sm:w-auto"
+              className="w-full rounded-xl sm:w-auto"
               size="lg"
               onClick={() => navigate(sessionStepPath('goal', currentStudyId))}
             >

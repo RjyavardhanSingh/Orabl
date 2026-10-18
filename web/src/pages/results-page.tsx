@@ -58,7 +58,7 @@ function ReportSection({
   className?: string
 }) {
   return (
-    <section className={cn('border-t border-line pt-5', className)}>
+    <section className={cn('rounded-2xl border border-line bg-sunk p-5', className)}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <span
@@ -75,7 +75,7 @@ function ReportSection({
           <Badge className="tabular shrink-0">{count}</Badge>
         ) : null}
       </div>
-      <div className="py-5">{children}</div>
+      <div className="pt-5">{children}</div>
     </section>
   )
 }
@@ -171,8 +171,8 @@ export function ResultsPage() {
 
   return (
     <AppShell>
-      <div className="px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
-        <div className="mx-auto w-full max-w-6xl">
+      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[80rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7 lg:px-12">
+        <div className="mx-auto w-full max-w-6xl shrink-0">
           <PageHeader
             title="How You Did"
             description="Your readiness score, what to fix next, and the mix-ups that kept showing up."
@@ -249,13 +249,13 @@ export function ResultsPage() {
           ) : null}
         </div>
 
-        <div className="mx-auto mt-5 w-full max-w-6xl">
-          <div className="grid items-start gap-4 pb-2 lg:grid-cols-2">
-            <div className="space-y-4">
-              <section className="border-t border-line-strong py-6">
+        <div className="scroll-area mx-auto mt-5 min-h-0 w-full max-w-6xl flex-1 lg:overflow-hidden">
+          <div className="grid min-h-full items-start gap-4 pb-2 lg:h-full lg:min-h-0 lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
+            <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
+              <section className="rounded-2xl border border-line bg-sunk p-5">
                 <div className="flex items-center gap-5">
-                  <span className="tabular grid size-16 shrink-0 place-items-center rounded-2xl bg-ink text-2xl font-bold text-canvas">
-                    {results.readiness_score}
+                  <span className="tabular grid size-20 shrink-0 place-items-center rounded-2xl bg-ink text-xl font-bold text-canvas">
+                    {results.readiness_score}%
                   </span>
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 text-sm font-semibold">
@@ -276,7 +276,6 @@ export function ResultsPage() {
                 title="What’s Solid"
                 count={strongTopics.length}
                 tone={strongTopics.length === 0 ? 'muted' : 'default'}
-                className='rounded-xs'
               >
                 {strongTopics.length === 0 ? (
                   <p className="text-sm text-ink-muted">
@@ -287,7 +286,7 @@ export function ResultsPage() {
                     {strongTopics.map(([topic, data]) => (
                       <li
                         key={topic}
-                        className="flex items-center justify-between gap-3 rounded-xl bg-sunk px-3.5 py-2.5"
+                        className="flex items-center justify-between gap-3 rounded-xl bg-surface px-3.5 py-2.5"
                       >
                         <span className="min-w-0 truncate text-sm font-medium">{topic}</span>
                         <span className="tabular shrink-0 text-sm font-semibold text-good">
@@ -303,7 +302,6 @@ export function ResultsPage() {
                 icon={<Target className="size-4" aria-hidden="true" />}
                 title="What to Fix"
                 count={weakTopics.length}
-                className='rounded-xs'
               >
                 {weakTopics.length === 0 ? (
                   <p className="text-sm text-ink-muted">
@@ -312,7 +310,7 @@ export function ResultsPage() {
                 ) : (
                   <ul className="space-y-2.5">
                     {weakTopics.map(([topic, data]) => (
-                      <li key={topic} className="rounded-xl bg-sunk p-3.5">
+                      <li key={topic} className="rounded-xl bg-surface p-3.5">
                         <div className="flex items-center justify-between gap-3">
                           <span className="min-w-0 truncate text-sm font-medium text-ink-soft">
                             {topic}
@@ -338,13 +336,12 @@ export function ResultsPage() {
                   icon={<AlertTriangle className="size-4" aria-hidden="true" />}
                   title="Common Mix-Ups We Noticed"
                   count={mixUps.length}
-                  className='rounded-xs'
                 >
                   <ul className="space-y-2">
                     {mixUps.map((mixUp) => (
                       <li
                         key={mixUp}
-                        className="text-pretty rounded-xl bg-sunk px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
+                        className="text-pretty rounded-xl bg-surface px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
                       >
                         {mixUp}
                       </li>
@@ -354,15 +351,15 @@ export function ResultsPage() {
               ) : null}
             </div>
 
-            <div className="space-y-4">
-              <section className="border-t border-line-strong pt-5">
+            <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
+              <section className="rounded-2xl border border-line bg-sunk p-5">
                 <div>
                   <h2 className="text-sm font-semibold tracking-tight">Every Question</h2>
                   <p className="mt-1 text-xs text-ink-muted">
                     Open one to see what you said and the feedback.
                   </p>
                 </div>
-                <div className="py-5">
+                <div className="pt-5">
                   {results.questions.length === 0 ? (
                     <p className="text-sm text-ink-muted">No questions were recorded.</p>
                   ) : (
@@ -370,7 +367,7 @@ export function ResultsPage() {
                       {results.questions.map((question: Question, position: number) => {
                         const answer = answersByIndex.get(position)
                         return (
-                          <Accordion.Item key={question.id ?? position} value={String(question.id ?? position)} className="group rounded-xl border border-line transition-colors data-[state=open]:border-line-strong">
+                          <Accordion.Item key={question.id ?? position} value={String(question.id ?? position)} className="group rounded-xl border border-line bg-surface transition-colors data-[state=open]:border-line-strong">
                             <Accordion.Trigger className="flex w-full cursor-pointer items-center gap-3 p-3.5 text-left">
                               <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-canvas">
                                 {position + 1}

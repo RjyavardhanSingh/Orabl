@@ -112,6 +112,7 @@ async def build_and_store_context(
         )
         # Goal changed: the cached set was built for the old goal.
         cache.delete(f"questions:{context.context_id}")
+        await db.execute("DELETE FROM question_sets WHERE context_id = $1", context.context_id)
     else:
         await db.execute(
             """INSERT INTO contexts (id, user_id, subject, target, level, deadline, language,

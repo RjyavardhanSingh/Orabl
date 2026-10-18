@@ -29,6 +29,17 @@ CREATE TABLE IF NOT EXISTS context_materials (
   PRIMARY KEY (context_id, material_id)
 );
 
+CREATE TABLE IF NOT EXISTS question_sets (
+  context_id TEXT PRIMARY KEY REFERENCES contexts(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'ready', 'failed')),
+  requested_count INTEGER NOT NULL,
+  questions JSONB,
+  error TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_question_sets_jobs ON question_sets(status, updated_at);
+
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT,

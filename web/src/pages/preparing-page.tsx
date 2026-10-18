@@ -1,7 +1,6 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as Progress from '@radix-ui/react-progress'
 import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react'
-import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -9,7 +8,7 @@ import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { api, ApiError, type LearningContext, type Question } from '../lib/api'
+import { api, ApiError, type LearningContext, type QuestionList } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 
 function readContext(): LearningContext | null {
@@ -17,35 +16,26 @@ function readContext(): LearningContext | null {
   return stored ? (JSON.parse(stored) as LearningContext) : null
 }
 
-function readStoredQuestions(): Question[] {
-  try {
-    const stored = window.sessionStorage.getItem('recall.questions')
-    return stored ? (JSON.parse(stored) as Question[]) : []
-  } catch {
-    return []
-  }
-}
-
 export function PreparingPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { studyId } = useParams()
   const currentStudyId = studyId || activeStudySessionId()
   const context = readContext()
-  const [generated, setGenerated] = useState<Question[]>(readStoredQuestions)
-
   const { data, isLoading } = useQuery({
     queryKey: ['questions', context?.id],
     queryFn: () => api.getQuestions(context?.id ?? ''),
     enabled: Boolean(context?.id),
     retry: false,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'pending' || query.state.data?.status === 'running'
+        ? 2000 : false,
   })
 
   const generate = useMutation({
     mutationFn: () => api.generateQuestions(context?.id ?? '', 5),
     onSuccess: (result) => {
-      setGenerated(result.questions)
-      window.sessionStorage.setItem('recall.questions', JSON.stringify(result.questions))
-      toast.success(`${result.questions.length} practice questions are ready.`)
+      queryClient.setQueryData<QuestionList>(['questions', context?.id], result)
     },
     onError: (error) => {
       const message = error instanceof ApiError ? error.message : 'Question generation failed.'
@@ -68,8 +58,9 @@ export function PreparingPage() {
     },
   })
 
-  const visible = generated.length > 0 ? generated : (data?.questions ?? [])
-  const busy = generate.isPending || startPractice.isPending
+  const visible = data?.status === 'ready' || !data?.status ? (data?.questions ?? []) : []
+  const preparing = data?.status === 'pending' || data?.status === 'running'
+  const busy = generate.isPending || startPractice.isPending || preparing
 
   if (!context) {
     return (
@@ -100,7 +91,7 @@ export function PreparingPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[52rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7">
         <PageHeader
           title="Let's Make This Yours"
           description="We turn your material and goal into a focused set of practice questions."
@@ -112,13 +103,13 @@ export function PreparingPage() {
         />
 
         {busy || isLoading ? (
-          <Progress.Root value={null} aria-label="Preparing questions" className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-sunk">
+          <Progress.Root value={null} aria-label="Preparing questions" className="mt-6 h-1.5 w-full shrink-0 overflow-hidden rounded-full bg-sunk">
             <Progress.Indicator className="block h-full w-1/3 animate-pulse rounded-full bg-accent" />
           </Progress.Root>
         ) : null}
 
-        <div className="mt-8 border-t border-line-strong">
-          <div className="py-6">
+        <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-sunk px-5 sm:px-7">
+          <div className="scroll-area min-h-0 flex-1 py-6 pr-1">
             {isLoading ? (
               <p
                 className="flex items-center gap-2 text-sm text-ink-muted"
@@ -132,10 +123,12 @@ export function PreparingPage() {
             {!isLoading && visible.length === 0 ? (
               <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong p-8 text-center">
                 <p className="text-pretty mt-4 text-sm font-semibold">
-                  Your questions will appear here.
+                  {preparing ? 'Preparing your questions…' : 'Your questions will appear here.'}
                 </p>
                 <p className="text-pretty mt-2 max-w-xs text-xs leading-5 text-ink-muted">
-                  Generate a small practice set based on your material and goal.
+                  {preparing
+                    ? 'You can leave this page and resume this session later. We’ll save the set when it’s ready.'
+                    : 'Generate a small practice set based on your material and goal.'}
                 </p>
               </div>
             ) : null}
@@ -170,9 +163,12 @@ export function PreparingPage() {
                   : 'Question generation failed. Check that the API is running, then retry.'}
               </Alert>
             ) : null}
+            {data?.status === 'failed' ? (
+              <Alert className="mt-4">{data.error || 'Question generation failed. Please try again.'}</Alert>
+            ) : null}
           </div>
 
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-line py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-line py-4 sm:flex-row sm:items-center sm:justify-between">
             <Button asChild variant="ghost" className="disabled:pointer-events-none disabled:opacity-50 rounded-xl">
               <Link to={sessionStepPath('goal', currentStudyId)} aria-disabled={busy || undefined}>
                 <ArrowLeft className="size-4" aria-hidden="true" />
@@ -214,10 +210,10 @@ export function PreparingPage() {
                     <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
                     Starting…
                   </>
-                ) : generate.isPending ? (
+                ) : generate.isPending || preparing ? (
                   <>
                     <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                    Creating…
+                    Preparing…
                   </>
                 ) : visible.length > 0 ? (
                   <>
@@ -226,7 +222,7 @@ export function PreparingPage() {
                   </>
                 ) : (
                   <>
-                    Generate Questions
+                    {data?.status === 'failed' ? 'Try Again' : 'Generate Questions'}
                     <Sparkles className="size-4" aria-hidden="true" />
                   </>
                 )}

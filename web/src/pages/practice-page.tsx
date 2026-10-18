@@ -45,7 +45,7 @@ function QuestionPrompt({
           <Badge className="shrink-0 normal-case tracking-normal">{question.topic}</Badge>
         ) : null}
       </div>
-      <h2 className="text-pretty mt-7 font-display text-2xl leading-snug text-ink sm:text-3xl">
+      <h2 className="text-pretty mt-5 font-display text-xl leading-snug text-ink sm:text-2xl">
         {question.text}
       </h2>
       {question.previous_attempt ? (
@@ -162,7 +162,7 @@ export function PracticePage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[52rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7">
         <PageHeader
           title="Say It Out Loud"
           description="Read each question, answer by speaking, and move on. Scoring happens in the background."
@@ -180,15 +180,15 @@ export function PracticePage() {
           }
         />
 
-        <Progress.Root value={Math.min(index, total)} max={total} aria-label="Questions answered" className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-sunk">
+        <Progress.Root value={Math.min(index, total)} max={total} aria-label="Questions answered" className="mt-6 h-1.5 w-full shrink-0 overflow-hidden rounded-full bg-sunk">
           <Progress.Indicator
             className="block h-full w-full rounded-full bg-accent transition-transform duration-300"
             style={{ transform: `translateX(-${100 - (Math.min(index, total) / total) * 100}%)` }}
           />
         </Progress.Root>
 
-        <div className="mt-8 border-t border-line-strong">
-          <div className="space-y-6 py-6">
+        <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-sunk px-5 sm:px-7">
+          <div className="scroll-area min-h-0 flex-1 space-y-6 py-6 pr-1">
             {!done && question ? <QuestionPrompt question={question} position={index + 1} total={total} /> : null}
 
             {!done && question ? (
@@ -198,7 +198,7 @@ export function PracticePage() {
                     <Button
                       variant="accent"
                       size="icon"
-                      className="size-20"
+                      className="size-20 rounded-full shadow-[0_0_0_8px_rgba(243,112,30,0.1)]"
                       onClick={() => voice.start()}
                     >
                       <Mic className="size-7" aria-hidden="true" />
@@ -380,7 +380,7 @@ export function PracticePage() {
             ) : null}
           </div>
 
-          <div className="shrink-0 border-t border-line py-5">
+          <div className="shrink-0 border-t border-line py-3">
             <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted rounded-xl">
               <Link to={sessionStepPath('preparing', currentStudyId)}>
                 <ArrowLeft className="size-3.5" aria-hidden="true" />
