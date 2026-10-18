@@ -49,12 +49,12 @@ async def create_session(
     db: Database = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
-    """Step 4 — Practice: start session from prepared questions (Dragonfly)."""
+    """Step 4 — Practice: start session from the saved question set."""
     try:
         await context_service.require_context_owner(db, payload.context_id, user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
-    questions = await question_service.get_questions(cache, payload.context_id)
+    questions = await question_service.get_questions(db, payload.context_id, cache)
     if questions is None:
         raise HTTPException(status_code=404, detail="Generate questions first")
 

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import * as Tabs from '@radix-ui/react-tabs'
 import { ArrowRight, Check, FileText, LoaderCircle, UploadCloud, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
@@ -209,23 +210,21 @@ export function UploadPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex h-full w-full max-w-4xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[52rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7">
         <PageHeader
           title="Bring Something Worth Learning"
           description="Start with a PDF or paste your notes. This material shapes every question you get."
         />
 
-        <div className="mt-8 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-line-strong">
+        <Tabs.Root value={mode} onValueChange={(value) => selectMode(value as UploadMode)} className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-sunk px-5 sm:px-7">
           <div className="shrink-0 border-b border-line py-4">
-            <div className="flex gap-6">
+            <Tabs.List aria-label="Material type" className="flex gap-6">
               {(['text', 'pdf'] as UploadMode[]).map((option) => {
                 const selected = mode === option
                 return (
-                  <button
+                  <Tabs.Trigger
                     key={option}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => selectMode(option)}
+                    value={option}
                     className={cn(
                       'border-b-2 px-1 py-2 text-sm font-semibold transition-colors duration-150',
                       selected
@@ -234,151 +233,148 @@ export function UploadPage() {
                     )}
                   >
                     {option === 'text' ? 'Paste Text' : 'Upload PDF'}
-                  </button>
+                  </Tabs.Trigger>
                 )
               })}
-            </div>
+            </Tabs.List>
           </div>
 
-          <div className="scroll-area min-h-0 flex-1 py-6">
-            {mode === 'text' ? (
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="material-name">Source Name</Label>
-                  <Input
-                    id="material-name"
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-invalid={nameError ? true : undefined}
-                    aria-describedby={nameError ? 'material-name-error' : undefined}
-                    {...textForm.register('name')}
-                    placeholder="biology-notes.md"
-                    className="bg-sunk"
-                  />
-                  {nameError ? (
-                    <p id="material-name-error" className="text-xs text-bad">
-                      {nameError.message}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-4">
-                    <Label htmlFor="material-content">Your Notes</Label>
-                    <span className="tabular text-xs text-ink-faint">
-                      {content.length.toLocaleString()} / {CHARACTER_LIMIT.toLocaleString()}
-                    </span>
-                  </div>
-                  <Textarea
-                    id="material-content"
-                    maxLength={CHARACTER_LIMIT}
-                    aria-invalid={contentError ? true : undefined}
-                    aria-describedby={contentError ? 'material-content-error' : undefined}
-                    {...textForm.register('content')}
-                    placeholder="Paste a chapter, lecture notes, or an article…"
-                    className="h-full min-h-40 resize-none bg-sunk"
-                  />
-                  {contentError ? (
-                    <p id="material-content-error" className="text-xs text-bad">
-                      {contentError.message}
-                    </p>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      textForm.setValue('kind', kind === 'text' ? 'markdown' : 'text', {
-                        shouldDirty: true,
-                      })
-                    }
-                    className="text-xs font-semibold text-ink-muted underline underline-offset-4 transition-colors hover:text-ink"
-                  >
-                    {kind === 'text' ? 'Save as Markdown' : 'Save as Plain Text'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex h-full flex-col">
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  multiple
-                  className="sr-only"
-                  aria-label="Choose PDF files (up to 3)"
-                  onChange={(event) => {
-                    selectFiles(Array.from(event.target.files ?? []))
-                    event.target.value = ''
-                  }}
+          <div className="scroll-area min-h-0 flex-1 py-6 pr-1">
+            <Tabs.Content value="text" className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="material-name">Source Name</Label>
+                <Input
+                  id="material-name"
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-invalid={nameError ? true : undefined}
+                  aria-describedby={nameError ? 'material-name-error' : undefined}
+                  {...textForm.register('name')}
+                  placeholder="biology-notes.md"
+                  className="bg-sunk"
                 />
+                {nameError ? (
+                  <p id="material-name-error" className="text-xs text-bad">
+                    {nameError.message}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <Label htmlFor="material-content">Your Notes</Label>
+                  <span className="tabular text-xs text-ink-faint">
+                    {content.length.toLocaleString()} / {CHARACTER_LIMIT.toLocaleString()}
+                  </span>
+                </div>
+                <Textarea
+                  id="material-content"
+                  maxLength={CHARACTER_LIMIT}
+                  aria-invalid={contentError ? true : undefined}
+                  aria-describedby={contentError ? 'material-content-error' : undefined}
+                  {...textForm.register('content')}
+                  placeholder="Paste a chapter, lecture notes, or an article…"
+                  className="min-h-40 resize-y bg-sunk"
+                />
+                {contentError ? (
+                  <p id="material-content-error" className="text-xs text-bad">
+                    {contentError.message}
+                  </p>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => fileInput.current?.click()}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    selectFiles(Array.from(event.dataTransfer.files ?? []))
-                  }}
-                  className="flex min-h-48 flex-1 flex-col items-center justify-center border border-dashed border-line-strong bg-sunk px-5 py-8 text-center transition-colors hover:border-accent"
+                  onClick={() =>
+                    textForm.setValue('kind', kind === 'text' ? 'markdown' : 'text', {
+                      shouldDirty: true,
+                    })
+                  }
+                  className="text-xs font-semibold text-ink-muted underline underline-offset-4 transition-colors hover:text-ink"
                 >
-                  <span className="grid size-12 place-items-center rounded-2xl bg-sunk shadow-sm">
-                    <UploadCloud className="size-5 text-ink-muted" aria-hidden="true" />
-                  </span>
-                  <span className="mt-5 text-sm font-semibold text-ink">
-                    Drop Your PDF Here
-                  </span>
-                  <span className="mt-1 text-xs text-ink-muted">
-                    or press Enter to browse · max 25&nbsp;MB each ·{' '}
-                    {materials.length + files.length} of {MAX_FILES} files
-                  </span>
+                  {kind === 'text' ? 'Save as Markdown' : 'Save as Plain Text'}
                 </button>
-                {files.map((pending, index) => (
-                  <div
-                    key={`${pending.name}-${pending.size}-${index}`}
-                    className="mt-4 flex items-center gap-3 rounded-xl bg-sunk px-4 py-3"
-                  >
-                    <FileText className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{pending.name}</p>
-                      <p className="tabular text-xs text-ink-faint">
-                        {(pending.size / 1024 / 1024).toFixed(2)} MB · ready to upload
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removePendingFile(index)}
-                      className="shrink-0 rounded-lg p-1 text-ink-faint transition-colors hover:text-ink"
-                      aria-label={`Remove ${pending.name}`}
-                    >
-                      <X className="size-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
-                {materials.map((item) => (
-                  <div
-                    key={item.id}
-                    className="mt-4 flex items-center gap-3 rounded-xl border border-good-tint bg-good-tint px-4 py-3"
-                  >
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-good text-canvas">
-                      <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{item.name}</p>
-                      <p className="tabular text-xs text-ink-faint">
-                        {item.word_count.toLocaleString()} words · uploaded
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeMaterial(item.id)}
-                      className="shrink-0 rounded-lg p-1 text-ink-faint transition-colors hover:text-ink"
-                      aria-label={`Remove ${item.name}`}
-                    >
-                      <X className="size-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
               </div>
-            )}
+            </Tabs.Content>
+            <Tabs.Content value="pdf" className="flex flex-col">
+              <input
+                ref={fileInput}
+                type="file"
+                accept="application/pdf,.pdf"
+                multiple
+                className="sr-only"
+                aria-label="Choose PDF files (up to 3)"
+                onChange={(event) => {
+                  selectFiles(Array.from(event.target.files ?? []))
+                  event.target.value = ''
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInput.current?.click()}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  selectFiles(Array.from(event.dataTransfer.files ?? []))
+                }}
+                className="flex min-h-48 flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-line-strong bg-surface px-5 py-8 text-center transition-colors hover:border-accent"
+              >
+                <span className="grid size-12 place-items-center rounded-2xl bg-sunk shadow-sm">
+                  <UploadCloud className="size-5 text-ink-muted" aria-hidden="true" />
+                </span>
+                <span className="mt-5 text-sm font-semibold text-ink">
+                  Drop Your PDF Here
+                </span>
+                <span className="mt-1 text-xs text-ink-muted">
+                  or press Enter to browse · max 25&nbsp;MB each ·{' '}
+                  {materials.length + files.length} of {MAX_FILES} files
+                </span>
+              </button>
+              {files.map((pending, index) => (
+                <div
+                  key={`${pending.name}-${pending.size}-${index}`}
+                  className="mt-4 flex items-center gap-3 rounded-xl bg-sunk px-4 py-3"
+                >
+                  <FileText className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{pending.name}</p>
+                    <p className="tabular text-xs text-ink-faint">
+                      {(pending.size / 1024 / 1024).toFixed(2)} MB · ready to upload
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePendingFile(index)}
+                    className="shrink-0 rounded-lg p-1 text-ink-faint transition-colors hover:text-ink"
+                    aria-label={`Remove ${pending.name}`}
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+              {materials.map((item) => (
+                <div
+                  key={item.id}
+                  className="mt-4 flex items-center gap-3 rounded-xl border border-good-tint bg-good-tint px-4 py-3"
+                >
+                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-good text-canvas">
+                    <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{item.name}</p>
+                    <p className="tabular text-xs text-ink-faint">
+                      {item.word_count.toLocaleString()} words · uploaded
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeMaterial(item.id)}
+                    className="shrink-0 rounded-lg p-1 text-ink-faint transition-colors hover:text-ink"
+                    aria-label={`Remove ${item.name}`}
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </Tabs.Content>
 
             {error ? <Alert className="mt-5">{error}</Alert> : null}
             {mode === 'text' && materials.length > 0 ? (
@@ -411,9 +407,9 @@ export function UploadPage() {
             ) : null}
           </div>
 
-          <div className="flex w-full flex-col gap-2 border-t border-line py-5 sm:flex-row">
+          <div className="flex w-full shrink-0 flex-col gap-2 border-t border-line py-4 sm:flex-row">
             <Button
-              className="w-full sm:w-auto"
+              className="w-full rounded-xl sm:w-auto"
               variant={hasAnyMaterial ? 'secondary' : 'default'}
               size="lg"
               onClick={mode === 'text' ? submitText : uploadPdf}
@@ -432,7 +428,7 @@ export function UploadPage() {
               )}
             </Button>
             {hasAnyMaterial ? <Button
-              className="w-full sm:w-auto"
+              className="w-full rounded-xl sm:w-auto"
               size="lg"
               onClick={() => navigate(sessionStepPath('goal', currentStudyId))}
             >
@@ -440,7 +436,7 @@ export function UploadPage() {
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button> : null}
           </div>
-        </div>
+        </Tabs.Root>
       </div>
     </AppShell>
   )

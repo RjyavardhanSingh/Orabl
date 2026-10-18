@@ -1,12 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, BookOpen, Clock3, LoaderCircle, LogOut, Plus, Sparkles } from 'lucide-react'
+import { ArrowRight, BookOpen, Clock3, LoaderCircle, Plus, Sparkles } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { api, type StudySessionSummary } from '../lib/api'
-import { clearFlowCache, markStudySessionHydrated, restoreStudySession, sessionStepPath, setActiveStudySession } from '../lib/study-session'
-import { useAuthStore } from '../lib/auth-state'
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
+import { ProfileMenu } from '../components/layout/profile-menu'
 import { Button } from '../components/ui/button'
+import { api, type StudySessionSummary } from '../lib/api'
+import { activeStudySessionId, clearFlowCache, markStudySessionHydrated, restoreStudySession, sessionStepPath, setActiveStudySession } from '../lib/study-session'
+import { useAuthStore } from '../lib/auth-state'
+import { nameFromEmail } from '../lib/profile'
+import { cn } from '../lib/utils'
 
 function nextStep(session: StudySessionSummary): string {
   if (session.practice_status === 'completed') return 'Results ready'
@@ -16,11 +20,42 @@ function nextStep(session: StudySessionSummary): string {
   return 'Add your material'
 }
 
+function isLive(session: StudySessionSummary): boolean {
+  return session.practice_status !== 'completed'
+}
+
+// One formatter per locale, built once: no hardcoded date formats.
+const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+const relativeFormat = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto', style: 'narrow' })
+
+function timeAgo(iso: string): string {
+  const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000)
+  if (Math.abs(minutes) < 60) return relativeFormat.format(-minutes, 'minute')
+  const hours = Math.round(minutes / 60)
+  if (Math.abs(hours) < 24) return relativeFormat.format(-hours, 'hour')
+  return relativeFormat.format(-Math.round(hours / 24), 'day')
+}
+
+/** Shared action style: a text button with a rule under it, never a pill. */
+const actionClass =
+  'inline-flex items-center gap-1.5 border-b border-line-strong pb-0.5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-50'
+
+const shellClass = 'mx-auto w-full max-w-[80rem] px-5 sm:px-8 lg:px-12'
+
+function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-line bg-surface/80 px-4 py-5 sm:px-5">
+      <dt className="truncate text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-ink-faint">{label}</dt>
+      <dd className="tabular mt-3 truncate font-display text-[1.45rem] leading-none sm:text-[1.7rem]">{value}</dd>
+      {hint ? <p className="mt-1.5 truncate text-xs text-ink-faint">{hint}</p> : null}
+    </div>
+  )
+}
+
 export function SessionsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
-  const signOut = useAuthStore((s) => s.signOut)
   const sessions = useQuery({ queryKey: ['study-sessions'], queryFn: api.listStudySessions, retry: false })
   const create = useMutation({
     mutationFn: api.createStudySession,
@@ -38,56 +73,135 @@ export function SessionsPage() {
     onSuccess: (step, id) => navigate(sessionStepPath(step, id)),
     onError: () => toast.error('Could not restore this session. Try again.'),
   })
+
   const items = sessions.data ?? []
-  const latest = items[0]
-  const firstName = user?.email?.split('@')[0]?.split(/[._-]/)[0] || 'there'
-  const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1)
+  const displayName = nameFromEmail(user?.email)
+
+  // The active session is the one the learner last opened; fall back to the
+  // most recent session that still has work left in it.
+  const storedId = activeStudySessionId()
+  const activeId =
+    (storedId && items.some((s) => s.id === storedId) ? storedId : null) ??
+    items.find(isLive)?.id ??
+    null
+  const liveCount = items.filter(isLive).length
+  const sourceCount = items.reduce((total, session) => total + session.material_count, 0)
+  const lastTouched = items[0]?.updated_at
 
   return (
-    <div className="min-h-dvh bg-[#f6f2e9] text-[#25261e]">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3">Skip to content</a>
-      <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 sm:px-10">
-        <Link to="/sessions" className="text-2xl font-extrabold tracking-[-0.08em] hover:opacity-90">Orabl</Link>
-        <div className="flex items-center gap-3">
-          <Link to="/" className="hidden text-xs font-semibold uppercase tracking-[0.16em] text-[#666455] hover:text-[#25261e] sm:inline">Home</Link>
-          <span className="hidden rounded-full border border-[#d9d2c3] px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#666455] sm:inline">Your learning space</span>
-          <Button type="button" size="icon" variant="ghost" onClick={() => void signOut().then(() => navigate('/'))} className="text-[#666455] hover:bg-[#eae4d8] hover:text-[#25261e]" aria-label="Sign out"><LogOut className="size-4" /></Button>
-        </div>
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-canvas bg-[radial-gradient(ellipse_at_78%_0%,rgba(243,112,30,0.09),transparent_34%)] text-ink">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3 focus:text-black">Skip to content</a>
+      <header className={cn(shellClass, 'flex shrink-0 items-center justify-between gap-4 border-b border-line py-4 sm:py-5')}>
+        <Link to="/sessions" className="shrink-0 text-xl font-extrabold tracking-[-0.08em] hover:opacity-90">Orabl</Link>
+        <ProfileMenu displayName={displayName} email={user?.email} />
       </header>
-      <main id="main-content" className="mx-auto max-w-7xl px-6 pb-24 sm:px-10">
-        <section className="grid gap-10 border-t border-[#d2cbbb] pt-10 sm:pt-14 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-16">
-          <div className="min-w-0">
-            <p className="mb-5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-[#a14c2c]"><Sparkles className="size-4" /> Your learning dashboard</p>
-            <h1 className="max-w-4xl break-words font-display text-[clamp(2.75rem,5vw,4.5rem)] leading-[1.08] tracking-[-0.045em]">Welcome, {displayName}.</h1>
-            <p className="mt-3 font-display text-[clamp(1.5rem,2.8vw,2.25rem)] italic leading-tight text-[#bd633e]">{items.length === 0 ? 'Curiosity looks good on you.' : 'You’re making progress.'}</p>
-            <p className="mt-6 max-w-xl text-base leading-7 text-[#696759]">{sessions.isLoading ? 'Your learning space is opening…' : items.length === 0 ? 'You don’t have a session yet. Create one to gather your material, set a goal, and learn at your own pace.' : 'The work you started is right here. Continue at your pace, or follow a new question.'}</p>
-            <Button type="button" onClick={() => create.mutate()} disabled={create.isPending} size="lg" className="mt-7 h-12 gap-4 bg-[#27281f] text-white hover:bg-[#424336]">
-              {create.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />} Create a new session <ArrowRight className="size-4" />
+
+      <main id="main-content" className={cn(shellClass, 'dashboard-main scroll-area min-h-0 flex-1 pb-6 md:flex md:flex-col md:overflow-hidden')}>
+        <section className="shrink-0 pt-8 sm:pt-10" aria-labelledby="dashboard-title">
+          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
+            <div className="min-w-0">
+              <p className="mb-3 flex items-center gap-2 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-accent"><Sparkles className="size-3.5" aria-hidden="true" /> Your Learning Space</p>
+              <h1 id="dashboard-title" className="text-pretty break-words font-display text-[clamp(1.4rem,2vw,1.8rem)] leading-tight tracking-[-0.02em]">Welcome back, {displayName}.</h1>
+              <p className="mt-2 max-w-lg text-pretty text-sm leading-6 text-ink-muted">
+                {sessions.isLoading ? 'Your learning space is opening…' : items.length === 0 ? 'You don’t have a session yet. Start one to gather your material, set a goal, and learn at your own pace.' : 'Pick up where you left off, or follow a new question.'}
+              </p>
+            </div>
+            <Button type="button" variant="accent" onClick={() => create.mutate()} disabled={create.isPending} className="shrink-0 rounded-xl px-5">
+              {create.isPending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />} New Session
             </Button>
           </div>
-          <aside className="hidden self-end border-t border-[#d2cbbb] pt-5 lg:block" aria-label="How a session works">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a14c2c]">At your own pace</p>
-            <ol className="mt-4 divide-y divide-[#d2cbbb] text-sm text-[#696759]">
-              <li className="flex gap-4 py-3"><span className="font-bold text-[#25261e]">01</span> Add material</li>
-              <li className="flex gap-4 py-3"><span className="font-bold text-[#25261e]">02</span> Set your goal</li>
-              <li className="flex gap-4 py-3"><span className="font-bold text-[#25261e]">03</span> Practice and reflect</li>
-            </ol>
-          </aside>
+
+          <dl className="mt-7 grid grid-cols-2 gap-3 sm:mt-8 sm:grid-cols-4">
+            <Metric label="In Progress" value={String(liveCount).padStart(2, '0')} hint={liveCount ? 'Ready to resume' : 'Nothing open'} />
+            <Metric label="Completed" value={String(items.length - liveCount).padStart(2, '0')} hint="Results saved" />
+            <Metric label="Sources" value={String(sourceCount).padStart(2, '0')} hint="Material you added" />
+            <Metric label="Last Activity" value={lastTouched ? timeAgo(lastTouched) : '—'} hint={lastTouched ? dateFormat.format(new Date(lastTouched)) : 'No sessions yet'} />
+          </dl>
         </section>
-        {latest ? <section className="mt-14 border-y border-[#b9ae98] py-6" aria-label="Continue latest session"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a14c2c]">Continue where you left off</p><div className="mt-4 flex flex-wrap items-end justify-between gap-6"><div><h2 className="font-display text-3xl">{latest.title}</h2><p className="mt-2 text-sm text-[#696759]">{nextStep(latest)} · Updated {new Date(latest.updated_at).toLocaleDateString()}</p></div><Button type="button" onClick={() => resume.mutate(latest.id)} disabled={resume.isPending} size="lg" className="bg-[#27281f] text-white hover:bg-[#424336]">{resume.isPending && resume.variables === latest.id ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} Resume session</Button></div></section> : null}
-        <section className={latest ? 'mt-12' : 'mt-14'} aria-labelledby="sessions-title">
-          <div className="flex items-baseline justify-between border-b border-[#d2cbbb] pb-5"><h2 id="sessions-title" className="font-display text-3xl tracking-tight">{latest ? 'Earlier sessions' : 'Your sessions'}</h2><span className="text-sm font-semibold text-[#777466]">{Math.max(0, items.length - (latest ? 1 : 0)).toString().padStart(2, '0')}</span></div>
-          {sessions.isLoading ? <p className="flex items-center gap-2 py-9 text-[#696759]"><LoaderCircle className="size-4 animate-spin" /> Loading your sessions…</p> : null}
-          {sessions.isError ? <p className="py-9 text-[#9e4739]">Could not load your sessions. <button type="button" onClick={() => void sessions.refetch()} className="underline">Retry</button></p> : null}
-          {!sessions.isLoading && !sessions.isError && items.length === 0 ? <div className="flex items-center gap-4 py-10 text-[#777466]"><BookOpen className="size-6" /><p>Your first session will appear here and save as you go.</p></div> : null}
-          <ul className="divide-y divide-[#d2cbbb]">{items.slice(latest ? 1 : 0).map((session, index) => <li key={session.id}>
-            <button type="button" onClick={() => resume.mutate(session.id)} disabled={resume.isPending} className="group grid min-h-28 w-full grid-cols-[2.5rem_1fr_auto] items-center gap-4 py-6 text-left transition-colors hover:bg-[#eee8dc] sm:grid-cols-[4rem_1fr_11rem_2rem] sm:px-4">
-              <span className="text-xs font-bold text-[#a8684a]">{String(index + 2).padStart(2, '0')}</span>
-              <span className="min-w-0"><span className="block truncate font-display text-2xl">{session.title}</span><span className="mt-2 block text-sm text-[#777466]">{nextStep(session)} · {session.material_count} {session.material_count === 1 ? 'source' : 'sources'}</span></span>
-              <span className="hidden items-center gap-2 text-xs text-[#777466] sm:flex"><Clock3 className="size-4" /> {new Date(session.updated_at).toLocaleDateString()}</span>
-              {resume.isPending && resume.variables === session.id ? <LoaderCircle className="size-5 animate-spin" /> : <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />}
-            </button>
-          </li>)}</ul>
+
+        <section className="dashboard-sessions mt-9 sm:mt-11 md:flex md:min-h-0 md:flex-1 md:flex-col" aria-labelledby="sessions-title">
+          <div className="mb-4 flex shrink-0 items-end justify-between gap-4">
+            <div>
+              <p className="mb-2 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-accent">Pick Up Where You Left Off</p>
+              <h2 id="sessions-title" className="font-display text-xl tracking-[-0.02em] sm:text-[1.4rem]">My Sessions</h2>
+            </div>
+            <span className="tabular rounded-full border border-line px-3 py-1 text-xs text-ink-muted">{items.length} total</span>
+          </div>
+
+          {sessions.isError ? <p className="py-10 text-sm text-bad">Could not load your sessions. Check your connection and <button type="button" onClick={() => void sessions.refetch()} className="underline underline-offset-4">retry</button>.</p> : null}
+
+          {!sessions.isLoading && !sessions.isError && items.length === 0 ? (
+            <div className="flex flex-col items-start gap-4 py-12 text-ink-muted">
+              <BookOpen className="size-6" aria-hidden="true" />
+              <p className="max-w-sm text-sm leading-6">Your first session will appear here and save as you go.</p>
+              <button type="button" onClick={() => create.mutate()} disabled={create.isPending} className={actionClass}>Start a Session <ArrowRight className="size-4" aria-hidden="true" /></button>
+            </div>
+          ) : null}
+
+          {sessions.isLoading || items.length > 0 ? (
+            <Table className="w-full table-fixed border-collapse text-left" containerClassName="dashboard-table scroll-area md:min-h-0 md:flex-1">
+              <TableCaption className="sr-only">Your study sessions, their current stage, and how to continue them.</TableCaption>
+              <TableHeader className="bg-surface/80 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-surface">
+                <TableRow className="border-b border-line text-[0.68rem] uppercase tracking-[0.14em] text-ink-faint">
+                  <TableHead scope="col" className="hidden w-16 py-3.5 pl-4 font-semibold sm:table-cell">#</TableHead>
+                  <TableHead scope="col" className="py-3.5 pl-4 pr-3 font-semibold sm:pl-0 sm:pr-5">Session</TableHead>
+                  <TableHead scope="col" className="hidden w-[15rem] py-3.5 pr-5 font-semibold lg:table-cell">Stage</TableHead>
+                  <TableHead scope="col" className="hidden w-[11rem] py-3.5 pr-5 font-semibold md:table-cell">Updated</TableHead>
+                  <TableHead scope="col" className="w-[7.5rem] py-3.5 pr-4 text-right font-semibold sm:w-[10rem] sm:pr-6">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sessions.isLoading
+                  ? Array.from({ length: 3 }, (_, index) => (
+                      <TableRow key={index} className="border-b border-line" aria-hidden="true">
+                        <TableCell className="hidden py-4 pl-4 sm:table-cell"><span className="block h-4 w-6 animate-pulse rounded bg-sunk" /></TableCell>
+                        <TableCell className="py-4 pl-4 pr-3 sm:pl-0 sm:pr-5"><span className="block h-4 w-3/4 animate-pulse rounded bg-sunk" /></TableCell>
+                        <TableCell className="hidden py-4 pr-5 lg:table-cell"><span className="block h-4 w-32 animate-pulse rounded bg-sunk" /></TableCell>
+                        <TableCell className="hidden py-4 pr-5 md:table-cell"><span className="block h-4 w-24 animate-pulse rounded bg-sunk" /></TableCell>
+                        <TableCell className="py-4 pr-4 text-right sm:pr-6"><span className="ml-auto block h-4 w-16 animate-pulse rounded bg-sunk" /></TableCell>
+                      </TableRow>
+                    ))
+                  : items.map((session, index) => {
+                      const live = isLive(session)
+                      const active = session.id === activeId && live
+                      const pending = resume.isPending && resume.variables === session.id
+                      return (
+                        <TableRow key={session.id} className={cn('border-b border-line align-middle transition-colors hover:bg-surface', active && 'bg-accent-tint/20')}>
+                          <TableCell className={cn('hidden w-16 py-4 pl-4 text-left text-xs font-bold sm:table-cell', active ? 'text-accent-ink' : 'text-ink-faint')}>
+                            <span className="flex items-center gap-2">
+                              <span className={cn('size-1.5 shrink-0 rounded-full', active ? 'bg-accent' : live ? 'bg-ink-faint' : 'bg-line-strong')} aria-hidden="true" />
+                              <span className="tabular">{String(index + 1).padStart(2, '0')}</span>
+                            </span>
+                          </TableCell>
+                          <TableHead scope="row" className="min-w-0 py-4 pl-4 pr-3 text-left font-normal sm:pl-0 sm:pr-5">
+                            <span className="flex items-center gap-2">
+                              <span className="truncate font-display text-base leading-tight">{session.title}</span>
+                              {active ? <span className="hidden shrink-0 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-accent-ink sm:inline">Active</span> : null}
+                            </span>
+                            <span className="mt-1 block truncate text-xs text-ink-faint">
+                              {session.material_count} {session.material_count === 1 ? 'source' : 'sources'}
+                              <span className="lg:hidden"> · {nextStep(session)}</span>
+                            </span>
+                          </TableHead>
+                          <TableCell className="hidden py-4 pr-5 text-sm text-ink-muted lg:table-cell">{nextStep(session)}</TableCell>
+                          <TableCell className="hidden py-4 pr-5 md:table-cell">
+                            <span className="flex items-center gap-2 text-xs whitespace-nowrap text-ink-faint"><Clock3 className="size-3.5 shrink-0" aria-hidden="true" /> <time dateTime={session.updated_at}>{dateFormat.format(new Date(session.updated_at))}</time></span>
+                          </TableCell>
+                          <TableCell className="py-4 pr-4 text-right sm:pr-6">
+                            <button type="button" onClick={() => resume.mutate(session.id)} disabled={resume.isPending} className={cn(actionClass, 'whitespace-nowrap', active && 'border-accent text-accent-ink hover:text-accent-hover')}>
+                              {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />} {live ? 'Resume' : 'View Results'}
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+              </TableBody>
+            </Table>
+          ) : null}
+
+          <p className="sr-only" role="status" aria-live="polite">
+            {sessions.isLoading ? 'Loading your sessions…' : `${items.length} sessions loaded.`}
+          </p>
         </section>
       </main>
     </div>

@@ -419,9 +419,7 @@ async def complete_session(
     )
 
     cache.delete(f"session:{session_id}")
-    # NOTE: the questions cache entry is deliberately kept (24h TTL survives
-    # here). The completed set also persists in the sessions row, but preparing
-    # reads the cache — evicting it orphaned back-navigation with a 404.
+    # Prepared questions remain in Postgres for later visits and practice sessions.
 
     return state
 

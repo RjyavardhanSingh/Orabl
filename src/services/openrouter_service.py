@@ -60,7 +60,9 @@ def _truncate_content(content: str, max_chars: int = 3000000) -> str:
     return content[:max_chars]
 
 
-def _build_prompt(material_content: str, goal: dict, count: int, keywords: list[str] | None = None) -> str:
+def _build_prompt(
+    material_content: str, goal: dict, count: int, keywords: list[str] | None = None
+) -> str:
     """Build prompt for enriched question + rubric generation."""
     subject = goal.get("subject", "general")
     target = goal.get("target", "general understanding")
@@ -342,6 +344,7 @@ async def generate_questions(
     word_count: int,
     count: int | None = None,
     keywords: list[str] | None = None,
+    use_cache: bool = True,
 ) -> list[dict]:
     """Generate questions using OpenRouter with retry logic.
 
@@ -350,7 +353,9 @@ async def generate_questions(
     requested_count = count or calculate_question_count(word_count)
     cache_key = f"openrouter_response:{context_id}:{requested_count}"
     # Back-compat: fall back to the old Gemini cache key if present.
-    cached = cache.get(cache_key) or cache.get(f"gemini_response:{context_id}")
+    cached = (
+        cache.get(cache_key) or cache.get(f"gemini_response:{context_id}")
+    ) if use_cache else None
     if cached is not None:
         logger.info(f"OpenRouter cache hit for context {context_id}")
         return cached
@@ -372,7 +377,8 @@ async def generate_questions(
 
             questions = _normalize_questions(json.loads(cleaned))
 
-            cache.set(cache_key, questions, ttl=86400)
+            if use_cache:
+                cache.set(cache_key, questions, ttl=86400)
             return questions
 
         except Exception as e:

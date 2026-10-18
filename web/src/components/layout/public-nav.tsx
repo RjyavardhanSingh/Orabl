@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../lib/auth-state'
@@ -18,6 +18,7 @@ export function PublicNav() {
   const navigate = useNavigate()
   const { user, status, signOut } = useAuth()
   const [workflowOpen, setWorkflowOpen] = useState(false)
+  const workflowTriggerRef = useRef<HTMLButtonElement>(null)
 
   const goSignIn = () => navigate('/signin?next=%2Fsessions')
   const goDashboard = () => navigate('/sessions')
@@ -28,6 +29,7 @@ export function PublicNav() {
         <div className="flex h-14 items-center justify-between gap-2 px-4 sm:gap-4 sm:px-5">
           <PublicBrand />
           <button
+            ref={workflowTriggerRef}
             type="button"
             onClick={() => setWorkflowOpen(true)}
             className="hidden text-sm font-medium text-ink transition-opacity hover:opacity-70 md:block"
@@ -64,7 +66,7 @@ export function PublicNav() {
           </div>
         </div>
       </header>
-      <WorkflowModal open={workflowOpen} onClose={() => setWorkflowOpen(false)} />
+      <WorkflowModal open={workflowOpen} onClose={() => setWorkflowOpen(false)} triggerRef={workflowTriggerRef} />
     </>
   )
 }

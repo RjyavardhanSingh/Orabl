@@ -47,7 +47,11 @@ export type Question = {
   }
 }
 
-export type QuestionList = { questions: Question[] }
+export type QuestionList = {
+  status?: 'pending' | 'running' | 'ready' | 'failed'
+  questions: Question[]
+  error?: string | null
+}
 
 export type AnswerStatus = 'pending' | 'scored' | 'failed'
 

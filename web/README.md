@@ -6,13 +6,19 @@ The session based learning workspace for Orabl.
 
 - React 19 + TypeScript + Vite
 - Tailwind CSS v4
-- shadcn/ui-style primitives with Radix-compatible structure
+- Local shadcn-style components, with Radix UI primitives for complex interactions
 - Zod + React Hook Form
 - TanStack Query
 - React Router
 - Lucide icons
 - Sonner notifications
 - Bun
+
+## UI components
+
+Keep Orabl's Tailwind theme and the components in `src/components/ui` as the visual layer. Use native HTML for simple controls and Radix UI primitives for interactions that need focus management and keyboard behavior, such as dialogs, menus, and selects. The workflow modal is the first Radix Dialog integration.
+
+`components.json` already configures the shadcn CLI for this Vite app. Add components only when needed, then adapt their classes to the tokens in `src/index.css` before using them across the app.
 
 ## Run locally
 

@@ -113,7 +113,9 @@ class QuestionResponse(BaseModel):
 
 
 class QuestionListResponse(BaseModel):
+    status: str = "ready"
     questions: list[QuestionResponse]
+    error: str | None = None
 
 
 # ---------------------------------------------------------------------------
