@@ -1,9 +1,11 @@
 import { useMutation } from '@tanstack/react-query'
+import * as Accordion from '@radix-ui/react-accordion'
 import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Bookmark,
+  ChevronDown,
   CheckCircle2,
   LoaderCircle,
   RefreshCw,
@@ -169,7 +171,7 @@ export function ResultsPage() {
 
   return (
     <AppShell>
-      <div className="flex h-full flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
         <div className="mx-auto w-full max-w-6xl">
           <PageHeader
             title="How You Did"
@@ -247,7 +249,7 @@ export function ResultsPage() {
           ) : null}
         </div>
 
-        <div className="scroll-area mx-auto mt-5 min-h-0 w-full max-w-6xl flex-1">
+        <div className="mx-auto mt-5 w-full max-w-6xl">
           <div className="grid items-start gap-4 pb-2 lg:grid-cols-2">
             <div className="space-y-4">
               <section className="border-t border-line-strong py-6">
@@ -364,53 +366,52 @@ export function ResultsPage() {
                   {results.questions.length === 0 ? (
                     <p className="text-sm text-ink-muted">No questions were recorded.</p>
                   ) : (
-                    <ul className="space-y-2">
+                    <Accordion.Root type="multiple" className="space-y-2">
                       {results.questions.map((question: Question, position: number) => {
                         const answer = answersByIndex.get(position)
                         return (
-                          <li key={question.id ?? position}>
-                            <details className="group rounded-xl border border-line transition-colors open:border-line-strong">
-                              <summary className="flex cursor-pointer list-none items-center gap-3 p-3.5">
-                                <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-canvas">
-                                  {position + 1}
-                                </span>
-                                <span className="text-pretty min-w-0 flex-1 text-sm font-medium leading-6">
-                                  {question.text}
-                                </span>
-                                <span
-                                  className={cn(
-                                    'tabular shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold',
-                                    scoreTone(answer?.score ?? null),
-                                  )}
-                                >
-                                  {answer?.score === null || answer?.score === undefined
-                                    ? '…'
-                                    : `${answer.score}%`}
-                                </span>
-                              </summary>
-                              <div className="border-t border-sunk p-3.5">
-                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
-                                  You Said
-                                </p>
-                                <p className="text-pretty mt-1 text-sm leading-6 text-ink-soft">
-                                  {answer?.answer_text || 'Skipped.'}
-                                </p>
-                                {answer?.feedback ? (
-                                  <>
-                                    <p className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
-                                      Feedback
-                                    </p>
-                                    <p className="text-pretty mt-1 text-sm leading-6 text-ink-soft">
-                                      {answer.feedback}
-                                    </p>
-                                  </>
-                                ) : null}
-                              </div>
-                            </details>
-                          </li>
+                          <Accordion.Item key={question.id ?? position} value={String(question.id ?? position)} className="group rounded-xl border border-line transition-colors data-[state=open]:border-line-strong">
+                            <Accordion.Trigger className="flex w-full cursor-pointer items-center gap-3 p-3.5 text-left">
+                              <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-canvas">
+                                {position + 1}
+                              </span>
+                              <span className="text-pretty min-w-0 flex-1 text-sm font-medium leading-6">
+                                {question.text}
+                              </span>
+                              <span
+                                className={cn(
+                                  'tabular shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold',
+                                  scoreTone(answer?.score ?? null),
+                                )}
+                              >
+                                {answer?.score === null || answer?.score === undefined
+                                  ? '…'
+                                  : `${answer.score}%`}
+                              </span>
+                              <ChevronDown className="size-4 shrink-0 text-ink-muted transition-transform group-data-[state=open]:rotate-180" aria-hidden="true" />
+                            </Accordion.Trigger>
+                            <Accordion.Content className="border-t border-sunk p-3.5">
+                              <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
+                                You Said
+                              </p>
+                              <p className="text-pretty mt-1 text-sm leading-6 text-ink-soft">
+                                {answer?.answer_text || 'Skipped.'}
+                              </p>
+                              {answer?.feedback ? (
+                                <>
+                                  <p className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
+                                    Feedback
+                                  </p>
+                                  <p className="text-pretty mt-1 text-sm leading-6 text-ink-soft">
+                                    {answer.feedback}
+                                  </p>
+                                </>
+                              ) : null}
+                            </Accordion.Content>
+                          </Accordion.Item>
                         )
                       })}
-                    </ul>
+                    </Accordion.Root>
                   )}
                 </div>
               </section>

@@ -26,6 +26,9 @@ const ResultsPage = lazy(() =>
 const SessionsPage = lazy(() =>
   import('./pages/sessions-page').then((m) => ({ default: m.SessionsPage })),
 )
+const SettingsPage = lazy(() =>
+  import('./pages/settings-page').then((m) => ({ default: m.SettingsPage })),
+)
 const SignInPage = lazy(() =>
   import('./pages/sign-in-page').then((m) => ({ default: m.SignInPage })),
 )
@@ -57,6 +60,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/about" element={<LandingPage />} />
             <Route path="/sessions" element={<RequireAuth><SessionsPage /></RequireAuth>} />
+            <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
             <Route path="/sessions/:studyId" element={<RequireAuth><SessionGate /></RequireAuth>}>
               <Route index element={<div className="grid h-dvh place-items-center bg-canvas text-sm text-ink-muted" role="status">Opening your session…</div>} />
               <Route path="upload" element={<UploadPage />} />

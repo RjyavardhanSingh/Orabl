@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
+import * as Progress from '@radix-ui/react-progress'
 import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -99,7 +100,7 @@ export function PreparingPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
         <PageHeader
           title="Let's Make This Yours"
           description="We turn your material and goal into a focused set of practice questions."
@@ -110,8 +111,14 @@ export function PreparingPage() {
           }
         />
 
-        <div className="mt-8 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-line-strong">
-          <div className="scroll-area min-h-0 flex-1 py-6">
+        {busy || isLoading ? (
+          <Progress.Root value={null} aria-label="Preparing questions" className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-sunk">
+            <Progress.Indicator className="block h-full w-1/3 animate-pulse rounded-full bg-accent" />
+          </Progress.Root>
+        ) : null}
+
+        <div className="mt-8 border-t border-line-strong">
+          <div className="py-6">
             {isLoading ? (
               <p
                 className="flex items-center gap-2 text-sm text-ink-muted"
@@ -123,7 +130,7 @@ export function PreparingPage() {
             ) : null}
 
             {!isLoading && visible.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong p-8 text-center">
+              <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong p-8 text-center">
                 <p className="text-pretty mt-4 text-sm font-semibold">
                   Your questions will appear here.
                 </p>

@@ -1,5 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, ArrowRight, BookOpen, LoaderCircle } from 'lucide-react'
+import * as Checkbox from '@radix-ui/react-checkbox'
+import * as RadioGroup from '@radix-ui/react-radio-group'
+import { ArrowLeft, ArrowRight, BookOpen, Check, LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -203,14 +205,14 @@ export function GoalPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
         <PageHeader
           title="What Do You Want to Understand?"
           description="A clear goal keeps every question relevant to you. Three details are enough to begin."
         />
 
-        <div className="mt-8 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-line-strong">
-          <div className="scroll-area min-h-0 flex-1 py-6">
+        <div className="mt-8 border-t border-line-strong">
+          <div className="py-6">
             <form id="goal-form" onSubmit={submit} className="space-y-5" noValidate>
               <fieldset className="space-y-2">
                 <legend className="text-sm font-medium text-ink-soft">
@@ -220,31 +222,33 @@ export function GoalPage() {
                   {materials.map((item) => {
                     const checked = selectedIds.includes(item.id)
                     return (
-                      <label
+                      <div
                         key={item.id}
                         className={cn(
-                          'flex cursor-pointer items-center gap-3 py-4 transition-colors',
+                          'flex items-center gap-3 py-4 transition-colors',
                           checked
                             ? 'text-ink'
                             : 'text-ink-muted hover:text-ink',
                         )}
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox.Root
+                          id={`material-${item.id}`}
                           checked={checked}
-                          onChange={() => toggleMaterial(item.id)}
-                          className="size-4 shrink-0 accent-accent"
+                          onCheckedChange={() => toggleMaterial(item.id)}
+                          className="grid size-5 shrink-0 place-items-center rounded border border-line-strong bg-surface text-black data-[state=checked]:border-accent data-[state=checked]:bg-accent"
                           aria-label={`Include ${item.name}`}
-                        />
-                        <span className="min-w-0 flex-1">
+                        >
+                          <Checkbox.Indicator><Check className="size-3.5" strokeWidth={3} aria-hidden="true" /></Checkbox.Indicator>
+                        </Checkbox.Root>
+                        <label htmlFor={`material-${item.id}`} className="min-w-0 flex-1 cursor-pointer">
                           <span className="block truncate text-sm font-medium text-ink">
                             {item.name}
                           </span>
                           <span className="tabular block text-xs text-ink-faint">
                             {item.word_count.toLocaleString()} words
                           </span>
-                        </span>
-                      </label>
+                        </label>
+                      </div>
                     )
                   })}
                 </div>
@@ -284,38 +288,41 @@ export function GoalPage() {
               </div>
 
               <fieldset className="space-y-2.5">
-                <legend className="mb-2 text-sm font-medium text-ink-soft">
-                  How Familiar Is This?
-                </legend>
-                <div className="divide-y divide-line border-t border-line">
+                <legend className="mb-2 text-sm font-medium text-ink-soft">How Familiar Is This?</legend>
+                <RadioGroup.Root
+                  value={level}
+                  onValueChange={(value) => form.setValue('level', value as GoalValues['level'], { shouldDirty: true, shouldValidate: true })}
+                  className="divide-y divide-line border-t border-line"
+                >
                   {levels.map((option) => {
                     const selected = level === option.value
                     return (
-                      <label
+                      <div
                         key={option.value}
                         className={cn(
-                          'flex cursor-pointer items-center gap-3 py-4 transition-colors duration-150',
+                          'flex items-center gap-3 py-4 transition-colors duration-150',
                           selected
                             ? 'text-ink'
                             : 'text-ink-muted hover:text-ink',
                         )}
                       >
-                        <input
-                          type="radio"
+                        <RadioGroup.Item
+                          id={`level-${option.value}`}
                           value={option.value}
-                          {...form.register('level')}
-                          className="size-4 shrink-0 accent-ink"
-                        />
-                        <span className="min-w-0">
+                          className="grid size-5 shrink-0 place-items-center rounded-full border border-line-strong bg-surface data-[state=checked]:border-accent"
+                        >
+                          <RadioGroup.Indicator className="size-2.5 rounded-full bg-accent" />
+                        </RadioGroup.Item>
+                        <label htmlFor={`level-${option.value}`} className="min-w-0 flex-1 cursor-pointer">
                           <span className="block text-sm font-semibold text-ink">
                             {option.title}
                           </span>
                           <span className="mt-0.5 block text-xs text-ink-muted">{option.text}</span>
-                        </span>
-                      </label>
+                        </label>
+                      </div>
                     )
                   })}
-                </div>
+                </RadioGroup.Root>
               </fieldset>
 
               <div className="grid gap-5 sm:grid-cols-2">

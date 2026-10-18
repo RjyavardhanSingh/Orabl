@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
+import * as Progress from '@radix-ui/react-progress'
 import { ArrowLeft, ArrowRight, BookOpen, Clock, Edit3, LoaderCircle, Mic, RotateCcw, SkipForward, Square } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -161,7 +162,7 @@ export function PracticePage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
         <PageHeader
           title="Say It Out Loud"
           description="Read each question, answer by speaking, and move on. Scoring happens in the background."
@@ -179,8 +180,15 @@ export function PracticePage() {
           }
         />
 
-        <div className="mt-8 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-line-strong">
-          <div className="scroll-area min-h-0 flex-1 space-y-6 py-6">
+        <Progress.Root value={Math.min(index, total)} max={total} aria-label="Questions answered" className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-sunk">
+          <Progress.Indicator
+            className="block h-full w-full rounded-full bg-accent transition-transform duration-300"
+            style={{ transform: `translateX(-${100 - (Math.min(index, total) / total) * 100}%)` }}
+          />
+        </Progress.Root>
+
+        <div className="mt-8 border-t border-line-strong">
+          <div className="space-y-6 py-6">
             {!done && question ? <QuestionPrompt question={question} position={index + 1} total={total} /> : null}
 
             {!done && question ? (
