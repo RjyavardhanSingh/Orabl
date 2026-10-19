@@ -7,6 +7,9 @@
 /* `full` exposes Fraunces axes (wght, opsz, SOFT, WONK). WONK stays off:
    its alternates are what made headings look chopped. opsz follows type size. */
 @import "@fontsource-variable/fraunces/full.css";
+/* True italic for display headlines; font-synthesis is off, so without this
+   `italic` would render upright. */
+@import "@fontsource-variable/fraunces/full-italic.css";
 /* Spoken rail only. The wght cut is the even, non-bouncy Shantell — the
    brush script it replaced broke apart on curves and at display sizes. */
 @import "@fontsource-variable/shantell-sans/wght.css";
@@ -17,6 +20,7 @@
   --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
   /* Display. Fraunces, with the wonk axis left off so serifs stay even. */
   --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
+  --font-serif: var(--font-display);
   /* Handwritten voice on the clarity rail. Weight is set at the call site. */
   --font-voice: "Shantell Sans Variable", "Segoe Print", cursive;
 
@@ -181,10 +185,6 @@ label {
   transform-box: fill-box;
   transform-origin: 50% 50%;
   animation: robot-blink 5.2s ease-in-out infinite;
-}
-
-.motion-paused .robot-eye {
-  animation: none;
 }
 
 @keyframes robot-blink {
