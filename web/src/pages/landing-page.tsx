@@ -1,101 +1,215 @@
-import { ArrowUpRight } from 'lucide-react'
-import { useReducedMotion } from 'motion/react'
-import { Link } from 'react-router-dom'
+import { ArrowUpRight } from "lucide-react";
+import { useReducedMotion } from "motion/react";
+import { Link } from "react-router-dom";
 
-import { AnimatedFooter } from '../components/ui/animated-footer'
-import { Header } from '../components/ui/hero-parallax'
-import { useAuthStore } from '../lib/auth-state'
+import { AnimatedFooter } from "../components/ui/animated-footer";
+import { ClarityRail } from "../components/ui/clarity-rail";
+import { HowItWorksScroll } from "../components/ui/how-it-works-scroll";
+import { useAuthStore } from "../lib/auth-state";
 
-const steps = [
-  { number: '01', title: 'Bring Your Material', description: 'Upload a PDF or paste your notes.' },
-  { number: '02', title: 'Explain It', description: 'Answer questions in your own words.' },
-  { number: '03', title: 'See What Sticks', description: 'Find strengths and gaps worth revisiting.' },
-]
+// Ghost watermark for the CTA: a braille-dot brain. Every row is the same
+// width and blanks are the braille blank (U+2800), not spaces, so rows can't
+// collapse or ragged-align under text-right — the drawing stays intact.
+const BRAIN_ASCII = [
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠤⠤⠤⠤⣄⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣶⡊⠉⠉⣉⣱⡷⠶⢢⣠⢴⣶⡝⠒⠉⢉⣭⡽⠟⢉⣀⡀⠹⢭⠒⢤⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠔⢚⣩⡽⠿⠊⢉⣉⡂⣀⣩⠭⢴⠟⠋⠉⠉⠉⠛⠳⢦⣬⣤⡴⠞⠛⠁⠛⠳⣾⣧⠀⠟⠀⠉⠲⢄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⢚⠁⠀⠰⠋⢡⠄⠀⠞⣫⢟⡥⠒⠉⠹⣿⡀⠀⠀⢦⡀⠀⠀⠀⠈⠻⡧⡀⠀⠀⠀⠀⠈⠻⣗⡶⠶⠶⢤⡀⠱⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢮⣤⡾⠀⠀⣠⡴⠋⠀⡠⣚⠥⠒⢛⡲⠄⠀⠈⢻⡆⠀⠀⠻⣦⣀⠀⠀⠀⣿⠻⣦⣀⣴⠶⠂⠀⠘⣷⡄⠀⠀⢀⣴⡿⠈⠢⡀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⡠⠖⣉⣁⡀⠀⢀⣾⠋⠴⢿⣽⠋⠀⠞⢉⣉⣽⣳⣄⣀⠀⠋⠀⠀⠀⠈⠙⣷⡄⠀⠁⠀⠙⢤⣯⡀⠀⠀⠀⣼⡇⠀⡾⠋⠁⠀⠳⣄⠘⢆⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⡰⠋⠰⠛⢻⡞⢉⣠⣼⡇⢀⣴⠟⠛⠒⣴⠟⠋⠉⠀⠀⢀⣀⣀⡀⠀⠀⠀⠀⠀⣸⡇⠀⠀⠳⣄⠀⠉⢿⣄⠀⢰⣿⣧⡀⠀⣴⠶⠶⣦⡼⢧⠈⢣⠀⠀⠀⠀",
+  "⠀⠀⠀⢀⡞⣡⣶⡄⠀⡟⣳⠿⠋⠙⡍⡽⠁⣀⣤⣤⣿⡄⠀⠀⠀⠀⡿⡉⣀⣀⣤⣤⣤⣴⠾⠥⠽⣦⣄⠀⠉⠻⢶⡼⢻⠀⠈⠇⠘⡷⡄⠘⠂⠀⢀⡍⠻⣷⣄⡇⠀⠀⠀",
+  "⠀⠀⠀⠘⣺⠏⢸⢃⣼⠟⢁⡤⠀⣠⢟⡷⠟⢋⣉⣤⡿⠇⠀⠀⠀⢰⣣⠞⠋⠉⠉⠁⡀⠀⠀⠀⠀⠀⠙⢷⣄⠀⠀⢹⣾⠀⠀⠀⠀⢸⡇⠀⣀⡀⣾⠀⠀⠈⢻⡁⢦⠀⠀",
+  "⠀⠀⣠⢚⣵⣄⠈⣼⡇⠀⢸⠧⢞⡵⠋⠠⠚⠉⠉⠀⠀⢀⡇⠀⣰⣟⣁⣀⠀⠀⠀⠀⠉⠒⠶⣤⣤⣀⠀⠀⠙⠀⠀⢸⡇⢰⣟⠛⢶⡋⣇⠀⠉⠻⡟⡄⠀⢀⢀⣿⠀⢧⠀",
+  "⠀⣰⠃⢸⠁⣿⠀⠸⣧⠀⢸⢣⠋⠀⣠⣤⠶⢶⢒⣤⣔⣻⠣⢼⠟⠁⠀⠙⢷⡄⠀⠀⢀⠀⠀⠀⠈⠓⢟⢦⠀⠀⠀⢸⡇⠈⠻⣦⡀⠈⠻⣷⣄⠀⠘⣿⠀⠸⣿⣇⣀⢸⠀",
+  "⠀⡇⠀⠀⣼⠇⠀⢀⣿⠀⣇⣇⣴⠟⠋⢠⣾⠟⠉⠀⠀⠈⠳⣼⠀⠀⠀⠀⠀⠳⠀⠀⠈⢳⣄⠀⠀⠀⢸⣼⠀⠀⠀⠈⡟⢆⠀⠈⢻⡀⠀⠈⢻⣆⠀⣻⠃⠀⠀⢹⡟⠻⡀",
+  "⠀⢧⡆⣼⠏⠀⣾⠟⠁⢰⠃⡵⠃⢀⣴⡿⠁⠀⡀⠀⠀⠀⠀⠹⣧⡀⠰⣦⡀⠀⠀⠀⠀⠀⣻⢦⣀⣠⡾⣇⠀⠀⢀⣰⠟⠙⢷⣄⠀⠀⠀⠀⠀⣿⠀⠉⢠⠄⠀⣼⡇⠀⢧",
+  "⢀⠞⢡⡟⠀⠀⣿⠀⢀⡏⡼⠁⣴⠟⠁⠀⠀⠀⣿⠀⣀⣀⢀⣴⠘⣷⡀⠈⢻⣦⣀⠀⢀⣾⠟⠉⠀⠀⠉⠻⣷⣄⠀⠀⠀⠀⠀⠙⢷⡄⠀⠀⠀⠉⠀⣠⡟⠀⣼⣟⠀⠀⢸",
+  "⢸⠀⠘⣧⠀⡴⠛⠳⢸⢰⠁⢰⠏⠀⠀⠀⢀⣼⡯⠟⠋⠙⠻⣷⡀⠘⠀⠀⠀⠈⠉⠻⣿⠁⠀⠀⢰⡟⠉⠀⠈⢻⣦⠀⠀⠀⣄⠀⠀⡗⠀⢸⡇⣠⣾⠟⢀⣾⠋⠹⣷⢀⡇",
+  "⠈⢆⠀⠹⢷⣤⣀⣠⠎⡇⠀⠸⠀⠀⢀⣴⠟⠉⠀⠀⠀⢄⠀⠹⣧⡀⠀⠀⣀⡀⠀⠀⣿⠀⠀⠀⠘⣿⡄⠀⠀⠀⢹⣦⡀⠀⢿⣄⠀⢀⣠⡿⠽⣯⡁⠀⠸⠃⠀⠀⡏⠉⠀",
+  "⠀⢠⢷⣄⠀⠈⣉⣉⢢⢳⡀⠀⠀⠀⣾⡏⠀⠀⠠⣀⡤⢿⠀⠀⠙⠷⠶⠛⠉⠈⠀⣰⠟⠀⠀⠀⠀⠘⣷⡀⠀⠠⠛⠉⠉⠀⢈⣯⠗⠛⠁⠀⠀⠈⠃⠀⢀⣴⠇⢠⠇⠀⠀",
+  "⠀⢸⡀⠻⣧⠈⠉⠹⣏⢀⣑⠤⣀⣀⠼⠳⣄⠀⠀⠀⠙⠺⠖⣦⣤⠤⣀⡀⠀⠀⠘⠁⠀⠀⠀⠀⠀⠀⢸⢧⡀⠀⠀⢀⣀⢴⣿⣅⡀⠠⠶⢿⢦⣀⣠⣴⠟⠃⡠⠋⠀⠀⠀",
+  "⠀⠀⠳⡀⠘⠃⠀⡤⠸⣼⠀⠉⠛⠋⠉⠉⠙⠻⣦⣄⠀⠀⠀⠀⠈⠉⠙⠻⣦⠀⠀⠀⠀⡀⠀⠀⠀⢀⣾⠖⠚⠛⠛⠛⠋⠁⠀⠙⣷⠀⠀⣸⡴⠛⠉⢁⡤⠊⠁⠀⠀⠀⠀",
+  "⠀⠀⠀⠘⢦⡀⠸⣧⠀⢻⢇⠀⠳⡤⣤⠆⠀⠀⠈⢻⡇⠀⠀⠀⢰⡄⠀⠀⣿⡇⢀⡾⠛⠛⠻⡝⣲⠟⠋⠀⢀⡄⠀⠀⠀⣀⡄⠀⠋⢀⡴⣻⡄⣤⡶⡍⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠈⠙⠁⠉⠉⠈⠣⡀⠹⣇⠀⠀⠀⠀⠘⠀⠀⠀⢀⡾⢳⡶⠾⠋⠀⠈⠃⠀⠀⣠⠟⢄⣀⣠⡴⠋⠀⠀⠀⣼⢻⣤⣴⠶⠟⠋⣡⡷⣏⢿⡧⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠓⢫⣲⣤⣀⣀⣀⣀⣤⣶⣻⠋⠛⠷⣦⣤⣤⣄⡤⢤⣺⠕⠋⠉⠉⠁⠀⠀⣀⣤⣾⠏⢩⠀⠀⢀⣤⣾⠛⣧⢻⣼⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠓⠮⢭⣉⣉⡩⠥⠚⠈⢇⠀⢠⡄⠀⠉⠉⠙⣿⠀⢠⠶⠖⢫⣩⠟⠛⠛⠉⠀⣠⣿⣦⠶⠿⣭⣸⣇⡿⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣌⡿⣄⠀⠒⠚⠋⠀⠀⠀⣠⡾⠃⠀⢀⣀⠴⠚⠉⠣⢍⣛⣶⡶⠝⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠒⠂⠀⠒⠒⠉⠀⠉⠉⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+].join("\n");
 
 export function LandingPage() {
-  const reduceMotion = useReducedMotion() ?? false
-  const status = useAuthStore((s) => s.status)
-  const signOut = useAuthStore((s) => s.signOut)
-  const learningPath = status === 'in' ? '/sessions' : '/signin?next=%2Fsessions'
+  const reduceMotion = useReducedMotion() ?? false;
+  const status = useAuthStore((s) => s.status);
+  const signOut = useAuthStore((s) => s.signOut);
+  const learningPath =
+    status === "in" ? "/sessions" : "/signin?next=%2Fsessions";
 
   return (
-    <div className="min-h-dvh overflow-x-clip bg-canvas text-ink">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-cream focus:px-4 focus:py-2 focus:text-black">
+    <div className="min-h-dvh overflow-x-clip bg-[#EBE5D9] font-sans text-[#EBE5D9]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[#EBE5D9] focus:px-4 focus:py-2 focus:text-[#451017]"
+      >
         Skip to Main Content
       </a>
-      <header className="flex h-[88px] items-center justify-between border-b border-line px-6 sm:px-10 lg:px-16 xl:px-24">
-        <Link to="/" translate="no" className="font-sans text-2xl font-extrabold tracking-[-0.08em] text-white transition-colors hover:text-accent" aria-label="Orabl home">
-          Orabl
-        </Link>
-        <nav aria-label="Main" className="flex items-center gap-4 sm:gap-7">
-          <a href="#how-it-works" className="hidden text-sm font-medium text-ink-muted transition-colors hover:text-white sm:inline">How It Works</a>
-          {status === 'in' ? (
-            <>
-              <Link to="/sessions" className="inline-flex items-center gap-2 text-sm font-semibold text-ink transition-colors hover:text-accent">
-                Dashboard <ArrowUpRight className="size-4" aria-hidden="true" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => void signOut()}
-                className="hidden text-sm font-medium text-ink-muted transition-colors hover:text-white sm:inline"
+
+      <main>
+        {/* The navbar and hero share one full-bleed maroon block, flush to the
+          top and sides; only its bottom corners curve into the beige canvas. */}
+        <div className="flex min-h-dvh w-full flex-col overflow-hidden rounded-b-[2rem] bg-[#451017] md:rounded-b-[3rem]">
+          <header className="flex h-[88px] shrink-0 items-center pt-6 justify-between px-6 sm:px-10 lg:px-16 xl:px-24">
+            <Link
+              to="/"
+              translate="no"
+              className="font-sans text-2xl font-extrabold tracking-[-0.08em] text-[#EBE5D9] transition-colors duration-75 hover:text-white"
+              aria-label="Orabl home"
+            >
+              Orabl
+            </Link>
+            <nav aria-label="Main" className="flex items-center gap-4 sm:gap-7">
+              <a
+                href="#how-it-works"
+                className="hidden text-sm font-medium text-[#EBE5D9] transition-colors duration-75 hover:text-white sm:inline"
               >
-                Sign out
-              </button>
-            </>
-          ) : (
-            <Link to="/signin" className="text-sm font-semibold text-ink underline decoration-accent decoration-2 underline-offset-[6px] transition-colors hover:text-accent">
-              Sign In
-            </Link>
-          )}
-        </nav>
-      </header>
+                How It Works
+              </a>
+              {status === "in" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void signOut()}
+                    className="hidden text-sm font-medium text-[#EBE5D9] transition-colors duration-75 hover:text-white sm:inline"
+                  >
+                    Sign out
+                  </button>
+                  <Link
+                    to="/sessions"
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#EBE5D9] px-5 py-2.5 text-sm font-bold text-[#451017] transition-colors duration-75 hover:bg-white"
+                  >
+                    Dashboard{" "}
+                    <ArrowUpRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </>
+              ) : (
+                <Link
+                  to="/signin"
+                  className="inline-flex items-center rounded-lg bg-[#EBE5D9] px-5 py-2.5 text-sm font-bold text-[#451017] transition-colors duration-75 hover:bg-white"
+                >
+                  Sign In
+                </Link>
+              )}
+            </nav>
+          </header>
 
-      <main id="main-content">
-        <Header />
+          <section
+            id="main-content"
+            tabIndex={-1}
+            className="flex flex-1 items-center focus:outline-none"
+            aria-labelledby="hero-title"
+          >
+            <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-12 lg:grid-cols-2 lg:gap-8 lg:px-12">
+              <div className="flex h-full flex-col justify-center text-left">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#EBE5D9]/80">
+                  Orabl / Learn Out Loud
+                </p>
+                <h1
+                  id="hero-title"
+                  className="mt-6 font-serif text-6xl italic leading-[1.05] tracking-tight text-[#EBE5D9] lg:text-7xl xl:text-8xl"
+                >
+                  Learn It.
+                  <br />
+                  Say It.
+                  <br />
+                  Prove It.
+                </h1>
+                <p className="mt-6 max-w-md text-pretty text-base leading-7 text-[#EBE5D9]/85 sm:text-lg sm:leading-8">
+                  Practice explaining your own material. Find the gaps, then
+                  learn what sticks.
+                </p>
+              </div>
 
-        <section id="how-it-works" className="scroll-mt-8 bg-slate px-6 py-20 text-white sm:px-10 lg:px-16 lg:py-28 xl:px-24" aria-labelledby="how-title">
-          <div className="mx-auto max-w-7xl">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-cream">How It Works</p>
-            <h2 id="how-title" className="mt-7 max-w-[13ch] font-sans text-[clamp(2.75rem,5vw,5.5rem)] font-bold leading-[1.04] tracking-[-0.065em] text-balance">
-              From Notes to Knowing.
-            </h2>
-            <ol className="mt-14 border-t border-white/30">
-              {steps.map((step) => (
-                <li key={step.number} className="grid gap-3 border-b border-white/30 py-7 sm:grid-cols-[5rem_minmax(0,0.9fr)_minmax(0,1fr)] sm:items-baseline sm:gap-8 sm:py-9">
-                  <span className="tabular text-sm font-bold text-cream">{step.number}</span>
-                  <h3 className="text-balance text-xl font-semibold tracking-[-0.035em] sm:text-2xl">{step.title}</h3>
-                  <p className="max-w-md text-pretty text-sm leading-6 text-white/90 sm:text-base sm:leading-7">{step.description}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
-
-        <section className="bg-accent px-6 py-20 text-black sm:px-10 lg:px-16 lg:py-28 xl:px-24" aria-labelledby="cta-title">
-          <div className="mx-auto flex max-w-7xl flex-col gap-9 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em]">Your Turn</p>
-              <h2 id="cta-title" className="mt-5 max-w-[11ch] font-sans text-[clamp(3rem,6vw,6.5rem)] font-bold leading-[1] tracking-[-0.07em] text-balance">
-                Put It Into Words.
-              </h2>
+              {/* No backing card: the rail floats on the maroon itself. It scales
+                  up from its left edge on desktop so the overflow bleeds off the
+                  right of the screen (clipped by the hero block), never back
+                  over the headline. The radial mask dissolves its edges. */}
+              <div className="relative flex aspect-square w-full items-center justify-center overflow-visible lg:aspect-auto lg:h-[600px] xl:h-[700px]">
+                <div
+                  className="h-full w-full origin-center scale-125 lg:origin-left lg:scale-150"
+                  style={{
+                    maskImage:
+                      "radial-gradient(circle at center, black 40%, transparent 80%)",
+                    WebkitMaskImage:
+                      "radial-gradient(circle at center, black 40%, transparent 80%)",
+                  }}
+                >
+                  <ClarityRail />
+                </div>
+              </div>
             </div>
-            <Link to={learningPath} className="inline-flex min-h-12 w-fit items-center gap-5 border-b-2 border-black text-sm font-bold text-black transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-white focus-visible:outline-black active:translate-y-0">
-              {status === 'in' ? 'Go to Dashboard' : 'Start Learning'} <ArrowUpRight className="size-4" aria-hidden="true" />
-            </Link>
+          </section>
+        </div>
+
+        <HowItWorksScroll />
+
+        <section
+          className="bg-[#EBE5D9] px-6 pb-24 pt-24 sm:px-10 lg:px-16 lg:pb-32 xl:px-24"
+          aria-labelledby="cta-title"
+        >
+          {/* Corner-anchored spread: label pinned top-left, headline and
+              action share the bottom edge, ghost ASCII brain behind on the right. */}
+          <div className="relative mx-auto flex min-h-[500px] w-full max-w-7xl flex-col justify-between overflow-hidden rounded-3xl bg-[#451017] p-8 md:min-h-[600px] md:p-12 lg:min-h-[70vh] lg:p-16">
+            {/* Confined to the right half and pushed past the card edge, with a
+                left-to-right mask so the brain emerges from the maroon instead
+                of running into the headline. */}
+            <div
+              className="pointer-events-none absolute right-0 top-0 z-0 flex h-full w-[60%] select-none items-center justify-end overflow-hidden lg:w-1/2"
+              style={{
+                maskImage: "linear-gradient(to right, transparent, black 30%)",
+                WebkitMaskImage:
+                  "linear-gradient(to right, transparent, black 30%)",
+              }}
+              aria-hidden="true"
+            >
+              <pre className="pointer-events-none shrink-0 translate-x-12 scale-110 select-none whitespace-pre text-right font-mono text-[8px] leading-none text-[#EBE5D9] opacity-15 md:translate-x-24 md:text-[13px] lg:scale-125 lg:text-[18px]">
+                {BRAIN_ASCII}
+              </pre>
+            </div>
+
+            <div className="relative z-10 font-sans text-sm font-medium uppercase tracking-[0.2em] text-[#EBE5D9]/70 md:text-base">
+              Your Turn
+            </div>
+            <div className="relative z-10 mt-auto flex w-full flex-col items-start justify-between gap-8 lg:flex-row lg:items-end">
+              <h2
+                id="cta-title"
+                className="font-serif text-7xl italic leading-[0.95] tracking-tighter text-[#EBE5D9] md:text-8xl lg:text-[10rem]"
+              >
+                Put It
+                <br />
+                Into Words.
+              </h2>
+              <Link
+                to={learningPath}
+                className="inline-flex shrink-0 items-center gap-3 rounded-xl bg-[#EBE5D9] px-8 py-4 font-sans text-lg font-semibold text-[#451017] transition-colors duration-75 hover:bg-black hover:text-white focus-visible:outline-[#EBE5D9]"
+              >
+                {status === "in" ? "Go to Dashboard" : "Start Learning"}{" "}
+                <ArrowUpRight className="size-5" aria-hidden="true" />
+              </Link>
+            </div>
           </div>
         </section>
       </main>
 
-      <div className="h-[350px] border-b border-line bg-black sm:h-[440px]">
+      <div className="h-[350px] bg-black sm:h-[440px]">
         <AnimatedFooter
-          headingLines={['Orabl']}
+          headingLines={["Orabl"]}
           subtitle="Thoughts become understanding."
           leftImage="/animated-footer/hand-left.jpg"
           rightImage="/animated-footer/hand-right.jpg"
           background="#000000"
-          textColor="#ffffff"
-          charColor="#9aabc2"
-          hoverColor="#f3701e"
+          textColor="#EBE5D9"
+          charColor="rgba(235, 229, 217, 0.4)"
+          hoverColor="#EBE5D9"
           hoverCharColor="#000000"
           columns={56}
           parallaxStrength={reduceMotion ? 0 : 4}
@@ -103,5 +217,5 @@ export function LandingPage() {
         />
       </div>
     </div>
-  )
+  );
 }
