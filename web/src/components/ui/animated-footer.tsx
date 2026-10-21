@@ -539,7 +539,7 @@ export function AnimatedFooter({
             </h2>
           ))}
         </div>
-        {subtitle ? <p className="font-sans text-sm font-medium tracking-wide text-ink-muted">{subtitle}</p> : null}
+        {subtitle ? <p className="font-sans text-xs uppercase tracking-[0.3em] text-[#EBE5D9]/60 md:text-sm">{subtitle}</p> : null}
       </div>
     </footer>
   );
