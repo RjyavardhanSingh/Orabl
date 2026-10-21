@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils'
 
 export function Table({ className, containerClassName, ...props }: ComponentProps<'table'> & { containerClassName?: string }) {
   return (
-    <div data-slot="table-container" className={cn('w-full overflow-x-auto rounded-2xl border border-line bg-sunk/70', containerClassName)}>
+    <div data-slot="table-container" className={cn('w-full overflow-x-auto bg-transparent', containerClassName)}>
       <table data-slot="table" className={cn('w-full caption-bottom border-collapse text-left text-sm', className)} {...props} />
     </div>
   )

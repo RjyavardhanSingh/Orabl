@@ -3,6 +3,13 @@ import { useEffect, useState } from "react";
 
 const LOOP_SECONDS = 14;
 
+// Flat palette, inverted for the bare maroon hero: beige marks on maroon,
+// with the status badge and robot pill as solid beige plates.
+const MAROON = "#451017";
+const BEIGE = "#EBE5D9";
+// The looping narration stays quieter than the hero headline beside it.
+const FOG_OPACITY = 0.7;
+
 // Exit leg: leaves the machine, eases toward the lower right, and finishes
 // inside the frame. The mask below fades it to nothing before the edge, so
 // the ribbon dissolves into the dark instead of being clipped by the
@@ -98,8 +105,8 @@ function StatusPill({ reduceMotion }: { reduceMotion: boolean }) {
         y={224}
         width={150}
         height={34}
-        rx={17}
-        fill="var(--color-good)"
+        rx={8}
+        fill={BEIGE}
       />
       <text
         x={322}
@@ -107,7 +114,7 @@ function StatusPill({ reduceMotion }: { reduceMotion: boolean }) {
         textAnchor="middle"
         fontSize={14}
         fontWeight={600}
-        fill="var(--color-canvas)"
+        fill={MAROON}
         style={{ fontFamily: "var(--font-sans)" }}
       >
         {reduceMotion ? STATUS_WORDS[3] : STATUS_WORDS[wordIndex]}
@@ -127,7 +134,7 @@ function RobotFace() {
         height={11}
         rx={4}
         fill="none"
-        stroke="var(--color-ink)"
+        stroke={MAROON}
         strokeWidth={2.5}
       />
       <rect
@@ -137,7 +144,7 @@ function RobotFace() {
         height={11}
         rx={4}
         fill="none"
-        stroke="var(--color-ink)"
+        stroke={MAROON}
         strokeWidth={2.5}
       />
       {/* head */}
@@ -145,8 +152,8 @@ function RobotFace() {
         cx={322}
         cy={309}
         r={15}
-        fill="var(--color-ink)"
-        stroke="var(--color-canvas)"
+        fill={MAROON}
+        stroke={BEIGE}
         strokeWidth={3}
       />
       {/* antenna stem + tip */}
@@ -155,10 +162,10 @@ function RobotFace() {
         y1={294}
         x2={322}
         y2={287}
-        stroke="var(--color-ink)"
+        stroke={MAROON}
         strokeWidth={2.5}
       />
-      <circle cx={322} cy={284} r={2.8} fill="var(--color-ink)" />
+      <circle cx={322} cy={284} r={2.8} fill={MAROON} />
       {/* eyes — vertical scale only, synced via shared class */}
       <rect
         className="robot-eye"
@@ -167,7 +174,7 @@ function RobotFace() {
         width={5}
         height={11}
         rx={2.5}
-        fill="var(--color-canvas)"
+        fill={BEIGE}
       />
       <rect
         className="robot-eye"
@@ -176,7 +183,7 @@ function RobotFace() {
         width={5}
         height={11}
         rx={2.5}
-        fill="var(--color-canvas)"
+        fill={BEIGE}
       />
     </g>
   );
@@ -184,13 +191,14 @@ function RobotFace() {
 
 export function ClarityRail() {
   const reduceMotion = useReducedMotion() ?? false;
-  const [paused, setPaused] = useState(false);
-  const staticView = reduceMotion || paused;
+  const staticView = reduceMotion;
 
   return (
-    <div className={paused ? 'motion-paused w-full min-w-0' : 'w-full min-w-0'}>
-      <div role="img" aria-label="Your notes flow into Orabl and come back as your own words." className="relative w-full overflow-hidden">
-      <svg viewBox="80 30 515 390" className="block h-auto w-full bg-transparent">
+    <div className="h-full w-full min-w-0">
+      <div role="img" aria-label="Your notes flow into Orabl and come back as your own words." className="relative h-full w-full overflow-visible">
+      {/* Fills its box; the default xMidYMid meet keeps it centered and
+          letterboxed, so the drawing scales to whatever height it is given. */}
+      <svg viewBox="80 30 515 390" className="block h-full w-full overflow-visible bg-transparent">
         <defs>
           <linearGradient id="clarity-ribbon-fade" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="white" />
@@ -221,7 +229,7 @@ export function ClarityRail() {
           id="clarity-rail-clear"
           d={LEG_CLEAR}
           fill="none"
-          stroke="var(--color-accent)"
+          stroke={BEIGE}
           strokeWidth={38}
           strokeLinecap="round"
           mask="url(#clarity-ribbon-mask)"
@@ -233,8 +241,8 @@ export function ClarityRail() {
           <text
             textAnchor="middle"
             fontSize={15}
-            fill="var(--color-ink-faint)"
-            opacity={0.65}
+            fill={BEIGE}
+            fillOpacity={FOG_OPACITY}
             transform="translate(400,60)"
             style={RAIL_FONT}
           >
@@ -243,8 +251,8 @@ export function ClarityRail() {
         ) : (
           <text
             fontSize={15}
-            fill="var(--color-ink-faint)"
-            opacity={0.65}
+            fill={BEIGE}
+            fillOpacity={FOG_OPACITY}
             textLength={FOG_TILED_LENGTH}
             lengthAdjust="spacing"
             mask="url(#clarity-fog-mask)"
@@ -270,7 +278,7 @@ export function ClarityRail() {
           <text
             textAnchor="middle"
             fontSize={20}
-            fill="var(--color-canvas)"
+            fill={MAROON}
             transform="translate(497,356) rotate(27)"
             style={RAIL_FONT}
             mask="url(#clarity-ribbon-mask)"
@@ -280,7 +288,7 @@ export function ClarityRail() {
         ) : (
           <text
             fontSize={20}
-            fill="var(--color-canvas)"
+            fill={MAROON}
             dy={7}
             textLength={TILED_LENGTH}
             lengthAdjust="spacing"
@@ -307,24 +315,13 @@ export function ClarityRail() {
             y={276}
             width={160}
             height={60}
-            rx={30}
-            fill="var(--color-canvas)"
-            stroke="var(--color-ink)"
-            strokeWidth={2}
+            rx={8}
+            fill={BEIGE}
           />
           <RobotFace />
         </g>
       </svg>
       </div>
-      {!reduceMotion ? (
-        <button
-          type="button"
-          onClick={() => setPaused((value) => !value)}
-          className="mt-2 text-[11px] font-bold uppercase tracking-[0.2em] text-ink-muted underline decoration-line-strong underline-offset-[6px] transition-colors hover:text-accent"
-        >
-          {paused ? 'Play Animation' : 'Pause Animation'}
-        </button>
-      ) : null}
     </div>
   );
 }
