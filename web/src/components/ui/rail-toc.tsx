@@ -406,6 +406,7 @@ const RailToc = ({
             <g mask={`url(#${maskId})`}>
               <path
                 ref={pathRef}
+                data-slot="rail-toc-track"
                 d={geometry.d}
                 fill="none"
                 strokeWidth="1.25"

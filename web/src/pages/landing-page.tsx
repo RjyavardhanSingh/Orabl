@@ -58,7 +58,7 @@ export function LandingPage() {
         {/* The navbar and hero share one full-bleed maroon block, flush to the
           top and sides; only its bottom corners curve into the beige canvas. */}
         <div className="flex min-h-dvh w-full flex-col overflow-hidden rounded-b-[2rem] bg-[#451017] md:rounded-b-[3rem]">
-          <header className="flex h-[88px] shrink-0 items-center pt-6 justify-between px-6 sm:px-10 lg:px-16 xl:px-24">
+          <header className="relative z-10 flex h-[88px] shrink-0 items-center pt-6 justify-between px-6 sm:px-10 lg:px-16 xl:px-24">
             <Link
               to="/"
               translate="no"

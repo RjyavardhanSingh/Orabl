@@ -209,8 +209,8 @@ label {
 }
 
 ::selection {
-  color: var(--color-ink);
-  background: var(--color-accent);
+  color: #ebe5d9;
+  background: #451017;
 }
 
 /* Respect the OS "reduce motion" setting for every animation we ship. */

@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, BookOpen, Clock3, LoaderCircle, Plus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+
+
+import { UserDropdown } from '../components/user-dropdown'
 
 import { Table, TableBody, TableCaption, TableCell, TableRow } from '../components/ui/table'
 import { api, type StudySessionSummary } from '../lib/api'
@@ -48,11 +50,77 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
   )
 }
 
+const HEATMAP_DAYS = 30
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+/** Monochrome maroon scale; never rounded-full, never dots. */
+const heatLevelClass = [
+  'bg-transparent border border-[#451017]/10 text-[#451017]/40',
+  'bg-[#451017]/20 text-[#451017]',
+  'bg-[#451017]/50 text-[#EBE5D9]',
+  'bg-[#451017]/80 text-[#EBE5D9]',
+]
+const todayNodeClass = 'bg-[#451017] text-[#EBE5D9] shadow-[2px_2px_0px_#000000] border border-black font-bold'
+
+/** Activity per local day: how many sessions were created or worked on that day. */
+function activityByDay(sessions: StudySessionSummary[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const session of sessions) {
+    const days = new Set([session.created_at, session.updated_at].map((iso) => new Date(iso).toDateString()))
+    for (const day of days) counts.set(day, (counts.get(day) ?? 0) + 1)
+  }
+  return counts
+}
+
+function ActivityHeatmap({ sessions }: { sessions: StudySessionSummary[] }) {
+  const counts = activityByDay(sessions)
+  const today = new Date()
+  const days = Array.from({ length: HEATMAP_DAYS }, (_, index) => {
+    const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (HEATMAP_DAYS - 1 - index))
+    return { day, count: counts.get(day.toDateString()) ?? 0, isToday: index === HEATMAP_DAYS - 1 }
+  })
+  // Pad so the first day lands under its weekday column.
+  const leading = days[0].day.getDay()
+
+  return (
+    <div className="col-span-12 lg:col-span-4 border border-[#451017]/20 rounded-xl p-6 flex flex-col bg-transparent min-h-[300px]">
+      <h3 className="font-sans uppercase tracking-[0.2em] text-xs font-bold text-black border-b border-[#451017]/20 pb-4 mb-6 flex justify-between items-end">
+        <span>Activity Heatmap</span> <span className="text-[10px] text-[#451017]/60">LAST 30 DAYS</span>
+      </h3>
+      <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full">
+        {WEEKDAY_LABELS.map((label, index) => (
+          <span key={index} aria-hidden="true" className="text-[9px] font-sans font-bold text-[#451017]/40 text-center pb-2">
+            {label}
+          </span>
+        ))}
+        {Array.from({ length: leading }, (_, index) => (
+          <span key={`pad-${index}`} aria-hidden="true" />
+        ))}
+        {days.map(({ day, count, isToday }) => {
+          const label = `${dateFormat.format(day)}: ${count} ${count === 1 ? 'session' : 'sessions'}`
+          return (
+            <span
+              key={day.toDateString()}
+              title={label}
+              aria-label={label}
+              className={`aspect-square flex items-center justify-center text-[8px] font-sans font-medium rounded-sm transition-colors cursor-default ${
+                isToday ? todayNodeClass : heatLevelClass[Math.min(count, 3)]
+              }`}
+            >
+              {day.getDate()}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function SessionsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
-  const signOut = useAuthStore((s) => s.signOut)
+
   const sessions = useQuery({ queryKey: ['study-sessions'], queryFn: api.listStudySessions, retry: false })
   const create = useMutation({
     mutationFn: api.createStudySession,
@@ -90,55 +158,22 @@ export function SessionsPage() {
           <Link to="/sessions" className="text-2xl font-extrabold tracking-[-0.08em] text-[#451017] hover:opacity-90">
             Orabl
           </Link>
-          <div className="flex items-center">
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger
-                className="w-10 h-10 flex items-center justify-center bg-[#451017] text-[#EBE5D9] font-serif text-lg rounded-none cursor-pointer hover:bg-black transition-colors"
-                aria-label={`Account menu for ${displayName}`}
-              >
-                {displayName?.charAt(0).toUpperCase()}
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  align="end"
-                  sideOffset={8}
-                  className="bg-[#EBE5D9] border-2 border-black rounded-none shadow-[4px_4px_0px_#000000] min-w-[240px] flex flex-col z-50 outline-none"
-                >
-                  {/* Header: User Identity */}
-                  <div className="flex items-center gap-3 p-4 border-b-2 border-black">
-                    {/* Sharp square monogram as profile image placeholder */}
-                    <div className="w-10 h-10 flex items-center justify-center bg-black text-[#EBE5D9] font-serif text-lg rounded-none">
-                      {displayName?.charAt(0).toUpperCase()}
-                    </div>
-                    {/* User info */}
-                    <div className="flex flex-col gap-1 min-w-0 flex-1">
-                      <span className="font-serif text-lg text-black leading-none truncate">{displayName}</span>
-                      <span className="font-sans text-[10px] uppercase tracking-widest text-[#451017]/70 truncate">{user?.email}</span>
-                    </div>
-                  </div>
-                  {/* Action Links */}
-                  <div className="flex flex-col">
-                    <DropdownMenu.Item asChild>
-                      <Link
-                        to="/settings"
-                        className="w-full text-left px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.15em] text-black border-b border-black hover:bg-[#451017] hover:text-[#EBE5D9] transition-colors duration-75 cursor-pointer outline-none"
-                      >
-                        Account Ledger
-                      </Link>
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item asChild>
-                      <button
-                        type="button"
-                        onClick={() => void signOut()}
-                        className="w-full text-left px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.15em] text-black hover:bg-[#451017] hover:text-[#EBE5D9] transition-colors duration-75 cursor-pointer outline-none"
-                      >
-                        Log Out
-                      </button>
-                    </DropdownMenu.Item>
-                  </div>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
+          <div className="flex items-center gap-4 md:gap-6">
+            <button
+              type="button"
+              onClick={() => create.mutate()}
+              disabled={create.isPending}
+              className="bg-[#451017] text-[#EBE5D9] hover:bg-black px-5 py-2.5 rounded-xl font-sans font-bold text-[10px] md:text-xs uppercase tracking-widest transition-colors shrink-0 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {create.isPending ? (
+                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Plus className="size-4" aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">Start Session</span>
+              <span className="sm:hidden">Start</span>
+            </button>
+            <UserDropdown displayName={displayName ?? ''} email={user?.email} />
           </div>
         </header>
 
@@ -149,8 +184,9 @@ export function SessionsPage() {
               Welcome back, Raj.
             </h1>
 
-            {/* The Metric Ledger — Full Width */}
-            <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-12 gap-6 md:gap-8">
+            {/* The Metric Ledger — left of the heatmap */}
+            <div className="col-span-12 lg:col-span-8 grid grid-cols-2 gap-4 md:gap-6 content-start">
               <Metric
                 label="In Progress"
                 value={String(liveCount).padStart(2, '0')}
@@ -172,28 +208,19 @@ export function SessionsPage() {
                 hint={lastTouched ? dateFormat.format(new Date(lastTouched)) : 'No sessions yet'}
               />
             </div>
+
+            <ActivityHeatmap sessions={items} />
+            </div>
           </section>
 
           {/* The Sessions Ledger (Table) */}
-          <section className="mt-8" aria-labelledby="sessions-title">
-            <div className="flex justify-between items-end border-b-2 border-black pb-4 mb-0">
-              <h2 id="sessions-title" className="font-serif text-4xl text-[#451017]">
-                Sessions Ledger
-              </h2>
-              <button
-                type="button"
-                onClick={() => create.mutate()}
-                disabled={create.isPending}
-                className="rounded-xl bg-[#451017] text-[#EBE5D9] hover:bg-black transition-colors duration-150 px-6 py-3 font-sans text-xs font-bold uppercase tracking-[0.15em] inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {create.isPending ? (
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Plus className="size-4" aria-hidden="true" />
-                )}
-                Start Session
-              </button>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
+            <section className="col-span-12 lg:col-span-9 min-w-0" aria-labelledby="sessions-title">
+              <div className="border-b-2 border-black pb-4 mb-0">
+                <h2 id="sessions-title" className="font-serif text-4xl text-[#451017]">
+                  Sessions Ledger
+                </h2>
+              </div>
 
             {sessions.isError ? (
               <p className="py-10 text-sm text-[#451017]/70">
@@ -284,8 +311,8 @@ export function SessionsPage() {
                                 <span className="font-mono text-sm text-[#451017]/50 w-8">{String(index + 1).padStart(2, '0')}.</span>
                               </TableCell>
                               <TableCell scope="row" className="min-w-0 py-6 pl-4 pr-3 text-left font-normal sm:pl-0 sm:pr-5">
-                                <span className="flex items-center gap-3">
-                                  <span className="truncate font-serif text-2xl leading-tight text-black hover:text-[#451017] transition-colors">
+                                <span className="flex min-w-0 items-center gap-3">
+                                  <span className="min-w-0 truncate font-serif text-2xl leading-tight text-black hover:text-[#451017] transition-colors">
                                     {session.title}
                                   </span>
                                   {active ? (
@@ -330,7 +357,17 @@ export function SessionsPage() {
                 </Table>
               </div>
             ) : null}
-          </section>
+            </section>
+
+            {/* Coming Soon Vertical Block */}
+            <aside className="col-span-12 lg:col-span-3">
+              <div className="w-full h-full min-h-[350px] border border-[#451017]/20 rounded-xl flex flex-col items-center justify-center p-6 bg-[#451017]/5">
+                <span className="font-serif text-2xl md:text-3xl text-[#451017]/30 text-center leading-[1.15] bg-transparent">
+                  More Features<br />Coming<br />Soon
+                </span>
+              </div>
+            </aside>
+          </div>
         </main>
       </div>
     </div>

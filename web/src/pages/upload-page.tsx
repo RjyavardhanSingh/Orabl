@@ -6,11 +6,8 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { AppShell, PageHeader } from '../components/layout/app-shell'
+import { AppShell } from '../components/layout/app-shell'
 import { Alert } from '../components/ui/alert'
-import { Button } from '../components/ui/button'
-import { Input, Textarea } from '../components/ui/input'
-import { Label } from '../components/ui/label'
 import { api, ApiError, type Material } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { cn } from '../lib/utils'
@@ -22,6 +19,41 @@ const CHARACTER_LIMIT = 50_000
 
 const MAX_FILES = 3
 const MATERIALS_KEY = 'recall.materials'
+
+/* Editorial Ledger card: beige on maroon, structural borders, no rings, no pills. */
+const labelClass = 'mb-2 block font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-[#EBE5D9]/70'
+const fieldClass =
+  'w-full rounded-xl border-2 border-[#EBE5D9]/20 bg-[#EBE5D9]/5 p-4 text-[#EBE5D9] transition-colors placeholder:text-[#EBE5D9]/40 focus:border-[#EBE5D9] focus:outline-none focus:ring-0 aria-[invalid=true]:border-[#EBE5D9]/70'
+const errorClass = 'text-xs font-bold text-[#EBE5D9]'
+const buttonBase =
+  'inline-flex w-full items-center justify-center gap-2 rounded-xl px-8 py-4 font-sans text-sm font-bold uppercase tracking-widest transition-colors disabled:pointer-events-none disabled:opacity-50 md:w-auto'
+const primaryButtonClass = `${buttonBase} bg-[#EBE5D9] text-[#451017] hover:bg-black hover:text-[#EBE5D9]`
+const secondaryButtonClass = `${buttonBase} border-2 border-[#EBE5D9]/30 bg-transparent text-[#EBE5D9] hover:border-[#EBE5D9]`
+const removeClass = 'shrink-0 rounded-lg p-1 text-[#EBE5D9]/50 transition-colors hover:text-[#EBE5D9]'
+
+function UploadedMaterial({ item, onRemove, className }: { item: Material; onRemove: (id: string) => void; className?: string }) {
+  return (
+    <div className={cn('flex items-center gap-3 rounded-xl border border-[#EBE5D9]/20 bg-[#EBE5D9]/10 px-4 py-3', className)}>
+      <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[#EBE5D9] text-[#451017]">
+        <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{item.name}</p>
+        <p className="tabular text-xs text-[#EBE5D9]/50">
+          {item.word_count.toLocaleString()} words · uploaded
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRemove(item.id)}
+        className={removeClass}
+        aria-label={`Remove ${item.name}`}
+      >
+        <X className="size-4" aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
 
 function readStoredMaterials(): Material[] {
   try {
@@ -209,41 +241,38 @@ export function UploadPage() {
   const hasAnyMaterial = materials.length > 0
 
   return (
-    <AppShell>
-      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[52rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7">
-        <PageHeader
-          title="Bring Something Worth Learning"
-          description="Start with a PDF or paste your notes. This material shapes every question you get."
-        />
+    <AppShell variant="ledger">
+      {/* Focus outlines inside the maroon card read in beige. */}
+      <div className="w-full rounded-2xl border border-[#451017] bg-[#451017] p-8 text-[#EBE5D9] shadow-2xl shadow-[#451017]/20 [--color-accent:#EBE5D9]">
+        <p className="mb-4 font-sans text-xs font-bold uppercase tracking-[0.2em] text-[#EBE5D9]/70">Step 01/05 · Material</p>
+        <h1 className="mb-4 font-serif text-4xl italic leading-tight text-[#EBE5D9] md:text-5xl">Bring Something Worth Learning</h1>
+        <p className="max-w-xl text-sm leading-6 text-[#EBE5D9]/70">
+          Start with a PDF or paste your notes. This material shapes every question you get.
+        </p>
 
-        <Tabs.Root value={mode} onValueChange={(value) => selectMode(value as UploadMode)} className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-sunk px-5 sm:px-7">
-          <div className="shrink-0 border-b border-line py-4">
-            <Tabs.List aria-label="Material type" className="flex gap-6">
-              {(['text', 'pdf'] as UploadMode[]).map((option) => {
-                const selected = mode === option
-                return (
-                  <Tabs.Trigger
-                    key={option}
-                    value={option}
-                    className={cn(
-                      'border-b-2 px-1 py-2 text-sm font-semibold transition-colors duration-150',
-                      selected
-                        ? 'border-accent text-accent'
-                        : 'border-transparent text-ink-muted hover:text-ink',
-                    )}
-                  >
-                    {option === 'text' ? 'Paste Text' : 'Upload PDF'}
-                  </Tabs.Trigger>
-                )
-              })}
-            </Tabs.List>
-          </div>
+        <Tabs.Root value={mode} onValueChange={(value) => selectMode(value as UploadMode)} className="mt-10">
+          <Tabs.List aria-label="Material type" className="flex gap-8">
+            {(['text', 'pdf'] as UploadMode[]).map((option) => (
+              <Tabs.Trigger
+                key={option}
+                value={option}
+                className={cn(
+                  'border-b-2 pb-2 font-sans text-sm transition-colors',
+                  mode === option
+                    ? 'border-[#EBE5D9] font-bold text-[#EBE5D9]'
+                    : 'border-[#EBE5D9]/20 text-[#EBE5D9]/50 hover:text-[#EBE5D9]/80',
+                )}
+              >
+                {option === 'text' ? 'Paste Text' : 'Upload PDF'}
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
 
-          <div className="scroll-area min-h-0 flex-1 py-6 pr-1">
-            <Tabs.Content value="text" className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="material-name">Source Name</Label>
-                <Input
+          <div className="pt-8">
+            <Tabs.Content value="text" className="space-y-6">
+              <div>
+                <label htmlFor="material-name" className={labelClass}>Source Name</label>
+                <input
                   id="material-name"
                   autoComplete="off"
                   spellCheck={false}
@@ -251,33 +280,34 @@ export function UploadPage() {
                   aria-describedby={nameError ? 'material-name-error' : undefined}
                   {...textForm.register('name')}
                   placeholder="biology-notes.md"
-                  className="bg-sunk"
+                  className={fieldClass}
                 />
                 {nameError ? (
-                  <p id="material-name-error" className="text-xs text-bad">
+                  <p id="material-name-error" className={cn(errorClass, 'mt-2')}>
                     {nameError.message}
                   </p>
                 ) : null}
               </div>
 
-              <div className="space-y-2">
+              <div>
                 <div className="flex items-center justify-between gap-4">
-                  <Label htmlFor="material-content">Your Notes</Label>
-                  <span className="tabular text-xs text-ink-faint">
+                  <label htmlFor="material-content" className={labelClass}>Your Notes</label>
+                  <span className="tabular mb-2 text-xs text-[#EBE5D9]/50">
                     {content.length.toLocaleString()} / {CHARACTER_LIMIT.toLocaleString()}
                   </span>
                 </div>
-                <Textarea
+                <textarea
                   id="material-content"
                   maxLength={CHARACTER_LIMIT}
                   aria-invalid={contentError ? true : undefined}
                   aria-describedby={contentError ? 'material-content-error' : undefined}
                   {...textForm.register('content')}
                   placeholder="Paste a chapter, lecture notes, or an article…"
-                  className="min-h-40 resize-y bg-sunk"
+                  rows={4}
+                  className={cn(fieldClass, 'h-32 min-h-[120px] resize-none leading-6')}
                 />
                 {contentError ? (
-                  <p id="material-content-error" className="text-xs text-bad">
+                  <p id="material-content-error" className={cn(errorClass, 'mt-2')}>
                     {contentError.message}
                   </p>
                 ) : null}
@@ -288,7 +318,7 @@ export function UploadPage() {
                       shouldDirty: true,
                     })
                   }
-                  className="text-xs font-semibold text-ink-muted underline underline-offset-4 transition-colors hover:text-ink"
+                  className="mt-3 text-xs font-semibold text-[#EBE5D9]/60 underline underline-offset-4 transition-colors hover:text-[#EBE5D9]"
                 >
                   {kind === 'text' ? 'Save as Markdown' : 'Save as Plain Text'}
                 </button>
@@ -315,15 +345,15 @@ export function UploadPage() {
                   event.preventDefault()
                   selectFiles(Array.from(event.dataTransfer.files ?? []))
                 }}
-                className="flex min-h-48 flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-line-strong bg-surface px-5 py-8 text-center transition-colors hover:border-accent"
+                className="flex min-h-56 flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#EBE5D9]/30 bg-transparent px-5 py-8 text-center transition-colors hover:border-[#EBE5D9] hover:bg-[#EBE5D9]/5"
               >
-                <span className="grid size-12 place-items-center rounded-2xl bg-sunk shadow-sm">
-                  <UploadCloud className="size-5 text-ink-muted" aria-hidden="true" />
+                <span className="grid size-12 place-items-center rounded-xl border border-[#EBE5D9]/20">
+                  <UploadCloud className="size-5 text-[#EBE5D9]/70" aria-hidden="true" />
                 </span>
-                <span className="mt-5 text-sm font-semibold text-ink">
+                <span className="mt-5 font-serif text-2xl text-[#EBE5D9]">
                   Drop Your PDF Here
                 </span>
-                <span className="mt-1 text-xs text-ink-muted">
+                <span className="mt-2 text-xs text-[#EBE5D9]/60">
                   or press Enter to browse · max 25&nbsp;MB each ·{' '}
                   {materials.length + files.length} of {MAX_FILES} files
                 </span>
@@ -331,19 +361,19 @@ export function UploadPage() {
               {files.map((pending, index) => (
                 <div
                   key={`${pending.name}-${pending.size}-${index}`}
-                  className="mt-4 flex items-center gap-3 rounded-xl bg-sunk px-4 py-3"
+                  className="mt-4 flex items-center gap-3 rounded-xl border border-[#EBE5D9]/20 px-4 py-3"
                 >
-                  <FileText className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
+                  <FileText className="size-5 shrink-0 text-[#EBE5D9]/60" aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{pending.name}</p>
-                    <p className="tabular text-xs text-ink-faint">
+                    <p className="tabular text-xs text-[#EBE5D9]/50">
                       {(pending.size / 1024 / 1024).toFixed(2)} MB · ready to upload
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => removePendingFile(index)}
-                    className="shrink-0 rounded-lg p-1 text-ink-faint transition-colors hover:text-ink"
+                    className={removeClass}
                     aria-label={`Remove ${pending.name}`}
                   >
                     <X className="size-4" aria-hidden="true" />
@@ -351,67 +381,26 @@ export function UploadPage() {
                 </div>
               ))}
               {materials.map((item) => (
-                <div
-                  key={item.id}
-                  className="mt-4 flex items-center gap-3 rounded-xl border border-good-tint bg-good-tint px-4 py-3"
-                >
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-good text-canvas">
-                    <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{item.name}</p>
-                    <p className="tabular text-xs text-ink-faint">
-                      {item.word_count.toLocaleString()} words · uploaded
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeMaterial(item.id)}
-                    className="shrink-0 rounded-lg p-1 text-ink-faint transition-colors hover:text-ink"
-                    aria-label={`Remove ${item.name}`}
-                  >
-                    <X className="size-4" aria-hidden="true" />
-                  </button>
-                </div>
+                <UploadedMaterial key={item.id} item={item} onRemove={removeMaterial} className="mt-4" />
               ))}
             </Tabs.Content>
 
-            {error ? <Alert className="mt-5">{error}</Alert> : null}
+            {error ? (
+              <Alert className="mt-6 border-[#EBE5D9]/40 bg-[#EBE5D9]/10 font-medium text-[#EBE5D9]">{error}</Alert>
+            ) : null}
             {mode === 'text' && materials.length > 0 ? (
-              <div className="mt-5 space-y-3" role="status" aria-label="Uploaded materials">
+              <div className="mt-6 space-y-3" role="status" aria-label="Uploaded materials">
                 {materials.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-3 rounded-xl border border-good-tint bg-good-tint px-4 py-3"
-                  >
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-good text-canvas">
-                      <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{item.name}</p>
-                      <p className="tabular text-xs text-ink-faint">
-                        {item.word_count.toLocaleString()} words · uploaded
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeMaterial(item.id)}
-                      className="shrink-0 rounded-lg p-1 text-ink-faint transition-colors hover:text-ink"
-                      aria-label={`Remove ${item.name}`}
-                    >
-                      <X className="size-4" aria-hidden="true" />
-                    </button>
-                  </div>
+                  <UploadedMaterial key={item.id} item={item} onRemove={removeMaterial} />
                 ))}
               </div>
             ) : null}
           </div>
 
-          <div className="flex w-full shrink-0 flex-col gap-2 border-t border-line py-4 sm:flex-row">
-            <Button
-              className="w-full rounded-xl sm:w-auto"
-              variant={hasAnyMaterial ? 'secondary' : 'default'}
-              size="lg"
+          <div className="mt-6 flex w-full flex-col gap-3 md:flex-row">
+            <button
+              type="button"
+              className={hasAnyMaterial ? secondaryButtonClass : primaryButtonClass}
               onClick={mode === 'text' ? submitText : uploadPdf}
               disabled={isUploading}
             >
@@ -426,15 +415,17 @@ export function UploadPage() {
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </>
               )}
-            </Button>
-            {hasAnyMaterial ? <Button
-              className="w-full rounded-xl sm:w-auto"
-              size="lg"
-              onClick={() => navigate(sessionStepPath('goal', currentStudyId))}
-            >
-              Continue to Goal
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Button> : null}
+            </button>
+            {hasAnyMaterial ? (
+              <button
+                type="button"
+                className={primaryButtonClass}
+                onClick={() => navigate(sessionStepPath('goal', currentStudyId))}
+              >
+                Continue to Goal
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </button>
+            ) : null}
           </div>
         </Tabs.Root>
       </div>
