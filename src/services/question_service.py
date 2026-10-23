@@ -46,7 +46,8 @@ async def generate_questions(
         material_rows = await db.fetch(
             """SELECT m.name, m.kind, m.full_text FROM materials m
                JOIN context_materials cm ON cm.material_id = m.id
-              WHERE cm.context_id = $1 ORDER BY m.id""", context_id,
+              WHERE cm.context_id = $1 ORDER BY m.id""",
+            context_id,
         )
         context_data = {
             "context_id": row["id"],
@@ -79,8 +80,14 @@ async def generate_questions(
     keywords = list(dict.fromkeys(keywords))[:50]
 
     questions = await openrouter_generate(
-        cache, context_id, material_content, goal, word_count, count=count,
-        keywords=keywords, use_cache=False,
+        cache,
+        context_id,
+        material_content,
+        goal,
+        word_count,
+        count=count,
+        keywords=keywords,
+        use_cache=False,
     )
     assign_question_ids(questions, context_id)
     return questions
@@ -96,7 +103,8 @@ async def get_question_set(
     db: Database, context_id: str, cache: CacheService | None = None
 ) -> dict | None:
     row = await db.fetchrow(
-        "SELECT status, questions, error FROM question_sets WHERE context_id = $1", context_id,
+        "SELECT status, questions, error FROM question_sets WHERE context_id = $1",
+        context_id,
     )
     if row is None and cache is not None:
         legacy_questions = cache.get(f"questions:{context_id}")
@@ -107,7 +115,10 @@ async def get_question_set(
                    (context_id, job_id, status, requested_count, questions)
                    VALUES ($1, $2, 'ready', $3, $4::jsonb)
                    ON CONFLICT (context_id) DO NOTHING""",
-                context_id, uuid.uuid4().hex, len(legacy_questions), json.dumps(legacy_questions),
+                context_id,
+                uuid.uuid4().hex,
+                len(legacy_questions),
+                json.dumps(legacy_questions),
             )
             row = await db.fetchrow(
                 "SELECT status, questions, error FROM question_sets WHERE context_id = $1",
@@ -134,10 +145,14 @@ async def enqueue_questions(db: Database, context_id: str, count: int) -> dict:
              questions = NULL, error = NULL, updated_at = NOW()
            WHERE question_sets.status IN ('ready', 'failed')
            RETURNING status, questions, error""",
-        context_id, job_id, count,
+        context_id,
+        job_id,
+        count,
     )
-    return {"status": "pending", "questions": [], "error": None} if row else (
-        await get_question_set(db, context_id)
+    return (
+        {"status": "pending", "questions": [], "error": None}
+        if row
+        else (await get_question_set(db, context_id))
     )
 
 
@@ -172,7 +187,9 @@ async def process_question_job(cache: CacheService, db: Database, job: dict) -> 
             """UPDATE question_sets SET status = 'ready', questions = $3::jsonb,
                   error = NULL, updated_at = NOW()
                WHERE context_id = $1 AND job_id = $2 AND status = 'running'""",
-            context_id, job_id, json.dumps(questions),
+            context_id,
+            job_id,
+            json.dumps(questions),
         )
     except asyncio.CancelledError:
         raise
@@ -180,12 +197,16 @@ async def process_question_job(cache: CacheService, db: Database, job: dict) -> 
         logger.exception("Question generation failed for context %s", context_id)
         message = (
             "Question generation timed out. Please try again."
-            if isinstance(exc, TimeoutError) else str(exc)
+            if isinstance(exc, TimeoutError)
+            else str(exc)
         )
         await db.execute(
             """UPDATE question_sets SET status = 'failed', error = $3,
                   updated_at = NOW() WHERE context_id = $1 AND job_id = $2
-                  AND status = 'running'""", context_id, job_id, message[:500],
+                  AND status = 'running'""",
+            context_id,
+            job_id,
+            message[:500],
         )
 
 

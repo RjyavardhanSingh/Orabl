@@ -26,7 +26,10 @@ def upgrade() -> None:
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )""")
-    op.execute("CREATE INDEX IF NOT EXISTS idx_study_sessions_owner ON study_sessions(user_id, updated_at DESC)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_study_sessions_owner "
+        "ON study_sessions(user_id, updated_at DESC)"
+    )
 
 
 def downgrade() -> None:

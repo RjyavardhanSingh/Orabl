@@ -354,8 +354,8 @@ async def generate_questions(
     cache_key = f"openrouter_response:{context_id}:{requested_count}"
     # Back-compat: fall back to the old Gemini cache key if present.
     cached = (
-        cache.get(cache_key) or cache.get(f"gemini_response:{context_id}")
-    ) if use_cache else None
+        (cache.get(cache_key) or cache.get(f"gemini_response:{context_id}")) if use_cache else None
+    )
     if cached is not None:
         logger.info(f"OpenRouter cache hit for context {context_id}")
         return cached

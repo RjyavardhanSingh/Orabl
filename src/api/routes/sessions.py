@@ -106,7 +106,8 @@ async def get_session(
     if state is None:
         row = await db.fetchrow(
             "SELECT practice_state FROM study_sessions WHERE practice_id = $1 AND user_id = $2",
-            session_id, user.id,
+            session_id,
+            user.id,
         )
         if row and row["practice_state"]:
             raw = row["practice_state"]
@@ -178,7 +179,9 @@ async def submit_answer(
         await db.execute(
             """UPDATE study_sessions SET practice_state = $3::jsonb, updated_at = NOW()
                WHERE practice_id = $1 AND user_id = $2""",
-            session_id, user.id, json.dumps(state),
+            session_id,
+            user.id,
+            json.dumps(state),
         )
     return AnswerResponse(**record)
 

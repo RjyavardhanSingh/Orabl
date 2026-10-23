@@ -16,9 +16,12 @@ class MemoryQuestionDb:
             if self.row and self.row["status"] in ("pending", "running"):
                 return None
             self.row = {
-                "context_id": context_id, "job_id": job_id,
-                "requested_count": count, "status": "pending",
-                "questions": None, "error": None,
+                "context_id": context_id,
+                "job_id": job_id,
+                "requested_count": count,
+                "status": "pending",
+                "questions": None,
+                "error": None,
             }
             return self.row
         if "WITH next_job" in query:
@@ -34,9 +37,12 @@ class MemoryQuestionDb:
         if "INSERT INTO question_sets" in query:
             if self.row is None:
                 self.row = {
-                    "context_id": args[0], "job_id": args[1],
-                    "requested_count": args[2], "status": "ready",
-                    "questions": json.loads(args[3]), "error": None,
+                    "context_id": args[0],
+                    "job_id": args[1],
+                    "requested_count": args[2],
+                    "status": "ready",
+                    "questions": json.loads(args[3]),
+                    "error": None,
                 }
         elif "SET status = 'ready'" in query:
             if self.row and self.row["job_id"] == args[1]:
@@ -66,7 +72,9 @@ def test_question_job_can_be_rejoined_and_result_is_reusable(monkeypatch):
         job = await question_service.claim_question_job(db)
         assert job is not None
         assert await question_service.enqueue_questions(db, "c1", 5) == {
-            "status": "running", "questions": [], "error": None,
+            "status": "running",
+            "questions": [],
+            "error": None,
         }
         await question_service.process_question_job(None, db, job)
         assert (await question_service.get_question_set(db, "c1"))["status"] == "ready"
@@ -118,16 +126,22 @@ def test_generation_after_context_cache_expiry_uses_saved_material(monkeypatch):
     class ContextDb:
         async def fetchrow(self, query, *args):
             return {
-                "id": "c1", "user_id": "u1", "subject": "History",
-                "target": "Understand the Mauryan Empire", "level": "intermediate",
+                "id": "c1",
+                "user_id": "u1",
+                "subject": "History",
+                "target": "Understand the Mauryan Empire",
+                "level": "intermediate",
                 "word_count": 6,
             }
 
         async def fetch(self, query, *args):
-            return [{
-                "name": "notes", "kind": "text",
-                "full_text": "Ashoka ruled the Mauryan Empire.",
-            }]
+            return [
+                {
+                    "name": "notes",
+                    "kind": "text",
+                    "full_text": "Ashoka ruled the Mauryan Empire.",
+                }
+            ]
 
     captured = {}
 

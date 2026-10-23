@@ -29,7 +29,8 @@ async def generate_questions(
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
     return QuestionListResponse(
-        status=result["status"], error=result["error"],
+        status=result["status"],
+        error=result["error"],
         questions=[QuestionResponse(**q) for q in result["questions"]],
     )
 
@@ -50,6 +51,7 @@ async def get_questions(
     if result is None:
         raise HTTPException(status_code=404, detail="Questions not found")
     return QuestionListResponse(
-        status=result["status"], error=result["error"],
+        status=result["status"],
+        error=result["error"],
         questions=[QuestionResponse(**q) for q in result["questions"]],
     )
