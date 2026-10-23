@@ -66,12 +66,14 @@
   color-scheme: dark;
 }
 
-* {
-  box-sizing: border-box;
-  border-color: var(--color-line);
-}
-
 @layer base {
+  /* Default border colour only. Inside the base layer so Tailwind's border-color utilities
+     (e.g. border-[#EBE5D9]) override it; unlayered, it beat every one of them. */
+  * {
+    box-sizing: border-box;
+    border-color: var(--color-line);
+  }
+
   /* Even Fraunces: SOFT 0 keeps terminals crisp, WONK 0 keeps glyphs regular.
      Optical size still follows the font-size, so big titles stay refined. */
   h1,

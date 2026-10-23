@@ -1,82 +1,81 @@
 import { useMutation } from '@tanstack/react-query'
 import * as Accordion from '@radix-ui/react-accordion'
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  Bookmark,
-  ChevronDown,
-  CheckCircle2,
-  LoaderCircle,
-  RefreshCw,
-  RotateCcw,
-  Target,
-  Trophy,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronDown, LoaderCircle, RefreshCw, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
+import { AppNavbar } from '../components/layout/app-navbar'
 import { Alert } from '../components/ui/alert'
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
+import { MetricCard } from '../components/ui/metric-card'
 import { api, ApiError, type Question, type SessionResults, type TopicBreakdown } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { cn } from '../lib/utils'
 
 const WEAK_THRESHOLD = 60
 
+/*
+ * Dashboard theme, as on the sessions page: beige canvas, solid maroon metric cards, and every
+ * other component transparent, ruled with maroon lines in black and maroon type.
+ */
+const containerClass = 'mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12'
+const overlineClass = 'font-sans text-xs font-bold uppercase tracking-[0.2em] text-[#451017]/70'
+const sectionTitleClass = 'border-b-2 border-black pb-3 font-serif text-3xl text-[#451017]'
+const ledgerRowClass = 'border-b border-[#451017]/20 py-3 transition-colors hover:bg-[#451017]/5'
+const primaryButtonClass =
+  'inline-flex items-center justify-center gap-2 rounded-sm bg-[#451017] px-5 py-2.5 font-sans text-[10px] font-bold uppercase tracking-widest text-[#EBE5D9] transition-colors hover:bg-[#451017]/85 disabled:cursor-not-allowed disabled:opacity-50 md:text-xs'
+const outlineButtonClass =
+  'inline-flex items-center justify-center gap-2 rounded-sm border border-[#451017]/30 bg-transparent px-5 py-2.5 font-sans text-[10px] font-bold uppercase tracking-widest text-[#451017] transition-colors hover:border-[#451017] hover:bg-[#451017]/5 disabled:cursor-not-allowed disabled:opacity-50 md:text-xs'
+const textActionClass =
+  'inline-flex items-center gap-2 font-sans text-xs font-bold uppercase tracking-widest text-[#451017]/60 transition-colors hover:text-[#451017]'
+const alertClass = 'border-[#451017]/30 bg-[#451017]/5 font-medium text-[#451017]'
+
 function readResults(): SessionResults | null {
   const stored = window.sessionStorage.getItem('recall.results')
   return stored ? (JSON.parse(stored) as SessionResults) : null
 }
 
+/** Score tag: solid maroon when it cleared the bar, outlined when it needs work, faint while pending. */
 function scoreTone(score: number | null): string {
-  if (score === null) return 'bg-sunk text-ink-muted'
-  if (score > WEAK_THRESHOLD) return 'bg-ink text-canvas'
-  return 'bg-warn-tint text-warn'
+  if (score === null) return 'border border-[#451017]/15 text-[#451017]/40'
+  if (score > WEAK_THRESHOLD) return 'bg-[#451017] text-[#EBE5D9]'
+  return 'border border-[#451017]/40 text-[#451017]'
 }
 
 function isWeak(data: TopicBreakdown): boolean {
   return data.status === 'needs_work' || data.average_score <= WEAK_THRESHOLD
 }
 
-function ReportSection({
-  icon,
-  title,
-  count,
-  children,
-  tone = 'default',
-  className,
-}: {
-  icon: React.ReactNode
-  title: string
-  count?: number
-  children: React.ReactNode
-  tone?: 'default' | 'muted'
-  className?: string
-}) {
+/** Transparent ledger section: serif title over a black rule, with an optional count. */
+function LedgerSection({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
   return (
-    <section className={cn('rounded-2xl border border-line bg-sunk p-5', className)}>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span
-            className={cn(
-              'shrink-0',
-              tone === 'muted' ? 'text-ink-faint' : 'text-ink',
-            )}
-          >
-            {icon}
-          </span>
-          <h2 className="text-pretty truncate text-sm font-semibold tracking-tight">{title}</h2>
-        </div>
+    <section>
+      <div className="flex items-end justify-between gap-4">
+        <h2 className={cn(sectionTitleClass, 'flex-1')}>{title}</h2>
         {typeof count === 'number' ? (
-          <Badge className="tabular shrink-0">{count}</Badge>
+          <span className="tabular border-b-2 border-black pb-3 font-mono text-sm text-[#451017]/60">
+            {String(count).padStart(2, '0')}
+          </span>
         ) : null}
       </div>
-      <div className="pt-5">{children}</div>
+      {children}
     </section>
+  )
+}
+
+function ResultsFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[#EBE5D9] text-[#451017]">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3 focus:text-black">
+        Skip to content
+      </a>
+      <AppNavbar className="max-w-7xl px-5 sm:px-8 lg:px-12" />
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <main id="main-content" className={cn(containerClass, 'pb-16 pt-8')}>
+          {children}
+        </main>
+      </div>
+    </div>
   )
 }
 
@@ -84,30 +83,9 @@ export function ResultsPage() {
   const navigate = useNavigate()
   const { studyId } = useParams()
   const currentStudyId = studyId || activeStudySessionId()
-  const [results, setResults] = useState<SessionResults | null>(readResults)
+  // Sessions save themselves to the dashboard, so the report has no save action.
+  const [results] = useState<SessionResults | null>(readResults)
   const [expired, setExpired] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-
-  async function handleSave() {
-    if (!results || results.is_saved || isSaving) return
-    setIsSaving(true)
-    try {
-      await api.saveSession(results.id)
-      const saved = { ...results, is_saved: true }
-      setResults(saved)
-      try {
-        window.sessionStorage.setItem('recall.results', JSON.stringify(saved))
-      } catch {
-        // storage full/blocked — session continues in memory
-      }
-      toast.success('Session saved. Find it under your profile.')
-      navigate('/sessions')
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Could not save this session.')
-    } finally {
-      setIsSaving(false)
-    }
-  }
 
   const retest = useMutation({
     mutationFn: (weakOnly: boolean) =>
@@ -143,21 +121,19 @@ export function ResultsPage() {
 
   if (!results) {
     return (
-      <AppShell>
-        <EmptyState
-          icon={<Trophy className="size-6" aria-hidden="true" />}
-          title="No Results Yet"
-          description="Complete a practice session to unlock your full report."
-          action={
-            <Button asChild className='rounded-xl'>
-              <Link to={sessionStepPath('practice', currentStudyId)}>
-                Back to Practice
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          }
-        />
-      </AppShell>
+      <ResultsFrame>
+        <p className={overlineClass}>Step 05 / 05 · Results</p>
+        <h1 className="mb-4 mt-3 font-serif text-5xl italic leading-tight tracking-tight text-[#451017] md:text-6xl">
+          No Results Yet
+        </h1>
+        <p className="mb-8 max-w-xl text-sm leading-6 text-[#451017]/70">
+          Complete a practice session to unlock your full report.
+        </p>
+        <Link to={sessionStepPath('practice', currentStudyId)} className={primaryButtonClass}>
+          Back to Practice
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      </ResultsFrame>
     )
   }
 
@@ -168,261 +144,184 @@ export function ResultsPage() {
   const mixUps = Array.from(
     new Set(topics.flatMap(([, data]) => data.misconceptions).map((m) => m.trim()).filter(Boolean)),
   )
+  const answeredCount = results.answers.filter((answer) => answer.answer_text).length
 
   return (
-    <AppShell>
-      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[80rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7 lg:px-12">
-        <div className="mx-auto w-full max-w-6xl shrink-0">
-          <PageHeader
-            title="How You Did"
-            description="Your readiness score, what to fix next, and the mix-ups that kept showing up."
-            action={
-              expired ? undefined : (
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    variant="secondary"
-                    disabled={retest.isPending || isSaving || results.is_saved}
-                    onClick={handleSave}
-                    className='rounded-xl'
-                    title={results.is_saved ? 'Already saved' : 'Save this session'}
-                  >
-                    {isSaving ? (
-                      <>
-                        <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                        Saving…
-                      </>
-                    ) : (
-                      <>
-                        <Bookmark className="size-4" aria-hidden="true" />
-                        {results.is_saved ? 'Saved' : 'Save Session'}
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    className="flex-1 bg-accent text-black hover:bg-accent-hover rounded-xl"
-                    disabled={retest.isPending || weakTopics.length === 0}
-                    onClick={() => retest.mutate(true)}
-                  >
-                    {retest.isPending ? (
-                      <>
-                        <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                        Starting…
-                      </>
-                    ) : (
-                      <>
-                        <RotateCcw className="size-4" aria-hidden="true" />
-                        Retest Weak Areas
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    disabled={retest.isPending}
-                    onClick={() => retest.mutate(false)}
-                    className='rounded-xl'
-                  >
-                    <RefreshCw className="size-4" aria-hidden="true" />
-                    Full Test Again
-                  </Button>
-                </div>
-              )
-            }
-          />
-          {expired ? (
-            <Alert className="mt-4">
-              This session’s 24-hour review window has closed. Generate a fresh practice set
-              to keep going.
-            </Alert>
-          ) : null}
-          {weakTopics.length === 0 && !expired ? (
-            <p className="mt-3 text-xs text-ink-muted">
-              No weak areas to retest — every topic cleared the bar.
+    <ResultsFrame>
+      {/* Hero: overline, title, actions */}
+      <section className="mb-8">
+        <p className={overlineClass}>Step 05 / 05 · Results</p>
+        <div className="mt-3 flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <div className="min-w-0">
+            <h1 className="font-serif text-5xl italic leading-tight tracking-tight text-[#451017] md:text-6xl">How You Did</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[#451017]/70">
+              {results.next_review_suggestion ||
+                'Your readiness score, what to fix next, and the mix-ups that kept showing up.'}
             </p>
-          ) : null}
-          {retest.isError &&
-          !(retest.error instanceof ApiError && retest.error.status === 410) ? (
-            <Alert className="mt-4">
-              {retest.error instanceof ApiError
-                ? retest.error.message
-                : 'Could not start retest. Try again in a moment.'}
-            </Alert>
+          </div>
+          {!expired ? (
+            <div className="flex shrink-0 flex-wrap gap-3">
+              <button
+                type="button"
+                className={primaryButtonClass}
+                disabled={retest.isPending || weakTopics.length === 0}
+                onClick={() => retest.mutate(true)}
+              >
+                {retest.isPending ? (
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <RotateCcw className="size-4" aria-hidden="true" />
+                )}
+                Retest Weak Areas
+              </button>
+              <button type="button" className={outlineButtonClass} disabled={retest.isPending} onClick={() => retest.mutate(false)}>
+                <RefreshCw className="size-4" aria-hidden="true" />
+                Full Test Again
+              </button>
+            </div>
           ) : null}
         </div>
 
-        <div className="scroll-area mx-auto mt-5 min-h-0 w-full max-w-6xl flex-1 lg:overflow-hidden">
-          <div className="grid min-h-full items-start gap-4 pb-2 lg:h-full lg:min-h-0 lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
-            <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
-              <section className="rounded-2xl border border-line bg-sunk p-5">
-                <div className="flex items-center gap-5">
-                  <span className="tabular grid size-20 shrink-0 place-items-center rounded-2xl bg-ink text-xl font-bold text-canvas">
-                    {results.readiness_score}%
-                  </span>
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 text-sm font-semibold">
-                      <Trophy className="size-4 shrink-0" aria-hidden="true" />
-                      Readiness Score
-                    </p>
-                    {results.next_review_suggestion ? (
-                      <p className="text-pretty mt-1 text-sm leading-6 text-ink-muted">
-                        {results.next_review_suggestion}
+        {expired ? (
+          <Alert className={cn('mt-6', alertClass)}>
+            This session’s 24-hour review window has closed. Generate a fresh practice set to keep going.
+          </Alert>
+        ) : null}
+        {weakTopics.length === 0 && !expired ? (
+          <p className="mt-3 text-xs text-[#451017]/60">No weak areas to retest — every topic cleared the bar.</p>
+        ) : null}
+        {retest.isError && !(retest.error instanceof ApiError && retest.error.status === 410) ? (
+          <Alert className={cn('mt-6', alertClass)}>
+            {retest.error instanceof ApiError ? retest.error.message : 'Could not start retest. Try again in a moment.'}
+          </Alert>
+        ) : null}
+      </section>
+
+      {/* Solid metric cards, as on the dashboard */}
+      <dl className="mb-12 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
+        <MetricCard label="Readiness" value={`${results.readiness_score}%`} hint="Overall score" />
+        <MetricCard
+          label="Answered"
+          value={`${String(answeredCount).padStart(2, '0')} / ${String(results.questions.length).padStart(2, '0')}`}
+          hint={answeredCount < results.questions.length ? 'Some were skipped' : 'Every question'}
+        />
+        <MetricCard label="Solid" value={String(strongTopics.length).padStart(2, '0')} hint={`Topics above ${WEAK_THRESHOLD}%`} />
+        <MetricCard label="To Fix" value={String(weakTopics.length).padStart(2, '0')} hint="Topics to revisit" />
+      </dl>
+
+      {/* Transparent ledgers: topics on the left, every question on the right */}
+      <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
+        <div className="space-y-12 lg:col-span-5">
+          <LedgerSection title="What to Fix" count={weakTopics.length}>
+            {weakTopics.length === 0 ? (
+              <p className="py-6 text-sm text-[#451017]/70">Every topic cleared the {WEAK_THRESHOLD}% bar. Nice work.</p>
+            ) : (
+              <ul>
+                {weakTopics.map(([topic, data]) => (
+                  <li key={topic} className={ledgerRowClass}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 truncate font-serif text-xl text-black">{topic}</span>
+                      <span className="tabular shrink-0 font-sans text-sm font-bold text-[#451017]">{data.average_score}%</span>
+                    </div>
+                    {data.concepts_missed.length > 0 ? (
+                      <p className="text-pretty mt-1 text-xs leading-5 text-black/60">
+                        <span className="font-bold uppercase tracking-widest text-[#451017]/70">Missed · </span>
+                        {data.concepts_missed.join(', ')}
                       </p>
                     ) : null}
-                  </div>
-                </div>
-              </section>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </LedgerSection>
 
-              <ReportSection
-                icon={<CheckCircle2 className="size-4" aria-hidden="true" />}
-                title="What’s Solid"
-                count={strongTopics.length}
-                tone={strongTopics.length === 0 ? 'muted' : 'default'}
+          <LedgerSection title="What’s Solid" count={strongTopics.length}>
+            {strongTopics.length === 0 ? (
+              <p className="py-6 text-sm text-[#451017]/70">
+                Nothing scored above {WEAK_THRESHOLD}% yet — everything needs work this round.
+              </p>
+            ) : (
+              <ul>
+                {strongTopics.map(([topic, data]) => (
+                  <li key={topic} className={cn(ledgerRowClass, 'flex items-center justify-between gap-3')}>
+                    <span className="min-w-0 truncate font-serif text-xl text-black">{topic}</span>
+                    <span className="tabular shrink-0 font-sans text-sm font-bold text-[#451017]">{data.average_score}%</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </LedgerSection>
+
+          {mixUps.length > 0 ? (
+            <LedgerSection title="Common Mix-Ups" count={mixUps.length}>
+              <ul>
+                {mixUps.map((mixUp) => (
+                  <li key={mixUp} className={cn(ledgerRowClass, 'text-pretty text-sm leading-6 text-black/80')}>
+                    {mixUp}
+                  </li>
+                ))}
+              </ul>
+            </LedgerSection>
+          ) : null}
+        </div>
+
+        <div className="lg:col-span-7">
+          <LedgerSection title="Every Question" count={results.questions.length}>
+            <p className="pt-3 text-xs text-[#451017]/60">Open one to see what you said and the feedback.</p>
+            {results.questions.length === 0 ? (
+              <p className="py-6 text-sm text-[#451017]/70">No questions were recorded.</p>
+            ) : (
+              // Fixed-height ledger, like the dashboard's: opening answers scrolls inside it instead of growing the page.
+              <Accordion.Root
+                type="multiple"
+                className="mt-2 max-h-[560px] overflow-y-auto pr-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {strongTopics.length === 0 ? (
-                  <p className="text-sm text-ink-muted">
-                    Nothing scored above {WEAK_THRESHOLD}% yet — everything needs work this round.
-                  </p>
-                ) : (
-                  <ul className="space-y-2">
-                    {strongTopics.map(([topic, data]) => (
-                      <li
-                        key={topic}
-                        className="flex items-center justify-between gap-3 rounded-xl bg-surface px-3.5 py-2.5"
-                      >
-                        <span className="min-w-0 truncate text-sm font-medium">{topic}</span>
-                        <span className="tabular shrink-0 text-sm font-semibold text-good">
-                          {data.average_score}%
+                {results.questions.map((question: Question, position: number) => {
+                  const answer = answersByIndex.get(position)
+                  return (
+                    <Accordion.Item
+                      key={question.id ?? position}
+                      value={String(question.id ?? position)}
+                      className="group border-b border-[#451017]/20"
+                    >
+                      <Accordion.Trigger className="flex w-full cursor-pointer items-start gap-4 py-4 text-left transition-colors hover:bg-[#451017]/5">
+                        <span className="tabular w-8 shrink-0 pt-0.5 font-mono text-sm text-[#451017]/50">
+                          {String(position + 1).padStart(2, '0')}.
                         </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </ReportSection>
-
-              <ReportSection
-                icon={<Target className="size-4" aria-hidden="true" />}
-                title="What to Fix"
-                count={weakTopics.length}
-              >
-                {weakTopics.length === 0 ? (
-                  <p className="text-sm text-ink-muted">
-                    Every topic cleared the {WEAK_THRESHOLD}% bar. Nice work.
-                  </p>
-                ) : (
-                  <ul className="space-y-2.5">
-                    {weakTopics.map(([topic, data]) => (
-                      <li key={topic} className="rounded-xl bg-surface p-3.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="min-w-0 truncate text-sm font-medium text-ink-soft">
-                            {topic}
-                          </span>
-                          <span className="tabular shrink-0 text-sm font-semibold text-warn">
-                            {data.average_score}%
-                          </span>
-                        </div>
-                        {data.concepts_missed.length > 0 ? (
-                          <p className="text-pretty mt-2 text-xs leading-5 text-warn">
-                            <span className="font-semibold">Missed: </span>
-                            {data.concepts_missed.join(', ')}
-                          </p>
+                        <span className="text-pretty min-w-0 flex-1 text-sm font-medium leading-6 text-black">{question.text}</span>
+                        <span className={cn('tabular shrink-0 rounded-sm px-2 py-0.5 text-[11px] font-bold', scoreTone(answer?.score ?? null))}>
+                          {answer?.score === null || answer?.score === undefined ? '…' : `${answer.score}%`}
+                        </span>
+                        <ChevronDown
+                          className="mt-0.5 size-4 shrink-0 text-[#451017]/60 transition-transform group-data-[state=open]:rotate-180"
+                          aria-hidden="true"
+                        />
+                      </Accordion.Trigger>
+                      <Accordion.Content className="pb-4 pl-12 pr-8">
+                        <p className={overlineClass}>You Said</p>
+                        <p className="text-pretty mt-1 text-sm leading-6 text-black/80">{answer?.answer_text || 'Skipped.'}</p>
+                        {answer?.feedback ? (
+                          <>
+                            <p className={cn(overlineClass, 'mt-4')}>Feedback</p>
+                            <p className="text-pretty mt-1 text-sm leading-6 text-black/80">{answer.feedback}</p>
+                          </>
                         ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </ReportSection>
-
-              {mixUps.length > 0 ? (
-                <ReportSection
-                  icon={<AlertTriangle className="size-4" aria-hidden="true" />}
-                  title="Common Mix-Ups We Noticed"
-                  count={mixUps.length}
-                >
-                  <ul className="space-y-2">
-                    {mixUps.map((mixUp) => (
-                      <li
-                        key={mixUp}
-                        className="text-pretty rounded-xl bg-surface px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
-                      >
-                        {mixUp}
-                      </li>
-                    ))}
-                  </ul>
-                </ReportSection>
-              ) : null}
-            </div>
-
-            <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
-              <section className="rounded-2xl border border-line bg-sunk p-5">
-                <div>
-                  <h2 className="text-sm font-semibold tracking-tight">Every Question</h2>
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Open one to see what you said and the feedback.
-                  </p>
-                </div>
-                <div className="pt-5">
-                  {results.questions.length === 0 ? (
-                    <p className="text-sm text-ink-muted">No questions were recorded.</p>
-                  ) : (
-                    <Accordion.Root type="multiple" className="space-y-2">
-                      {results.questions.map((question: Question, position: number) => {
-                        const answer = answersByIndex.get(position)
-                        return (
-                          <Accordion.Item key={question.id ?? position} value={String(question.id ?? position)} className="group rounded-xl border border-line bg-surface transition-colors data-[state=open]:border-line-strong">
-                            <Accordion.Trigger className="flex w-full cursor-pointer items-center gap-3 p-3.5 text-left">
-                              <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-canvas">
-                                {position + 1}
-                              </span>
-                              <span className="text-pretty min-w-0 flex-1 text-sm font-medium leading-6">
-                                {question.text}
-                              </span>
-                              <span
-                                className={cn(
-                                  'tabular shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold',
-                                  scoreTone(answer?.score ?? null),
-                                )}
-                              >
-                                {answer?.score === null || answer?.score === undefined
-                                  ? '…'
-                                  : `${answer.score}%`}
-                              </span>
-                              <ChevronDown className="size-4 shrink-0 text-ink-muted transition-transform group-data-[state=open]:rotate-180" aria-hidden="true" />
-                            </Accordion.Trigger>
-                            <Accordion.Content className="border-t border-sunk p-3.5">
-                              <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
-                                You Said
-                              </p>
-                              <p className="text-pretty mt-1 text-sm leading-6 text-ink-soft">
-                                {answer?.answer_text || 'Skipped.'}
-                              </p>
-                              {answer?.feedback ? (
-                                <>
-                                  <p className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
-                                    Feedback
-                                  </p>
-                                  <p className="text-pretty mt-1 text-sm leading-6 text-ink-soft">
-                                    {answer.feedback}
-                                  </p>
-                                </>
-                              ) : null}
-                            </Accordion.Content>
-                          </Accordion.Item>
-                        )
-                      })}
-                    </Accordion.Root>
-                  )}
-                </div>
-              </section>
-
-              <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted rounded-xl">
-                <Link to={sessionStepPath('preparing', currentStudyId)}>
-                  <ArrowLeft className="size-3.5" aria-hidden="true" />
-                  Back to Preparing
-                </Link>
-              </Button>
-            </div>
-          </div>
+                      </Accordion.Content>
+                    </Accordion.Item>
+                  )
+                })}
+              </Accordion.Root>
+            )}
+          </LedgerSection>
         </div>
       </div>
-    </AppShell>
+
+      <div className="mt-12">
+        <Link to={sessionStepPath('preparing', currentStudyId)} className={textActionClass}>
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back to Preparing
+        </Link>
+      </div>
+    </ResultsFrame>
   )
 }

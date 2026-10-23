@@ -10,7 +10,7 @@ const NUKE_RINGS =
 
 /** Shared classes for every menu item row. */
 const ITEM_CLASS = [
-  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5',
+  'flex w-full items-center gap-3 rounded-sm px-3 py-2.5',
   'font-sans text-xs font-bold uppercase tracking-widest text-[#451017]',
   'transition-colors cursor-pointer',
   'hover:bg-[#451017]/10 hover:text-[#451017]',
@@ -22,7 +22,7 @@ const ITEM_CLASS = [
  * Premium user-profile dropdown used across all dashboard headers.
  *
  * Trigger: monogram tile + flipping chevron, transparent hover.
- * Menu: soft-elevation rounded-2xl card, no brutalist shadow.
+ * Menu: soft-elevation rounded-sm card, no brutalist shadow.
  * Items: uppercase pill rows with soft maroon-tinted hover.
  */
 export function UserDropdown({
@@ -43,9 +43,9 @@ export function UserDropdown({
       <DropdownMenu.Trigger
         type="button"
         aria-label={`Account menu for ${displayName}`}
-        className={`group flex items-center gap-2 p-1 rounded-xl bg-transparent hover:bg-[#451017]/5 transition-colors cursor-pointer ${NUKE_RINGS}`}
+        className={`group flex items-center gap-2 p-1 rounded-sm bg-transparent hover:bg-[#451017]/5 transition-colors cursor-pointer ${NUKE_RINGS}`}
       >
-        <span className="w-9 h-9 flex items-center justify-center bg-[#451017] text-[#EBE5D9] font-serif text-lg rounded-lg shrink-0">
+        <span className="w-9 h-9 flex items-center justify-center bg-[#451017] text-[#EBE5D9] font-serif text-lg rounded-sm shrink-0">
           {initial}
         </span>
         <ChevronDown
@@ -59,12 +59,12 @@ export function UserDropdown({
         <DropdownMenu.Content
           align="end"
           sideOffset={8}
-          className={`z-50 min-w-[240px] rounded-2xl border border-[#451017]/15 bg-[#EBE5D9] p-2 shadow-xl shadow-[#451017]/10 ${NUKE_RINGS}`}
+          className={`z-50 min-w-[240px] rounded-sm border border-[#451017]/15 bg-[#EBE5D9] p-2 shadow-xl shadow-[#451017]/10 ${NUKE_RINGS}`}
         >
           {/* ── Header: user identity ── */}
           <DropdownMenu.Label className="border-b border-[#451017]/15 pb-3 mb-2">
             <div className="flex items-center gap-3 px-2 pt-1">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#451017] font-serif text-lg text-[#EBE5D9]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#451017] font-serif text-lg text-[#EBE5D9]">
                 {initial}
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">

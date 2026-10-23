@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 import { RequireAuth, AuthProvider } from './lib/auth-state'
+import { LedgerFlow } from './components/layout/ledger-flow'
 import { SessionGate } from './components/layout/session-gate'
 
 // Keep the public marketing animation out of the authenticated dashboard bundle.
@@ -10,19 +11,37 @@ import { SprintPlaceholderPage } from './pages/sprint-placeholder-page'
 
 const LandingPage = lazy(() => import('./pages/landing-page').then((m) => ({ default: m.LandingPage })))
 
-const UploadPage = lazy(() =>
-  import('./pages/upload-page').then((m) => ({ default: m.UploadPage })),
-)
-const GoalPage = lazy(() => import('./pages/goal-page').then((m) => ({ default: m.GoalPage })))
-const PreparingPage = lazy(() =>
-  import('./pages/preparing-page').then((m) => ({ default: m.PreparingPage })),
-)
-const PracticePage = lazy(() =>
-  import('./pages/practice-page').then((m) => ({ default: m.PracticePage })),
-)
-const ResultsPage = lazy(() =>
-  import('./pages/results-page').then((m) => ({ default: m.ResultsPage })),
-)
+// The ledger steps slide between each other, so loading any one prefetches them all (plus the
+// Results page the flow ends on): a chunk fetched mid-slide would suspend the whole app.
+const loadUploadPage = () => import('./pages/upload-page')
+const loadGoalPage = () => import('./pages/goal-page')
+const loadPreparingPage = () => import('./pages/preparing-page')
+const loadPracticePage = () => import('./pages/practice-page')
+const loadResultsPage = () => import('./pages/results-page')
+const prefetchLedgerSteps = () => {
+  void loadUploadPage()
+  void loadGoalPage()
+  void loadPreparingPage()
+  void loadPracticePage()
+  void loadResultsPage()
+}
+const UploadPage = lazy(() => {
+  prefetchLedgerSteps()
+  return loadUploadPage().then((m) => ({ default: m.UploadPage }))
+})
+const GoalPage = lazy(() => {
+  prefetchLedgerSteps()
+  return loadGoalPage().then((m) => ({ default: m.GoalPage }))
+})
+const PreparingPage = lazy(() => {
+  prefetchLedgerSteps()
+  return loadPreparingPage().then((m) => ({ default: m.PreparingPage }))
+})
+const PracticePage = lazy(() => {
+  prefetchLedgerSteps()
+  return loadPracticePage().then((m) => ({ default: m.PracticePage }))
+})
+const ResultsPage = lazy(() => loadResultsPage().then((m) => ({ default: m.ResultsPage })))
 const SessionsPage = lazy(() =>
   import('./pages/sessions-page').then((m) => ({ default: m.SessionsPage })),
 )
@@ -63,10 +82,13 @@ export default function App() {
             <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
             <Route path="/sessions/:studyId" element={<RequireAuth><SessionGate /></RequireAuth>}>
               <Route index element={<div className="grid h-dvh place-items-center bg-canvas text-sm text-ink-muted" role="status">Opening your session…</div>} />
-              <Route path="upload" element={<UploadPage />} />
-              <Route path="goal" element={<GoalPage />} />
-              <Route path="preparing" element={<PreparingPage />} />
-              <Route path="practice" element={<PracticePage />} />
+              <Route element={<LedgerFlow />}>
+                <Route path="upload" element={<UploadPage />} />
+                <Route path="goal" element={<GoalPage />} />
+                <Route path="preparing" element={<PreparingPage />} />
+                <Route path="practice" element={<PracticePage />} />
+              </Route>
+              {/* Results is a full dashboard-style page, outside the sliding flow. */}
               <Route path="results" element={<ResultsPage />} />
             </Route>
             <Route path="/signin" element={<SignInPage />} />

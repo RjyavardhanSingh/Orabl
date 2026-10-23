@@ -1,12 +1,11 @@
 import { ChevronDown, FileText } from 'lucide-react'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import { useAuthStore } from '../../lib/auth-state'
-import { nameFromEmail } from '../../lib/profile'
 import { activeStudySessionId, sessionStepPath } from '../../lib/study-session'
 import { RailToc } from '../ui/rail-toc'
-import { ProfileMenu } from './profile-menu'
+import { AppNavbar } from './app-navbar'
+import { useFlowResultsAction } from './flow-results'
 
 const steps = [
   { path: '/upload', label: 'Material' },
@@ -15,6 +14,7 @@ const steps = [
   { path: '/practice', label: 'Practice' },
   { path: '/results', label: 'Results' },
 ] as const
+const RESULTS_INDEX = steps.length - 1
 const railDepths = [0, 2, 1, 3, 0]
 const railItems = steps.map((step, index) => ({ id: step.path.slice(1), label: step.label, depth: railDepths[index] }))
 let lastRailStep: { sessionId: string | null; index: number } | undefined
@@ -58,9 +58,11 @@ export function AppShell({ children, variant = 'dark' }: { children: ReactNode; 
   const location = useLocation()
   const navigate = useNavigate()
   const { studyId } = useParams()
-  const user = useAuthStore((s) => s.user)
   const mobileStepsRef = useRef<HTMLDetailsElement>(null)
+  const resultsAction = useFlowResultsAction()
   const available = unlocked()
+  // Finished practice unlocks Results in the tracker before the report exists; opening it compiles the report.
+  if (resultsAction) available[RESULTS_INDEX] = true
   const active = steps.findIndex((step) => location.pathname.endsWith(step.path))
   const id = studyId || activeStudySessionId()
   const [initialRailStep] = useState(() => lastRailStep?.sessionId === id ? lastRailStep.index : active)
@@ -73,11 +75,24 @@ export function AppShell({ children, variant = 'dark' }: { children: ReactNode; 
   const goToStep = (index: number) => {
     if (mobileStepsRef.current) mobileStepsRef.current.open = false
     if (!available[index] || index === active) return
+    if (index === RESULTS_INDEX && resultsAction) {
+      if (!resultsAction.pending) resultsAction.open()
+      return
+    }
     navigate(sessionStepPath(railItems[index].id as 'upload' | 'goal' | 'preparing' | 'practice' | 'results', id))
   }
+  // Memoised: RailToc re-measures its path whenever `items` changes identity.
+  const resultsLabel = resultsAction ? (resultsAction.pending ? 'Compiling…' : 'See Results →') : null
+  const items = useMemo(
+    () =>
+      resultsLabel
+        ? railItems.map((item, index) => (index === RESULTS_INDEX ? { ...item, label: resultsLabel } : item))
+        : railItems,
+    [resultsLabel],
+  )
   const progressRail = (className?: string) => (
     <RailToc
-      items={railItems}
+      items={items}
       activeIndex={Math.max(0, active)}
       initialIndex={Math.max(0, initialRailStep)}
       disabledIndices={disabledIndices}
@@ -89,27 +104,21 @@ export function AppShell({ children, variant = 'dark' }: { children: ReactNode; 
 
   if (variant === 'ledger') {
     return (
-      <div className={`min-h-screen bg-[#EBE5D9] text-black ${LEDGER_TOKENS}`}>
+      // Locked to the window like a desktop app: nothing scrolls.
+      <div className={`flex h-screen max-h-screen w-full flex-col overflow-hidden bg-[#EBE5D9] text-black ${LEDGER_TOKENS}`}>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-[#EBE5D9] focus:p-3 focus:text-black">Skip to content</a>
-        <header className="sticky top-0 z-50 w-full bg-[#EBE5D9]">
-          <div className="mx-auto flex h-20 w-full max-w-5xl items-center justify-between gap-4 border-b border-[#451017]/20 px-6 md:px-8">
-            <div className="flex min-w-0 items-center gap-5">
-              <Link to="/sessions" className="shrink-0 text-xl font-extrabold tracking-[-0.08em] text-black transition-colors hover:text-[#451017]">Orabl</Link>
-              <span className="hidden h-5 w-px bg-[#451017]/20 sm:block" aria-hidden="true" />
-              <Link to="/sessions" className="hidden font-sans text-xs font-bold uppercase tracking-[0.2em] text-black/60 transition-colors hover:text-black sm:block">My Sessions</Link>
-            </div>
-            <ProfileMenu displayName={nameFromEmail(user?.email)} email={user?.email} />
-          </div>
-        </header>
+        <AppNavbar />
 
-        <main id="main-content" className="mx-auto grid w-full max-w-5xl grid-cols-1 items-start gap-8 px-6 pb-6 pt-10 md:gap-12 md:px-8 lg:grid-cols-12">
+        <main id="main-content" className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-start gap-8 overflow-hidden px-6 py-6 md:gap-12 md:px-8 md:py-8 lg:grid-cols-12">
+          {/* Sticky is now measured from <main>'s top, below the navbar: top-12 keeps the old resting spot. */}
           {active >= 0 ? (
-            <div className={`col-span-12 font-sans lg:sticky lg:top-32 lg:col-span-4 ${LEDGER_RAIL}`}>
+            <div className={`col-span-12 font-sans lg:sticky lg:top-12 lg:col-span-3 ${LEDGER_RAIL}`}>
               <p className="mb-10 font-sans text-xs font-bold uppercase tracking-[0.2em] text-[#451017]/70">Step {active + 1} of {steps.length}</p>
               {progressRail()}
             </div>
           ) : null}
-          <div className="col-span-12 min-w-0 lg:col-span-8">{children}</div>
+          {/* Masks the step slide so it never widens the page. */}
+          <div className="relative col-span-12 flex min-w-0 items-start overflow-hidden lg:col-span-9">{children}</div>
         </main>
       </div>
     )
@@ -118,16 +127,7 @@ export function AppShell({ children, variant = 'dark' }: { children: ReactNode; 
   return (
     <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-canvas text-ink">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3 focus:text-black">Skip to content</a>
-      <header className="shrink-0 border-b border-line/70">
-        <div className="mx-auto flex w-full max-w-[80rem] items-center justify-between gap-4 px-5 py-4 sm:px-8 lg:px-12">
-          <div className="flex min-w-0 items-center gap-5">
-            <Link to="/sessions" className="shrink-0 text-xl font-extrabold tracking-[-0.08em] hover:text-accent">Orabl</Link>
-            <span className="hidden h-5 w-px bg-line sm:block" aria-hidden="true" />
-            <Link to="/sessions" className="hidden text-xs font-semibold text-ink-muted transition-colors hover:text-ink sm:block">My Sessions</Link>
-          </div>
-          <ProfileMenu displayName={nameFromEmail(user?.email)} email={user?.email} />
-        </div>
-      </header>
+      <AppNavbar className="max-w-[80rem] px-5 sm:px-8 lg:px-12" />
 
       {active >= 0 ? (
         <details ref={mobileStepsRef} className="relative z-20 shrink-0 border-b border-line/70 bg-sunk lg:hidden">

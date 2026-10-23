@@ -1,16 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, BookOpen, Clock3, LoaderCircle, Plus } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 
-import { UserDropdown } from '../components/user-dropdown'
+import { AppNavbar } from '../components/layout/app-navbar'
+import { MetricCard } from '../components/ui/metric-card'
 
 import { Table, TableBody, TableCaption, TableCell, TableRow } from '../components/ui/table'
 import { api, type StudySessionSummary } from '../lib/api'
 import { activeStudySessionId, clearFlowCache, markStudySessionHydrated, restoreStudySession, sessionStepPath, setActiveStudySession } from '../lib/study-session'
-import { useAuthStore } from '../lib/auth-state'
-import { nameFromEmail } from '../lib/profile'
 
 function nextStep(session: StudySessionSummary): string {
   if (session.practice_status === 'completed') return 'Results ready'
@@ -39,16 +38,6 @@ function timeAgo(iso: string): string {
 /** Shared action style: a text button with a rule under it, never a pill. */
 const actionClass =
   'inline-flex items-center gap-1.5 border-b border-[#451017]/20 pb-0.5 text-sm font-semibold text-black transition-colors hover:border-[#451017] hover:text-[#451017] disabled:pointer-events-none disabled:opacity-50'
-
-function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="bg-[#451017] rounded-xl p-6 shadow-sm">
-      <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#EBE5D9]/70">{label}</dt>
-      <dd className="tabular mt-3 truncate font-serif text-3xl leading-none sm:text-4xl text-[#EBE5D9]">{value}</dd>
-      {hint ? <p className="mt-1.5 truncate text-sm text-[#EBE5D9]/60">{hint}</p> : null}
-    </div>
-  )
-}
 
 const HEATMAP_DAYS = 30
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -83,7 +72,7 @@ function ActivityHeatmap({ sessions }: { sessions: StudySessionSummary[] }) {
   const leading = days[0].day.getDay()
 
   return (
-    <div className="col-span-12 lg:col-span-4 border border-[#451017]/20 rounded-xl p-6 flex flex-col bg-transparent min-h-[300px]">
+    <div className="col-span-12 lg:col-span-4 border border-[#451017]/20 rounded-sm p-6 flex flex-col bg-transparent min-h-[300px]">
       <h3 className="font-sans uppercase tracking-[0.2em] text-xs font-bold text-black border-b border-[#451017]/20 pb-4 mb-6 flex justify-between items-end">
         <span>Activity Heatmap</span> <span className="text-[10px] text-[#451017]/60">LAST 30 DAYS</span>
       </h3>
@@ -119,7 +108,6 @@ function ActivityHeatmap({ sessions }: { sessions: StudySessionSummary[] }) {
 export function SessionsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const user = useAuthStore((s) => s.user)
 
   const sessions = useQuery({ queryKey: ['study-sessions'], queryFn: api.listStudySessions, retry: false })
   const create = useMutation({
@@ -140,7 +128,6 @@ export function SessionsPage() {
   })
 
   const items = sessions.data ?? []
-  const displayName = nameFromEmail(user?.email)
   const liveCount = items.filter(isLive).length
   const sourceCount = items.reduce((total, session) => total + session.material_count, 0)
   const lastTouched = items[0]?.updated_at
@@ -152,32 +139,29 @@ export function SessionsPage() {
         Skip to content
       </a>
 
-      <div className="flex flex-1 flex-col overflow-y-auto">
-        {/* Top Navigation - Structural */}
-        <header className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12 border-b border-[#451017]/20 pb-4 mb-8 flex justify-between items-center pt-6">
-          <Link to="/sessions" className="text-2xl font-extrabold tracking-[-0.08em] text-[#451017] hover:opacity-90">
-            Orabl
-          </Link>
-          <div className="flex items-center gap-4 md:gap-6">
-            <button
-              type="button"
-              onClick={() => create.mutate()}
-              disabled={create.isPending}
-              className="bg-[#451017] text-[#EBE5D9] hover:bg-black px-5 py-2.5 rounded-xl font-sans font-bold text-[10px] md:text-xs uppercase tracking-widest transition-colors shrink-0 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {create.isPending ? (
-                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Plus className="size-4" aria-hidden="true" />
-              )}
-              <span className="hidden sm:inline">Start Session</span>
-              <span className="sm:hidden">Start</span>
-            </button>
-            <UserDropdown displayName={displayName ?? ''} email={user?.email} />
-          </div>
-        </header>
+      <AppNavbar
+        showSessionsLink={false}
+        className="max-w-7xl px-5 sm:px-8 lg:px-12"
+        actions={
+          <button
+            type="button"
+            onClick={() => create.mutate()}
+            disabled={create.isPending}
+            className="bg-[#451017] text-[#EBE5D9] hover:bg-[#451017]/85 px-5 py-2.5 rounded-sm font-sans font-bold text-[10px] md:text-xs uppercase tracking-widest transition-colors shrink-0 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {create.isPending ? (
+              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Plus className="size-4" aria-hidden="true" />
+            )}
+            <span className="hidden sm:inline">Start Session</span>
+            <span className="sm:hidden">Start</span>
+          </button>
+        }
+      />
 
-        <main id="main-content" className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12 pb-16">
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <main id="main-content" className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12 pt-8 pb-16">
           {/* Hero Header & Metric Grid */}
           <section className="mb-8">
             <h1 className="font-serif italic text-5xl md:text-6xl text-[#451017] tracking-tight leading-tight mb-8">
@@ -187,22 +171,22 @@ export function SessionsPage() {
             <div className="grid grid-cols-12 gap-6 md:gap-8">
             {/* The Metric Ledger — left of the heatmap */}
             <div className="col-span-12 lg:col-span-8 grid grid-cols-2 gap-4 md:gap-6 content-start">
-              <Metric
+              <MetricCard
                 label="In Progress"
                 value={String(liveCount).padStart(2, '0')}
                 hint={liveCount ? 'Ready to resume' : 'Nothing open'}
               />
-              <Metric
+              <MetricCard
                 label="Completed"
                 value={String(items.length - liveCount).padStart(2, '0')}
                 hint="Results saved"
               />
-              <Metric
+              <MetricCard
                 label="Sources"
                 value={String(sourceCount).padStart(2, '0')}
                 hint="Materials uploaded"
               />
-              <Metric
+              <MetricCard
                 label="Last Activity"
                 value={lastTouched ? timeAgo(lastTouched) : '—'}
                 hint={lastTouched ? dateFormat.format(new Date(lastTouched)) : 'No sessions yet'}
@@ -222,6 +206,8 @@ export function SessionsPage() {
                 </h2>
               </div>
 
+            {/* Fixed-height ledger: every state (error, empty, rows) scrolls inside 400px with the scrollbar hidden. */}
+            <div className="h-[400px] overflow-y-auto pr-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {sessions.isError ? (
               <p className="py-10 text-sm text-[#451017]/70">
                 Could not load your sessions. Check your connection and{' '}
@@ -253,12 +239,13 @@ export function SessionsPage() {
             ) : null}
 
             {sessions.isLoading || items.length > 0 ? (
-              <div className="overflow-x-auto bg-transparent">
+              <div className="bg-transparent">
                 <Table className="w-full table-fixed border-collapse text-left">
                   <TableCaption className="sr-only">
                     Your study sessions, their current stage, and how to continue them.
                   </TableCaption>
-                  <thead className="bg-transparent border-b-2 border-black">
+                  {/* Sticky labels; the rule is a shadow because collapsed table borders don't travel with sticky cells. */}
+                  <thead className="sticky top-0 z-10 bg-[#EBE5D9] shadow-[0_2px_0_#000000]">
                     <tr className="bg-transparent hover:bg-transparent border-none">
                       <th scope="col" className="hidden w-16 pt-4 pb-3 pl-4 text-left align-middle text-black font-sans font-bold text-[10px] md:text-xs uppercase tracking-[0.15em] opacity-70 sm:table-cell">
                         #
@@ -357,11 +344,13 @@ export function SessionsPage() {
                 </Table>
               </div>
             ) : null}
+            </div>
             </section>
 
             {/* Coming Soon Vertical Block */}
+            {/* 400px when stacked; beside the ledger it stretches to the ledger's now-fixed height. */}
             <aside className="col-span-12 lg:col-span-3">
-              <div className="w-full h-full min-h-[350px] border border-[#451017]/20 rounded-xl flex flex-col items-center justify-center p-6 bg-[#451017]/5">
+              <div className="h-[400px] lg:h-full w-full border border-[#451017]/20 rounded-sm flex flex-col items-center justify-center p-6 bg-[#451017]/5">
                 <span className="font-serif text-2xl md:text-3xl text-[#451017]/30 text-center leading-[1.15] bg-transparent">
                   More Features<br />Coming<br />Soon
                 </span>
