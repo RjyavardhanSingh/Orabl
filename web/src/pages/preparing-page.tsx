@@ -4,12 +4,17 @@ import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Sparkles } from 'lucide
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
+import {
+  LedgerCard,
+  ledgerAlertClass,
+  ledgerLabelClass,
+  ledgerPrimaryButtonClass,
+  ledgerSecondaryButtonClass,
+} from '../components/layout/ledger-card'
 import { Alert } from '../components/ui/alert'
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
 import { api, ApiError, type LearningContext, type QuestionList } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
+import { cn } from '../lib/utils'
 
 function readContext(): LearningContext | null {
   const stored = window.sessionStorage.getItem('recall.context')
@@ -44,9 +49,16 @@ export function PreparingPage() {
   })
 
   const startPractice = useMutation({
-    mutationFn: () => api.createSession(context?.id ?? ''),
-    onSuccess: async (session) => {
+    // Practice reads both the session and its question list from storage; storing only the
+    // session left it on "No Active Practice Session" until a reload re-hydrated the questions.
+    mutationFn: async () => {
+      const session = await api.createSession(context?.id ?? '')
+      const { questions } = await api.getSessionQuestions(session.id)
+      return { session, questions }
+    },
+    onSuccess: async ({ session, questions }) => {
       window.sessionStorage.setItem('recall.session', JSON.stringify(session))
+      window.sessionStorage.setItem('recall.questions', JSON.stringify(questions))
       if (currentStudyId) {
         try { await api.updateStudySession(currentStudyId, { practice_id: session.id }) }
         catch { toast.error('Could not save practice progress. Please try again.'); return }
@@ -64,173 +76,152 @@ export function PreparingPage() {
 
   if (!context) {
     return (
-      <AppShell>
-        <EmptyState
-          // icon={
-          //   <img
-          //     src={AppLogoUrl}
-          //     alt=""
-          //     aria-hidden="true"
-          //     className="size-8 rounded-lg object-cover"
-          //   />
-          // }
-          title="Your Context Is Missing"
-          description="Start again by uploading a material and setting your goal."
-          action={
-            <Button asChild>
-              <Link to={sessionStepPath('upload', currentStudyId)}>
-                Start Over
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          }
-        />
-      </AppShell>
+      <LedgerCard
+        step={3}
+        label="Prepare"
+        title="Your Context Is Missing"
+        description="Start again by uploading a material and setting your goal."
+        compact
+      >
+        <Link to={sessionStepPath('upload', currentStudyId)} className={ledgerPrimaryButtonClass}>
+          Start Over
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      </LedgerCard>
     )
   }
 
   return (
-    <AppShell>
-      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[52rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7">
-        <PageHeader
-          title="Let's Make This Yours"
-          description="We turn your material and goal into a focused set of practice questions."
-          action={
-            visible.length > 0 ? (
-              <Badge className="tabular">{visible.length} Ready</Badge>
-            ) : null
-          }
-        />
+    <LedgerCard
+      step={3}
+      label="Prepare"
+      title="Let's Make This Yours"
+      description="We turn your material and goal into a focused set of practice questions."
+      compact
+    >
+      {busy || isLoading ? (
+        <Progress.Root value={null} aria-label="Preparing questions" className="mb-4 h-1 w-full overflow-hidden rounded-sm bg-[#EBE5D9]/10">
+          <Progress.Indicator className="block h-full w-1/3 animate-pulse rounded-sm bg-[#EBE5D9]" />
+        </Progress.Root>
+      ) : null}
 
-        {busy || isLoading ? (
-          <Progress.Root value={null} aria-label="Preparing questions" className="mt-6 h-1.5 w-full shrink-0 overflow-hidden rounded-full bg-sunk">
-            <Progress.Indicator className="block h-full w-1/3 animate-pulse rounded-full bg-accent" />
-          </Progress.Root>
-        ) : null}
+      {isLoading ? (
+        <p className="flex items-center gap-2 text-sm text-[#EBE5D9]/70" role="status">
+          <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+          Looking for saved questions…
+        </p>
+      ) : null}
 
-        <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-sunk px-5 sm:px-7">
-          <div className="scroll-area min-h-0 flex-1 py-6 pr-1">
-            {isLoading ? (
-              <p
-                className="flex items-center gap-2 text-sm text-ink-muted"
-                role="status"
-              >
+      {!isLoading && visible.length === 0 ? (
+        <div className="flex h-48 w-full flex-col items-center justify-center rounded-sm border border-dashed border-[#EBE5D9]/30 bg-[#EBE5D9]/5 px-6 text-center md:h-64">
+          <p className="mb-1 font-sans text-sm font-bold text-[#EBE5D9]">
+            {preparing ? 'Preparing your questions…' : 'Your questions will appear here.'}
+          </p>
+          <p className="max-w-xs text-center font-sans text-xs text-[#EBE5D9]/50">
+            {preparing
+              ? 'You can leave this page and resume this session later. We’ll save the set when it’s ready.'
+              : 'Generate a small practice set based on your material and goal.'}
+          </p>
+        </div>
+      ) : null}
+
+      {visible.length > 0 ? (
+        <>
+          <p className={ledgerLabelClass}>
+            <span className="tabular">{visible.length}</span> questions ready
+          </p>
+          {/* Same fixed-height footprint as the empty state; the set scrolls inside the locked card. */}
+          <ol className="h-48 divide-y divide-[#EBE5D9]/15 overflow-y-auto rounded-sm border border-[#EBE5D9] px-4 [scrollbar-color:rgb(235_229_217/0.2)_transparent] [scrollbar-width:thin] md:h-64">
+            {visible.map((question, index) => (
+              <li key={question.id ?? `${question.text}-${index}`} className="flex min-w-0 gap-4 py-3">
+                <span className="tabular grid size-6 shrink-0 place-items-center rounded-sm bg-[#EBE5D9] text-[11px] font-bold text-[#451017]">
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-pretty break-words text-sm font-medium leading-6 text-[#EBE5D9]">{question.text}</p>
+                  {question.topic ? (
+                    <p className="mt-1 truncate text-xs text-[#EBE5D9]/50">{question.topic}</p>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : null}
+
+      {generate.isError ? (
+        <Alert className={cn('mt-4', ledgerAlertClass)}>
+          {generate.error instanceof ApiError
+            ? generate.error.message
+            : 'Question generation failed. Check that the API is running, then retry.'}
+        </Alert>
+      ) : null}
+      {data?.status === 'failed' ? (
+        <Alert className={cn('mt-4', ledgerAlertClass)}>{data.error || 'Question generation failed. Please try again.'}</Alert>
+      ) : null}
+
+      <div className="mt-6 flex w-full flex-col-reverse gap-4 border-t border-[#EBE5D9]/10 pt-4 md:flex-row md:items-center md:justify-between">
+        <Link
+          to={sessionStepPath('goal', currentStudyId)}
+          aria-disabled={busy || undefined}
+          className="flex items-center gap-2 font-sans text-sm font-medium text-[#EBE5D9]/60 transition-colors hover:text-[#EBE5D9] aria-disabled:pointer-events-none aria-disabled:opacity-50"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back to Goal
+        </Link>
+        <div className="flex flex-col gap-3 md:flex-row">
+          {visible.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => generate.mutate()}
+              disabled={busy}
+              className={ledgerSecondaryButtonClass}
+            >
+              {generate.isPending ? (
+                <>
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                  Regenerating…
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="size-4" aria-hidden="true" />
+                  Regenerate
+                </>
+              )}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() =>
+              visible.length > 0 ? startPractice.mutate() : generate.mutate()
+            }
+            disabled={busy}
+            className={ledgerPrimaryButtonClass}
+          >
+            {startPractice.isPending ? (
+              <>
                 <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                Looking for saved questions…
-              </p>
-            ) : null}
-
-            {!isLoading && visible.length === 0 ? (
-              <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong p-8 text-center">
-                <p className="text-pretty mt-4 text-sm font-semibold">
-                  {preparing ? 'Preparing your questions…' : 'Your questions will appear here.'}
-                </p>
-                <p className="text-pretty mt-2 max-w-xs text-xs leading-5 text-ink-muted">
-                  {preparing
-                    ? 'You can leave this page and resume this session later. We’ll save the set when it’s ready.'
-                    : 'Generate a small practice set based on your material and goal.'}
-                </p>
-              </div>
-            ) : null}
-
-            {visible.length > 0 ? (
-              <ol className="divide-y divide-line border-t border-line">
-                {visible.map((question, index) => (
-                  <li
-                    key={question.id ?? `${question.text}-${index}`}
-                    className="flex min-w-0 gap-5 py-5"
-                  >
-                    <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-canvas">
-                      {index + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-pretty break-words text-sm font-medium leading-6 text-ink">
-                        {question.text}
-                      </p>
-                      {question.topic ? (
-                        <p className="mt-1.5 truncate text-xs text-ink-faint">{question.topic}</p>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : null}
-
-            {generate.isError ? (
-              <Alert className="mt-4">
-                {generate.error instanceof ApiError
-                  ? generate.error.message
-                  : 'Question generation failed. Check that the API is running, then retry.'}
-              </Alert>
-            ) : null}
-            {data?.status === 'failed' ? (
-              <Alert className="mt-4">{data.error || 'Question generation failed. Please try again.'}</Alert>
-            ) : null}
-          </div>
-
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-line py-4 sm:flex-row sm:items-center sm:justify-between">
-            <Button asChild variant="ghost" className="disabled:pointer-events-none disabled:opacity-50 rounded-xl">
-              <Link to={sessionStepPath('goal', currentStudyId)} aria-disabled={busy || undefined}>
-                <ArrowLeft className="size-4" aria-hidden="true" />
-                Back to Goal
-              </Link>
-            </Button>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              {visible.length > 0 ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => generate.mutate()}
-                  disabled={busy}
-                  className="rounded-xl"
-                >
-                  {generate.isPending ? (
-                    <>
-                      <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                      Regenerating…
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="size-4" aria-hidden="true" />
-                      Regenerate
-                    </>
-                  )}
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                onClick={() =>
-                  visible.length > 0 ? startPractice.mutate() : generate.mutate()
-                }
-                disabled={busy}
-                className='bg-accent text-black hover:bg-accent-hover rounded-xl'
-              >
-                {startPractice.isPending ? (
-                  <>
-                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                    Starting…
-                  </>
-                ) : generate.isPending || preparing ? (
-                  <>
-                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                    Preparing…
-                  </>
-                ) : visible.length > 0 ? (
-                  <>
-                    Start Practice
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                  </>
-                ) : (
-                  <>
-                    {data?.status === 'failed' ? 'Try Again' : 'Generate Questions'}
-                    <Sparkles className="size-4" aria-hidden="true" />
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
+                Starting…
+              </>
+            ) : generate.isPending || preparing ? (
+              <>
+                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                Preparing…
+              </>
+            ) : visible.length > 0 ? (
+              <>
+                Start Practice
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </>
+            ) : (
+              <>
+                {data?.status === 'failed' ? 'Try Again' : 'Generate Questions'}
+                <Sparkles className="size-4" aria-hidden="true" />
+              </>
+            )}
+          </button>
         </div>
       </div>
-    </AppShell>
+    </LedgerCard>
   )
 }

@@ -7,8 +7,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from db.connection import Database, get_db
 from cache import CacheService, get_cache
+from db.connection import Database, get_db
 from services.auth_service import CurrentUser, get_current_user
 
 router = APIRouter(prefix="/study-sessions", tags=["Study sessions"])
@@ -44,8 +44,10 @@ async def create_study_session(
     session_id = uuid.uuid4().hex[:16]
     row = await db.fetchrow(
         """INSERT INTO study_sessions (id, user_id) VALUES ($1, $2)
-           RETURNING id, title, material_ids, upload_draft, goal_draft, context_id, practice_id, practice_state->>'status' AS practice_status, created_at, updated_at""",
-        session_id, user.id,
+           RETURNING id, title, material_ids, upload_draft, goal_draft, context_id, practice_id,
+                     practice_state->>'status' AS practice_status, created_at, updated_at""",
+        session_id,
+        user.id,
     )
     return _response(row)
 
@@ -58,7 +60,8 @@ async def list_study_sessions(
         """SELECT id, title, jsonb_array_length(material_ids) AS material_count,
            context_id, practice_id, practice_state->>'status' AS practice_status,
            created_at, updated_at
-           FROM study_sessions WHERE user_id = $1 ORDER BY updated_at DESC""", user.id
+           FROM study_sessions WHERE user_id = $1 ORDER BY updated_at DESC""",
+        user.id,
     )
     return [_response(row) for row in rows]
 
@@ -68,8 +71,11 @@ async def get_study_session(
     session_id: str, db: Database = Depends(get_db), user: CurrentUser = Depends(get_current_user)
 ):
     row = await db.fetchrow(
-        """SELECT id, title, material_ids, upload_draft, goal_draft, context_id, practice_id, practice_state->>'status' AS practice_status, created_at, updated_at
-           FROM study_sessions WHERE id = $1 AND user_id = $2""", session_id, user.id
+        """SELECT id, title, material_ids, upload_draft, goal_draft, context_id, practice_id,
+                  practice_state->>'status' AS practice_status, created_at, updated_at
+           FROM study_sessions WHERE id = $1 AND user_id = $2""",
+        session_id,
+        user.id,
     )
     if row is None:
         raise HTTPException(status_code=404, detail="Study session not found")
@@ -78,25 +84,34 @@ async def get_study_session(
 
 @router.patch("/{session_id}")
 async def update_study_session(
-    session_id: str, body: StudySessionPatch,
-    db: Database = Depends(get_db), user: CurrentUser = Depends(get_current_user),
+    session_id: str,
+    body: StudySessionPatch,
+    db: Database = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
     cache: CacheService = Depends(get_cache),
 ):
     current = await get_study_session(session_id, db, user)
     changes = body.model_fields_set
     material_ids = body.material_ids if "material_ids" in changes else current["material_ids"]
-    upload_draft = body.upload_draft.model_dump() if "upload_draft" in changes and body.upload_draft else current["upload_draft"]
+    upload_draft = (
+        body.upload_draft.model_dump()
+        if "upload_draft" in changes and body.upload_draft
+        else current["upload_draft"]
+    )
     goal_draft = body.goal_draft if "goal_draft" in changes else current["goal_draft"]
     if material_ids and "material_ids" in changes:
         count = await db.fetchrow(
             "SELECT COUNT(*) AS total FROM materials WHERE id = ANY($1::text[]) AND user_id = $2",
-            material_ids, user.id,
+            material_ids,
+            user.id,
         )
         if count["total"] != len(set(material_ids)):
             raise HTTPException(status_code=422, detail="One or more materials are unavailable")
     context_id = body.context_id if "context_id" in changes else current["context_id"]
     if context_id and "context_id" in changes:
-        owner = await db.fetchrow("SELECT id FROM contexts WHERE id = $1 AND user_id = $2", context_id, user.id)
+        owner = await db.fetchrow(
+            "SELECT id FROM contexts WHERE id = $1 AND user_id = $2", context_id, user.id
+        )
         if owner is None:
             raise HTTPException(status_code=422, detail="Context is unavailable")
     practice_id = body.practice_id if "practice_id" in changes else current["practice_id"]
@@ -111,10 +126,16 @@ async def update_study_session(
            practice_state = CASE WHEN $10::boolean THEN $9::jsonb ELSE practice_state END,
            updated_at = NOW()
            WHERE id = $1 AND user_id = $2
-           RETURNING id, title, material_ids, upload_draft, goal_draft, context_id, practice_id, practice_state->>'status' AS practice_status, created_at, updated_at""",
-        session_id, user.id,
+           RETURNING id, title, material_ids, upload_draft, goal_draft, context_id, practice_id,
+                     practice_state->>'status' AS practice_status, created_at, updated_at""",
+        session_id,
+        user.id,
         body.title if "title" in changes else current["title"],
-        json.dumps(material_ids), json.dumps(upload_draft), json.dumps(goal_draft), context_id, practice_id,
+        json.dumps(material_ids),
+        json.dumps(upload_draft),
+        json.dumps(goal_draft),
+        context_id,
+        practice_id,
         json.dumps(practice_state) if practice_state is not None else None,
         "practice_id" in changes,
     )

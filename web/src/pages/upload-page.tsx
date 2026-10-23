@@ -6,7 +6,15 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { AppShell } from '../components/layout/app-shell'
+import {
+  LedgerCard,
+  ledgerAlertClass,
+  ledgerErrorClass,
+  ledgerFieldClass,
+  ledgerLabelClass,
+  ledgerPrimaryButtonClass,
+  ledgerSecondaryButtonClass,
+} from '../components/layout/ledger-card'
 import { Alert } from '../components/ui/alert'
 import { api, ApiError, type Material } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
@@ -20,28 +28,26 @@ const CHARACTER_LIMIT = 50_000
 const MAX_FILES = 3
 const MATERIALS_KEY = 'recall.materials'
 
-/* Editorial Ledger card: beige on maroon, structural borders, no rings, no pills. */
-const labelClass = 'mb-2 block font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-[#EBE5D9]/70'
-const fieldClass =
-  'w-full rounded-xl border-2 border-[#EBE5D9]/20 bg-[#EBE5D9]/5 p-4 text-[#EBE5D9] transition-colors placeholder:text-[#EBE5D9]/40 focus:border-[#EBE5D9] focus:outline-none focus:ring-0 aria-[invalid=true]:border-[#EBE5D9]/70'
-const errorClass = 'text-xs font-bold text-[#EBE5D9]'
-const buttonBase =
-  'inline-flex w-full items-center justify-center gap-2 rounded-xl px-8 py-4 font-sans text-sm font-bold uppercase tracking-widest transition-colors disabled:pointer-events-none disabled:opacity-50 md:w-auto'
-const primaryButtonClass = `${buttonBase} bg-[#EBE5D9] text-[#451017] hover:bg-black hover:text-[#EBE5D9]`
-const secondaryButtonClass = `${buttonBase} border-2 border-[#EBE5D9]/30 bg-transparent text-[#EBE5D9] hover:border-[#EBE5D9]`
 const removeClass = 'shrink-0 rounded-lg p-1 text-[#EBE5D9]/50 transition-colors hover:text-[#EBE5D9]'
 
-function UploadedMaterial({ item, onRemove, className }: { item: Material; onRemove: (id: string) => void; className?: string }) {
+/* Compact file ledger: fixed-height zone that scrolls inside the card instead of growing it. */
+const fileListClass =
+  'flex max-h-[120px] flex-col space-y-2 overflow-y-auto pr-2 [scrollbar-color:rgb(235_229_217/0.2)_transparent] [scrollbar-width:thin]'
+const fileRowClass =
+  'flex w-full min-w-0 items-center justify-between rounded-lg border border-[#EBE5D9]/10 bg-[#EBE5D9]/5 px-3 py-2'
+const fileIconClass = 'h-3 w-3 flex-shrink-0 text-[#EBE5D9]/50'
+const fileNameClass = 'block w-full truncate text-xs font-medium text-[#EBE5D9]'
+const fileMetaClass = 'tabular mt-0.5 block w-full truncate text-[10px] text-[#EBE5D9]/40'
+
+function UploadedMaterial({ item, onRemove }: { item: Material; onRemove: (id: string) => void }) {
   return (
-    <div className={cn('flex items-center gap-3 rounded-xl border border-[#EBE5D9]/20 bg-[#EBE5D9]/10 px-4 py-3', className)}>
-      <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[#EBE5D9] text-[#451017]">
-        <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{item.name}</p>
-        <p className="tabular text-xs text-[#EBE5D9]/50">
+    <div className={fileRowClass}>
+      <Check className={fileIconClass} strokeWidth={3} aria-hidden="true" />
+      <div className="flex w-full min-w-0 flex-col px-3">
+        <span className={fileNameClass}>{item.name}</span>
+        <span className={fileMetaClass}>
           {item.word_count.toLocaleString()} words · uploaded
-        </p>
+        </span>
       </div>
       <button
         type="button"
@@ -115,7 +121,8 @@ export function UploadPage() {
     setFiles([])
   }
 
-  async function persistMaterials(next: Material[]) {
+  /** Resolves false when the session could not record the change. */
+  async function persistMaterials(next: Material[]): Promise<boolean> {
     setMaterials(next)
     for (const key of ['recall.context', 'recall.questions', 'recall.session', 'recall.results']) {
       try { window.sessionStorage.removeItem(key) } catch { /* private browsing */ }
@@ -128,8 +135,9 @@ export function UploadPage() {
     const id = currentStudyId
     if (id) {
       try { await api.updateStudySession(id, { material_ids: next.map((item) => item.id), context_id: null, practice_id: null }) }
-      catch { setError('Material uploaded, but session progress could not be saved. Please retry before leaving.'); return }
+      catch { setError('Material uploaded, but session progress could not be saved. Please retry before leaving.'); return false }
     }
+    return true
   }
 
   function isPdf(candidate: File): boolean {
@@ -167,11 +175,15 @@ export function UploadPage() {
   }
 
   const saveMaterials = async (next: Material[]) => {
-    await persistMaterials([...materials, ...next])
+    const saved = await persistMaterials([...materials, ...next])
     for (const item of next) {
       toast.success(`${item.name} is ready to learn from.`)
     }
+    return saved
   }
+
+  // The ledger flow slides the Goal card in; the tracker stays put.
+  const goToGoal = () => navigate(sessionStepPath('goal', currentStudyId))
 
   const handleUploadError = (uploadError: unknown) => {
     if (uploadError instanceof ApiError) {
@@ -206,8 +218,9 @@ export function UploadPage() {
           remaining.push(candidate)
         }
       }
-      if (uploaded.length > 0) await saveMaterials(uploaded)
+      const saved = uploaded.length > 0 && (await saveMaterials(uploaded))
       setFiles(remaining)
+      if (saved && failed.length === 0) goToGoal()
       if (failed.length > 0) {
         if (uploaded.length === 0 && files.length === 1) {
           handleUploadError(firstError)
@@ -230,7 +243,7 @@ export function UploadPage() {
     setError('')
     setIsUploading(true)
     try {
-      await saveMaterials([await api.uploadText(values)])
+      if (await saveMaterials([await api.uploadText(values)])) goToGoal()
     } catch (uploadError) {
       handleUploadError(uploadError)
     } finally {
@@ -241,16 +254,13 @@ export function UploadPage() {
   const hasAnyMaterial = materials.length > 0
 
   return (
-    <AppShell variant="ledger">
-      {/* Focus outlines inside the maroon card read in beige. */}
-      <div className="w-full rounded-2xl border border-[#451017] bg-[#451017] p-8 text-[#EBE5D9] shadow-2xl shadow-[#451017]/20 [--color-accent:#EBE5D9]">
-        <p className="mb-4 font-sans text-xs font-bold uppercase tracking-[0.2em] text-[#EBE5D9]/70">Step 01/05 · Material</p>
-        <h1 className="mb-4 font-serif text-4xl italic leading-tight text-[#EBE5D9] md:text-5xl">Bring Something Worth Learning</h1>
-        <p className="max-w-xl text-sm leading-6 text-[#EBE5D9]/70">
-          Start with a PDF or paste your notes. This material shapes every question you get.
-        </p>
-
-        <Tabs.Root value={mode} onValueChange={(value) => selectMode(value as UploadMode)} className="mt-10">
+    <LedgerCard
+      step={1}
+      label="Material"
+      title="Bring Something Worth Learning"
+      description="Start with a PDF or paste your notes. This material shapes every question you get."
+    >
+        <Tabs.Root value={mode} onValueChange={(value) => selectMode(value as UploadMode)}>
           <Tabs.List aria-label="Material type" className="flex gap-8">
             {(['text', 'pdf'] as UploadMode[]).map((option) => (
               <Tabs.Trigger
@@ -271,7 +281,7 @@ export function UploadPage() {
           <div className="pt-8">
             <Tabs.Content value="text" className="space-y-6">
               <div>
-                <label htmlFor="material-name" className={labelClass}>Source Name</label>
+                <label htmlFor="material-name" className={ledgerLabelClass}>Source Name</label>
                 <input
                   id="material-name"
                   autoComplete="off"
@@ -280,10 +290,10 @@ export function UploadPage() {
                   aria-describedby={nameError ? 'material-name-error' : undefined}
                   {...textForm.register('name')}
                   placeholder="biology-notes.md"
-                  className={fieldClass}
+                  className={ledgerFieldClass}
                 />
                 {nameError ? (
-                  <p id="material-name-error" className={cn(errorClass, 'mt-2')}>
+                  <p id="material-name-error" className={ledgerErrorClass}>
                     {nameError.message}
                   </p>
                 ) : null}
@@ -291,7 +301,7 @@ export function UploadPage() {
 
               <div>
                 <div className="flex items-center justify-between gap-4">
-                  <label htmlFor="material-content" className={labelClass}>Your Notes</label>
+                  <label htmlFor="material-content" className={ledgerLabelClass}>Your Notes</label>
                   <span className="tabular mb-2 text-xs text-[#EBE5D9]/50">
                     {content.length.toLocaleString()} / {CHARACTER_LIMIT.toLocaleString()}
                   </span>
@@ -304,10 +314,10 @@ export function UploadPage() {
                   {...textForm.register('content')}
                   placeholder="Paste a chapter, lecture notes, or an article…"
                   rows={4}
-                  className={cn(fieldClass, 'h-32 min-h-[120px] resize-none leading-6')}
+                  className={cn(ledgerFieldClass, 'h-28 min-h-[112px] resize-none leading-6')}
                 />
                 {contentError ? (
-                  <p id="material-content-error" className={cn(errorClass, 'mt-2')}>
+                  <p id="material-content-error" className={ledgerErrorClass}>
                     {contentError.message}
                   </p>
                 ) : null}
@@ -358,38 +368,39 @@ export function UploadPage() {
                   {materials.length + files.length} of {MAX_FILES} files
                 </span>
               </button>
-              {files.map((pending, index) => (
-                <div
-                  key={`${pending.name}-${pending.size}-${index}`}
-                  className="mt-4 flex items-center gap-3 rounded-xl border border-[#EBE5D9]/20 px-4 py-3"
-                >
-                  <FileText className="size-5 shrink-0 text-[#EBE5D9]/60" aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{pending.name}</p>
-                    <p className="tabular text-xs text-[#EBE5D9]/50">
-                      {(pending.size / 1024 / 1024).toFixed(2)} MB · ready to upload
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removePendingFile(index)}
-                    className={removeClass}
-                    aria-label={`Remove ${pending.name}`}
-                  >
-                    <X className="size-4" aria-hidden="true" />
-                  </button>
+              {files.length + materials.length > 0 ? (
+                <div className={cn('mt-4', fileListClass)}>
+                  {files.map((pending, index) => (
+                    <div key={`${pending.name}-${pending.size}-${index}`} className={fileRowClass}>
+                      <FileText className={fileIconClass} aria-hidden="true" />
+                      <div className="flex w-full min-w-0 flex-col px-3">
+                        <span className={fileNameClass}>{pending.name}</span>
+                        <span className={fileMetaClass}>
+                          {(pending.size / 1024 / 1024).toFixed(2)} MB · ready to upload
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removePendingFile(index)}
+                        className={removeClass}
+                        aria-label={`Remove ${pending.name}`}
+                      >
+                        <X className="size-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  ))}
+                  {materials.map((item) => (
+                    <UploadedMaterial key={item.id} item={item} onRemove={removeMaterial} />
+                  ))}
                 </div>
-              ))}
-              {materials.map((item) => (
-                <UploadedMaterial key={item.id} item={item} onRemove={removeMaterial} className="mt-4" />
-              ))}
+              ) : null}
             </Tabs.Content>
 
             {error ? (
-              <Alert className="mt-6 border-[#EBE5D9]/40 bg-[#EBE5D9]/10 font-medium text-[#EBE5D9]">{error}</Alert>
+              <Alert className={cn('mt-6', ledgerAlertClass)}>{error}</Alert>
             ) : null}
             {mode === 'text' && materials.length > 0 ? (
-              <div className="mt-6 space-y-3" role="status" aria-label="Uploaded materials">
+              <div className={cn('mt-6', fileListClass)} role="status" aria-label="Uploaded materials">
                 {materials.map((item) => (
                   <UploadedMaterial key={item.id} item={item} onRemove={removeMaterial} />
                 ))}
@@ -400,7 +411,7 @@ export function UploadPage() {
           <div className="mt-6 flex w-full flex-col gap-3 md:flex-row">
             <button
               type="button"
-              className={hasAnyMaterial ? secondaryButtonClass : primaryButtonClass}
+              className={hasAnyMaterial ? ledgerSecondaryButtonClass : ledgerPrimaryButtonClass}
               onClick={mode === 'text' ? submitText : uploadPdf}
               disabled={isUploading}
             >
@@ -419,8 +430,8 @@ export function UploadPage() {
             {hasAnyMaterial ? (
               <button
                 type="button"
-                className={primaryButtonClass}
-                onClick={() => navigate(sessionStepPath('goal', currentStudyId))}
+                className={ledgerPrimaryButtonClass}
+                onClick={goToGoal}
               >
                 Continue to Goal
                 <ArrowRight className="size-4" aria-hidden="true" />
@@ -428,7 +439,6 @@ export function UploadPage() {
             ) : null}
           </div>
         </Tabs.Root>
-      </div>
-    </AppShell>
+    </LedgerCard>
   )
 }

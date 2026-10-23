@@ -1,21 +1,16 @@
 import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { ProfileMenu } from '../components/layout/profile-menu'
+import { AppNavbar } from '../components/layout/app-navbar'
 import { useAuthStore } from '../lib/auth-state'
-import { nameFromEmail } from '../lib/profile'
 
 export function SettingsPage() {
   const user = useAuthStore((state) => state.user)
-  const displayName = nameFromEmail(user?.email)
 
   return (
     <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-canvas text-ink">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3 focus:text-black">Skip to content</a>
-      <header className="mx-auto flex w-full max-w-[80rem] shrink-0 items-center justify-between gap-4 border-b border-line px-[clamp(1.25rem,4vw,4rem)] py-4 sm:py-5">
-        <Link to="/sessions" className="text-xl font-extrabold tracking-[-0.08em] hover:opacity-90">Orabl</Link>
-        <ProfileMenu displayName={displayName} email={user?.email} />
-      </header>
+      <AppNavbar className="max-w-[80rem] px-[clamp(1.25rem,4vw,4rem)]" />
 
       <main id="main-content" className="scroll-area mx-auto min-h-0 w-full max-w-[80rem] flex-1 px-[clamp(1.25rem,4vw,4rem)] pb-10 pt-10 sm:pt-14">
         <Link to="/sessions" className="inline-flex items-center gap-2 text-sm text-ink-muted transition-colors hover:text-ink">

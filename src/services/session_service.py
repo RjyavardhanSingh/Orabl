@@ -292,7 +292,8 @@ async def process_score_job(cache: CacheService, db: Database, job: dict) -> Non
         await db.execute(
             """UPDATE study_sessions SET practice_state = $2::jsonb, updated_at = NOW()
                WHERE practice_id = $1""",
-            job["session_id"], json.dumps(state),
+            job["session_id"],
+            json.dumps(state),
         )
 
         await db.execute("UPDATE score_jobs SET status = 'scored' WHERE id = $1", job_id)
@@ -415,7 +416,8 @@ async def complete_session(
     await db.execute(
         """UPDATE study_sessions SET practice_state = $2::jsonb, updated_at = NOW()
            WHERE practice_id = $1""",
-        session_id, json.dumps(state),
+        session_id,
+        json.dumps(state),
     )
 
     cache.delete(f"session:{session_id}")

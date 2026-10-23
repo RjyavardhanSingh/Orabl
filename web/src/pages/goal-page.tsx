@@ -1,17 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import * as RadioGroup from '@radix-ui/react-radio-group'
-import { ArrowLeft, ArrowRight, BookOpen, Check, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
+import {
+  LedgerCard,
+  ledgerAlertClass,
+  ledgerBackLinkClass,
+  ledgerErrorClass,
+  ledgerFieldClass,
+  ledgerLabelClass,
+  ledgerPrimaryButtonClass,
+} from '../components/layout/ledger-card'
 import { Alert } from '../components/ui/alert'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
 import { api, ApiError, type Material } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { cn } from '../lib/utils'
@@ -22,6 +27,14 @@ const levels: Array<{ value: GoalValues['level']; title: string; text: string }>
   { value: 'intermediate', title: 'Getting There', text: 'I know some of this already.' },
   { value: 'advanced', title: 'Going Deeper', text: 'I want to stretch my understanding.' },
 ]
+
+/* Choice lists on the maroon card: ruled rows with square marks, beige when chosen. */
+const listClass = 'divide-y divide-[#EBE5D9]/15 rounded-sm border border-[#EBE5D9] px-3'
+const rowClass = 'flex min-w-0 items-center gap-2 py-2 transition-colors'
+const rowOnClass = 'text-[#EBE5D9]'
+const rowOffClass = 'text-[#EBE5D9]/60 hover:text-[#EBE5D9]'
+const markClass =
+  'grid size-5 shrink-0 place-items-center rounded-md border-2 border-[#EBE5D9]/40 text-[#451017] transition-colors data-[state=checked]:border-[#EBE5D9] data-[state=checked]:bg-[#EBE5D9]'
 
 function readMaterials(): Material[] {
   try {
@@ -179,21 +192,19 @@ export function GoalPage() {
 
   if (materials.length === 0) {
     return (
-      <AppShell>
-        <EmptyState
-          icon={<BookOpen className="size-6" aria-hidden="true" />}
-          title="Start With Your Material"
-          description="We need something to learn from before we can shape your goal."
-          action={
-            <Button asChild>
-              <Link to={sessionStepPath('upload', currentStudyId)}>
-                Upload Material
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          }
-        />
-      </AppShell>
+      <LedgerCard
+        step={2}
+        label="Goal"
+        title="Start With Your Material"
+        description="We need something to learn from before we can shape your goal."
+      >
+        <div>
+          <Link to={sessionStepPath('upload', currentStudyId)} className={ledgerPrimaryButtonClass}>
+            Upload Material
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
+      </LedgerCard>
     )
   }
 
@@ -204,174 +215,159 @@ export function GoalPage() {
   }
 
   return (
-    <AppShell>
-      <div className="workflow-page mx-auto flex h-full min-h-0 w-full max-w-[52rem] flex-col px-5 pb-4 pt-5 sm:px-8 sm:pt-7">
-        <PageHeader
-          title="What Do You Want to Understand?"
-          description="A clear goal keeps every question relevant to you. Three details are enough to begin."
-        />
-
-        <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-sunk px-5 sm:px-7">
-          <div className="scroll-area min-h-0 flex-1 py-6 pr-1">
-            <form id="goal-form" onSubmit={submit} className="space-y-7" noValidate>
-              <fieldset className="space-y-2">
-                <legend className="text-sm font-medium text-ink-soft">
-                  Materials in this session ({selectedIds.length} of {materials.length})
-                </legend>
-                <div className="divide-y divide-line rounded-xl border border-line bg-surface px-4">
-                  {materials.map((item) => {
-                    const checked = selectedIds.includes(item.id)
-                    return (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          'flex items-center gap-3 py-4 transition-colors',
-                          checked
-                            ? 'text-ink'
-                            : 'text-ink-muted hover:text-ink',
-                        )}
+    <LedgerCard
+      step={2}
+      label="Goal"
+      title="What Do You Want to Understand?"
+      compact
+      description="A clear goal keeps every question relevant to you. Three details are enough to begin."
+    >
+      <form id="goal-form" onSubmit={submit} noValidate>
+        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
+          {/* Left: context and topic. */}
+          <div className="flex w-full min-w-0 flex-col gap-4 overflow-hidden">
+            {/* Fieldsets default to min-inline-size: min-content, which let long filenames widen the column. */}
+            <fieldset className="min-w-0">
+              <legend className={ledgerLabelClass}>
+                Materials in this session ({selectedIds.length} of {materials.length})
+              </legend>
+              <div className={cn(listClass, 'w-full min-w-0 overflow-hidden')}>
+                {materials.map((item) => {
+                  const checked = selectedIds.includes(item.id)
+                  return (
+                    <div
+                      key={item.id}
+                      className={cn(rowClass, 'w-full items-start overflow-hidden', checked ? rowOnClass : rowOffClass)}
+                    >
+                      <Checkbox.Root
+                        id={`material-${item.id}`}
+                        checked={checked}
+                        onCheckedChange={() => toggleMaterial(item.id)}
+                        className={markClass}
+                        aria-label={`Include ${item.name}`}
                       >
-                        <Checkbox.Root
-                          id={`material-${item.id}`}
-                          checked={checked}
-                          onCheckedChange={() => toggleMaterial(item.id)}
-                          className="grid size-5 shrink-0 place-items-center rounded border border-line-strong bg-surface text-black data-[state=checked]:border-accent data-[state=checked]:bg-accent"
-                          aria-label={`Include ${item.name}`}
-                        >
-                          <Checkbox.Indicator><Check className="size-3.5" strokeWidth={3} aria-hidden="true" /></Checkbox.Indicator>
-                        </Checkbox.Root>
-                        <label htmlFor={`material-${item.id}`} className="min-w-0 flex-1 cursor-pointer">
-                          <span className="block truncate text-sm font-medium text-ink">
-                            {item.name}
-                          </span>
-                          <span className="tabular block text-xs text-ink-faint">
-                            {item.word_count.toLocaleString()} words
-                          </span>
-                        </label>
-                      </div>
-                    )
-                  })}
-                </div>
-              </fieldset>
-              <div className="space-y-2">
-                <Label htmlFor="subject">What Are You Studying?</Label>
-                <Input
-                  id="subject"
-                  autoComplete="off"
-                  aria-invalid={subjectError ? true : undefined}
-                  aria-describedby={subjectError ? 'subject-error' : undefined}
-                  {...form.register('subject')}
-                  placeholder="Biology · Cell respiration"
-                />
-                {subjectError ? (
-                  <p id="subject-error" className="text-xs text-bad">
-                    {subjectError.message}
-                  </p>
-                ) : null}
+                        <Checkbox.Indicator><Check className="size-3.5" strokeWidth={3} aria-hidden="true" /></Checkbox.Indicator>
+                      </Checkbox.Root>
+                      <label htmlFor={`material-${item.id}`} className="block min-w-0 flex-1 cursor-pointer overflow-hidden">
+                        <span className="block w-full truncate text-sm font-medium text-[#EBE5D9]">{item.name}</span>
+                        <span className="tabular block w-full truncate text-xs text-[#EBE5D9]/50">
+                          {item.word_count.toLocaleString()} words
+                        </span>
+                      </label>
+                    </div>
+                  )
+                })}
               </div>
+            </fieldset>
 
-              <div className="space-y-2">
-                <Label htmlFor="target">What Do You Want to Be Able to Do?</Label>
-                <Input
-                  id="target"
-                  autoComplete="off"
-                  aria-invalid={targetError ? true : undefined}
-                  aria-describedby={targetError ? 'target-error' : undefined}
-                  {...form.register('target')}
-                  placeholder="Explain how cells create energy"
-                />
-                {targetError ? (
-                  <p id="target-error" className="text-xs text-bad">
-                    {targetError.message}
-                  </p>
-                ) : null}
-              </div>
+            <div>
+              <label htmlFor="subject" className={ledgerLabelClass}>What Are You Studying?</label>
+              <input
+                id="subject"
+                autoComplete="off"
+                aria-invalid={subjectError ? true : undefined}
+                aria-describedby={subjectError ? 'subject-error' : undefined}
+                {...form.register('subject')}
+                placeholder="Biology · Cell respiration"
+                className={ledgerFieldClass}
+              />
+              {subjectError ? (
+                <p id="subject-error" className={ledgerErrorClass}>
+                  {subjectError.message}
+                </p>
+              ) : null}
+            </div>
 
-              <fieldset className="space-y-2.5">
-                <legend className="mb-2 text-sm font-medium text-ink-soft">How Familiar Is This?</legend>
-                <RadioGroup.Root
-                  value={level}
-                  onValueChange={(value) => form.setValue('level', value as GoalValues['level'], { shouldDirty: true, shouldValidate: true })}
-                  className="divide-y divide-line rounded-xl border border-line bg-surface px-4"
-                >
-                  {levels.map((option) => {
-                    const selected = level === option.value
-                    return (
-                      <div
-                        key={option.value}
-                        className={cn(
-                          'flex items-center gap-3 py-4 transition-colors duration-150',
-                          selected
-                            ? 'text-ink'
-                            : 'text-ink-muted hover:text-ink',
-                        )}
-                      >
-                        <RadioGroup.Item
-                          id={`level-${option.value}`}
-                          value={option.value}
-                          className="grid size-5 shrink-0 place-items-center rounded-full border border-line-strong bg-surface data-[state=checked]:border-accent"
-                        >
-                          <RadioGroup.Indicator className="size-2.5 rounded-full bg-accent" />
-                        </RadioGroup.Item>
-                        <label htmlFor={`level-${option.value}`} className="min-w-0 flex-1 cursor-pointer">
-                          <span className="block text-sm font-semibold text-ink">
-                            {option.title}
-                          </span>
-                          <span className="mt-0.5 block text-xs text-ink-muted">{option.text}</span>
-                        </label>
-                      </div>
-                    )
-                  })}
-                </RadioGroup.Root>
-              </fieldset>
-
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="deadline">
-                    Deadline <span className="font-normal text-ink-faint">(optional)</span>
-                  </Label>
-                  <Input id="deadline" type="date" {...form.register('deadline')} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="language">Language</Label>
-                  <Input
-                    id="language"
-                    autoComplete="off"
-                    spellCheck={false}
-                    inputMode="text"
-                    {...form.register('language')}
-                    placeholder="en"
-                  />
-                </div>
-              </div>
-
-              {error ? <Alert>{error}</Alert> : null}
-            </form>
+            <div>
+              <label htmlFor="deadline" className={ledgerLabelClass}>
+                Deadline <span className="font-normal normal-case tracking-normal text-[#EBE5D9]/50">(optional)</span>
+              </label>
+              {/* Dark scheme so the native calendar icon reads on maroon. */}
+              <input id="deadline" type="date" {...form.register('deadline')} className={cn(ledgerFieldClass, '[color-scheme:dark]')} />
+            </div>
+            <div>
+              <label htmlFor="language" className={ledgerLabelClass}>Language</label>
+              <input
+                id="language"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="text"
+                {...form.register('language')}
+                placeholder="en"
+                className={ledgerFieldClass}
+              />
+            </div>
           </div>
 
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-line py-4 sm:flex-row sm:items-center sm:justify-between">
-            <Button asChild variant="ghost">
-              <Link to={sessionStepPath('upload', currentStudyId)}>
-                <ArrowLeft className="size-4" aria-hidden="true" />
-                Back
-              </Link>
-            </Button>
-            <Button type="submit" form="goal-form" disabled={isSubmitting} className='bg-accent text-black hover:bg-accent-hover rounded-xl'>
-              {isSubmitting ? (
-                <>
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                  Preparing…
-                </>
-              ) : (
-                <>
-                  Prepare Questions
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </>
-              )}
-            </Button>
+          {/* Right: what success looks like and how familiar it is. */}
+          <div className="flex min-w-0 flex-col gap-4">
+            <div>
+              <label htmlFor="target" className={ledgerLabelClass}>What Do You Want to Be Able to Do?</label>
+              <input
+                id="target"
+                autoComplete="off"
+                aria-invalid={targetError ? true : undefined}
+                aria-describedby={targetError ? 'target-error' : undefined}
+                {...form.register('target')}
+                placeholder="Explain how cells create energy"
+                className={ledgerFieldClass}
+              />
+              {targetError ? (
+                <p id="target-error" className={ledgerErrorClass}>
+                  {targetError.message}
+                </p>
+              ) : null}
+            </div>
+
+            <fieldset className="min-w-0">
+              <legend className={ledgerLabelClass}>How Familiar Is This?</legend>
+              <RadioGroup.Root
+                value={level}
+                onValueChange={(value) => form.setValue('level', value as GoalValues['level'], { shouldDirty: true, shouldValidate: true })}
+                className={listClass}
+              >
+                {levels.map((option) => (
+                  <div key={option.value} className={cn(rowClass, level === option.value ? rowOnClass : rowOffClass)}>
+                    {/* Square mark, never a dot: same shape as the material checkboxes. */}
+                    <RadioGroup.Item id={`level-${option.value}`} value={option.value} className={markClass}>
+                      <RadioGroup.Indicator>
+                        <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
+                      </RadioGroup.Indicator>
+                    </RadioGroup.Item>
+                    <label htmlFor={`level-${option.value}`} className="min-w-0 flex-1 cursor-pointer">
+                      <span className="block font-serif text-sm italic leading-tight">{option.title}</span>
+                      <span className="mt-0.5 block text-xs text-[#EBE5D9]/60">{option.text}</span>
+                    </label>
+                  </div>
+                ))}
+              </RadioGroup.Root>
+            </fieldset>
           </div>
         </div>
+
+        {error ? <Alert className={cn('mt-6', ledgerAlertClass)}>{error}</Alert> : null}
+      </form>
+
+      {/* Back stays left; the forward action sits right. */}
+      <div className="mt-6 flex w-full flex-col-reverse gap-4 md:flex-row md:items-center md:justify-between">
+        <Link to={sessionStepPath('upload', currentStudyId)} className={ledgerBackLinkClass}>
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back
+        </Link>
+        <button type="submit" form="goal-form" disabled={isSubmitting} className={ledgerPrimaryButtonClass}>
+          {isSubmitting ? (
+            <>
+              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              Preparing…
+            </>
+          ) : (
+            <>
+              Prepare Questions
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </>
+          )}
+        </button>
       </div>
-    </AppShell>
+    </LedgerCard>
   )
 }
