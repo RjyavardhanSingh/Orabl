@@ -32,19 +32,6 @@ def upload_file(bucket: str, key: str, data: bytes, content_type: str = "applica
     return key
 
 
-def download_file(bucket: str, key: str) -> bytes:
-    """Download a file from Neon Object Storage."""
-    client = _get_client()
-    response = client.get_object(Bucket=bucket, Key=key)
-    return response["Body"].read()
-
-
-def delete_file(bucket: str, key: str) -> None:
-    """Delete a file from Neon Object Storage."""
-    client = _get_client()
-    client.delete_object(Bucket=bucket, Key=key)
-
-
 def get_presigned_url(bucket: str, key: str, expires_in: int = 3600) -> str:
     """Generate a presigned URL for downloading a file."""
     client = _get_client()
