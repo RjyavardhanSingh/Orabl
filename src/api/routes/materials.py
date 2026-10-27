@@ -81,13 +81,7 @@ async def get_material(
     record = await material_service.get_material(db, material_id, user_id=user.id)
     if record is None:
         raise HTTPException(status_code=404, detail="Material not found")
-    return MaterialResponse(
-        id=record["id"],
-        name=record["name"],
-        kind=record["kind"],
-        page_count=record["page_count"],
-        word_count=record["word_count"],
-    )
+    return _to_response(record)
 
 
 @router.get("/{material_id}/download", response_model=MaterialDownloadResponse)
