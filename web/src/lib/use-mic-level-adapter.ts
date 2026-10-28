@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 /** RMS of a quiet speaking voice sits well under 0.3; scale it so normal speech fills the bars. */
 const GAIN = 3.5
@@ -10,7 +10,6 @@ const GAIN = 3.5
  */
 export function useMicLevelAdapter(active: boolean): number {
   const [level, setLevel] = useState(0)
-  const rafRef = useRef(0)
 
   useEffect(() => {
     if (!active) {
