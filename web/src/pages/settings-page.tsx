@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { AppNavbar } from '../components/layout/app-navbar'
 import { useAuthStore } from '../lib/auth-state'
+import { cn } from '../lib/utils'
 
 /* Editorial Ledger: beige canvas, maroon rules and type, no default grays, no pills. */
 const overlineClass = 'font-sans text-xs font-bold uppercase tracking-[0.2em] text-[#451017]/70'
