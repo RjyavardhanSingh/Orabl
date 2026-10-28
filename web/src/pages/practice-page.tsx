@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import * as Progress from '@radix-ui/react-progress'
 import { ArrowLeft, ArrowRight, Clock, Edit3, LoaderCircle, Mic, RotateCcw, SkipForward, Square } from 'lucide-react'
-import { Orb, type OrbTheme } from 'orb-ui'
 import { useCallback, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -24,23 +23,28 @@ import { cn } from '../lib/utils'
 
 const BEIGE = '#EBE5D9'
 
-/**
- * Live level bars while the mic is live: beige pill bars on maroon. orb-ui only parses 6-digit
- * hex colours, so every state uses the plain beige hex (no rgb()/alpha). Its bars already grow
- * from the vertical centre; these ratios (of the 72px size) give ~8px bars, ~6px gaps and caps
- * fully rounded, since the radius exceeds half the bar width.
- */
-const LISTENING_BARS: OrbTheme = {
-  name: 'bars',
-  appearance: {
-    colors: { idle: BEIGE, connecting: BEIGE, listening: BEIGE, thinking: BEIGE, speaking: BEIGE, error: BEIGE },
-  },
-  geometry: { barWidthRatio: 0.11, gapRatio: 0.085, borderRadiusRatio: 1 },
-}
-
 /** Quiet text action used for Skip, Type Answer and Back. */
 const textActionClass =
   'inline-flex items-center gap-2 font-sans text-sm font-medium text-[#EBE5D9]/60 transition-colors hover:text-[#EBE5D9] disabled:pointer-events-none disabled:opacity-50'
+
+/** Live level bars: square beige bars growing from the baseline, centred in a 72px circle. */
+function ListeningBars({ level }: { level: number }) {
+  const pattern = [0.35, 0.6, 0.25, 0.75, 0.4]
+  return (
+    <div className="flex items-end justify-center gap-[4px] h-[72px] w-[72px]" aria-hidden="true">
+      {pattern.map((base, i) => {
+        const height = Math.min(1, Math.max(0.1, base * level + 0.1))
+        return (
+          <span
+            key={i}
+            style={{ height: `${height * 100}%` }}
+            className="w-[4px] rounded-sm bg-[#EBE5D9] transition-[height] duration-100"
+          />
+        )
+      })}
+    </div>
+  )
+}
 
 function readSession(): PracticeSession | null {
   const stored = window.sessionStorage.getItem('recall.session')
@@ -275,7 +279,7 @@ export function PracticePage() {
                 </p>
               </div>
               <div className="mt-3 flex items-center justify-center" aria-hidden="true">
-                <Orb adapter={micLevel} theme={LISTENING_BARS} size={72} interactive={false} />
+                <ListeningBars level={micLevel} />
               </div>
               <p
                 className="mt-3 max-h-24 min-h-12 overflow-y-auto rounded-sm border border-[#EBE5D9]/30 p-3 text-sm leading-6 text-[#EBE5D9]"

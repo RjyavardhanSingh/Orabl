@@ -64,6 +64,10 @@ docker-compose.override.yml
 .agents/
 skills-lock.json
 
+# Hallmark skill runtime (agent-installed, not source)
+web/.claude/
+web/agent/
+
 #pylogs
 pylogs_hook.py
 pylogs.db
