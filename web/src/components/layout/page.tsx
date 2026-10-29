@@ -13,7 +13,9 @@ import { overlineClass } from './classes'
 /** A signed-in page: skip link, navbar, then a body that scrolls under the fixed navbar. */
 export function AppPage({ children, navActions }: { children: ReactNode; navActions?: ReactNode }) {
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden bg-[#EBE5D9]">
+    // Viewport lock: the window never scrolls, <main> fills the rest. bg-canvas is beige in light
+    // and flips with `.dark`; a hardcoded beige stayed beige in dark mode.
+    <div className="flex h-screen max-h-screen w-full flex-col overflow-hidden bg-canvas">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary"
