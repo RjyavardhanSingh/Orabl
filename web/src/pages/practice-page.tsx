@@ -5,27 +5,25 @@ import { useCallback, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { FlowStep } from '../components/layout/flow-step'
 import {
-  LedgerCard,
   ledgerAlertClass,
   ledgerFieldClass,
   ledgerLabelClass,
   ledgerPrimaryButtonClass,
   ledgerSecondaryButtonClass,
-} from '../components/layout/ledger-card'
+} from '../components/layout/classes'
 import { useRegisterFlowResults } from '../components/layout/flow-results'
 import { Alert } from '../components/ui/alert'
+import { buttonVariants } from '../components/ui/button-variants'
 import { api, ApiError, type PracticeSession, type Question } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { useMicLevelAdapter } from '../lib/use-mic-level-adapter'
 import { formatClock, useVoiceAnswer } from '../lib/use-voice-answer'
 import { cn } from '../lib/utils'
 
-const BEIGE = '#EBE5D9'
-
 /** Quiet text action used for Skip, Type Answer and Back. */
-const textActionClass =
-  'inline-flex items-center gap-2 font-sans text-sm font-medium text-[#EBE5D9]/60 transition-colors hover:text-[#EBE5D9] disabled:pointer-events-none disabled:opacity-50'
+const textActionClass = buttonVariants({ variant: 'ghost' }, 'text-xs uppercase tracking-[0.14em]')
 
 /** Live level bars: square beige bars growing from the baseline, centred in a 72px circle. */
 function ListeningBars({ level }: { level: number }) {
@@ -38,7 +36,7 @@ function ListeningBars({ level }: { level: number }) {
           <span
             key={i}
             style={{ height: `${height * 100}%` }}
-            className="w-[4px] rounded-sm bg-[#EBE5D9] transition-[height] duration-100"
+            className="w-[4px] rounded-lg bg-primary transition-[height] duration-100"
           />
         )
       })}
@@ -66,20 +64,20 @@ function QuestionPrompt({
   total: number
 }) {
   return (
-    <section className="border-b border-[#EBE5D9]/10 pb-5">
+    <section className="border-b border-line pb-7">
       <div className="flex items-start justify-between gap-4">
         <p className={cn(ledgerLabelClass, 'mb-0 tabular')}>
           Question {position} of {total}
         </p>
         {question.topic ? (
-          <p className="max-w-[50%] truncate font-sans text-xs text-[#EBE5D9]/50">{question.topic}</p>
+          <p className="max-w-[50%] truncate font-sans text-xs text-ink/50">{question.topic}</p>
         ) : null}
       </div>
-      <h2 className="text-pretty mt-3 font-serif text-xl italic leading-snug text-[#EBE5D9] sm:text-2xl">
+      <h2 className="text-pretty mt-4 font-serif text-2xl italic leading-snug text-strong sm:text-3xl">
         {question.text}
       </h2>
       {question.previous_attempt ? (
-        <div className="mt-4 rounded-sm border border-[#EBE5D9]/30 bg-[#EBE5D9]/10 p-3 text-sm leading-6 text-[#EBE5D9]">
+        <div className="mt-5 rounded-lg border border-ink/30 bg-ink/5 p-4 text-sm leading-6 text-ink">
           Last time you scored{' '}
           <span className="tabular font-bold">{question.previous_attempt.score}%</span> — missed:{' '}
           {question.previous_attempt.concepts_missed.length > 0
@@ -178,7 +176,7 @@ export function PracticePage() {
 
   if (!session || questions.length === 0) {
     return (
-      <LedgerCard
+      <FlowStep
         step={4}
         label="Practice"
         title="No Active Practice Session"
@@ -189,14 +187,14 @@ export function PracticePage() {
           Back to Preparing
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
-      </LedgerCard>
+      </FlowStep>
     )
   }
 
   const answered = Math.min(index, total)
 
   return (
-    <LedgerCard
+    <FlowStep
       step={4}
       label="Practice"
       title="Say It Out Loud"
@@ -205,7 +203,7 @@ export function PracticePage() {
     >
       <div className="mb-2 flex items-center justify-between gap-4">
         <p className={cn(ledgerLabelClass, 'mb-0')}>Progress</p>
-        <p className="tabular flex items-center gap-1.5 font-sans text-xs font-bold text-[#EBE5D9]/70" role="status">
+        <p className="tabular flex items-center gap-1.5 font-sans text-xs font-bold text-ink/70" role="status">
           {pendingCount > 0 ? (
             <>
               <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
@@ -216,9 +214,9 @@ export function PracticePage() {
           )}
         </p>
       </div>
-      <Progress.Root value={answered} max={total} aria-label="Questions answered" className="mb-5 h-1 w-full overflow-hidden rounded-sm bg-[#EBE5D9]/10">
+      <Progress.Root value={answered} max={total} aria-label="Questions answered" className="mb-8 h-0.5 w-full overflow-hidden bg-ink/10">
         <Progress.Indicator
-          className="block h-full w-full rounded-sm bg-[#EBE5D9] transition-transform duration-300"
+          className="block h-full w-full bg-primary transition-transform duration-300"
           style={{ transform: `translateX(-${100 - (answered / total) * 100}%)` }}
         />
       </Progress.Root>
@@ -226,20 +224,20 @@ export function PracticePage() {
       {!done && question ? <QuestionPrompt question={question} position={index + 1} total={total} /> : null}
 
       {!done && question ? (
-        <section className="pt-5">
+        <section className="pt-8">
           {voice.phase === 'idle' && draft === null && !submit.isPending ? (
             <div className="flex flex-col items-center text-center">
               <button
                 type="button"
-                className="grid size-16 place-items-center rounded-sm bg-[#EBE5D9] text-[#451017] transition-colors hover:bg-[#EBE5D9]/80"
+                className="grid size-20 place-items-center rounded-xl bg-primary text-on-primary transition-colors hover:bg-primary-hover"
                 onClick={() => voice.start()}
               >
-                <Mic className="size-6" aria-hidden="true" />
+                <Mic className="size-7" aria-hidden="true" />
                 <span className="sr-only">Answer by speaking</span>
               </button>
-              <p className="mt-3 font-serif text-lg italic text-[#EBE5D9]">Answer It</p>
-              <p className="mt-1 text-xs text-[#EBE5D9]/50">Tap the mic, speak your answer, then stop.</p>
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-6">
+              <p className="mt-4 font-serif text-xl italic text-ink">Answer It</p>
+              <p className="mt-1 text-sm text-ink/55">Tap the mic, speak your answer, then stop.</p>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-8">
                 <button type="button" className={textActionClass} onClick={() => submit.mutate({ answer_text: '', skipped: true })}>
                   <SkipForward className="size-3.5" aria-hidden="true" />
                   Skip for Now
@@ -253,14 +251,14 @@ export function PracticePage() {
           ) : null}
 
           {voice.phase === 'idle' && draft === null && submit.isPending ? (
-            <p className="flex items-center gap-2 text-sm text-[#EBE5D9]/70" role="status">
+            <p className="flex items-center gap-2 text-sm text-ink/70" role="status">
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
               Saving…
             </p>
           ) : null}
 
           {voice.phase === 'connecting' ? (
-            <p className="flex items-center gap-2 rounded-sm border border-[#EBE5D9]/30 p-3 text-sm text-[#EBE5D9]/70" role="status">
+            <p className="flex items-center gap-2 rounded-lg border border-ink/30 p-3 text-sm text-ink/70" role="status">
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
               Connecting to transcription…
             </p>
@@ -269,11 +267,11 @@ export function PracticePage() {
           {voice.phase === 'recording' ? (
             <div>
               <div className="flex items-center justify-between gap-4">
-                <p className="flex items-center gap-2 font-sans text-sm font-bold text-[#EBE5D9]" role="status">
+                <p className="flex items-center gap-2 font-sans text-sm font-bold text-ink" role="status">
                   <Mic className="size-4 animate-pulse" aria-hidden="true" />
                   Listening…
                 </p>
-                <p className="tabular flex items-center gap-1.5 text-xs text-[#EBE5D9]/60">
+                <p className="tabular flex items-center gap-1.5 text-xs text-ink/60">
                   <Clock className="size-3.5" aria-hidden="true" />
                   {formatClock(voice.elapsedSecs)} / {formatClock(voice.elapsedSecs + voice.remainingSecs)}
                 </p>
@@ -282,13 +280,13 @@ export function PracticePage() {
                 <ListeningBars level={micLevel} />
               </div>
               <p
-                className="mt-3 max-h-24 min-h-12 overflow-y-auto rounded-sm border border-[#EBE5D9]/30 p-3 text-sm leading-6 text-[#EBE5D9]"
+                className="mt-3 max-h-40 min-h-16 overflow-y-auto rounded-lg border border-ink/30 p-4 text-sm leading-6 text-ink"
                 aria-live="polite"
                 aria-atomic="true"
               >
                 {voice.committed ? `${voice.committed} ` : null}
-                <span className="text-[#EBE5D9]/50">{voice.partial}</span>
-                {!voice.committed && !voice.partial ? <span className="text-[#EBE5D9]/50">Speak now…</span> : null}
+                <span className="text-ink/50">{voice.partial}</span>
+                {!voice.committed && !voice.partial ? <span className="text-ink/50">Speak now…</span> : null}
               </p>
               <button type="button" className={cn(ledgerPrimaryButtonClass, 'mt-4 md:w-full')} onClick={handleStop}>
                 <Square className="size-4" aria-hidden="true" />
@@ -319,7 +317,7 @@ export function PracticePage() {
                 onChange={(event) => setDraft(event.target.value)}
                 rows={4}
                 maxLength={12000}
-                className={cn(ledgerFieldClass, 'h-28 resize-none leading-6')}
+                className={cn(ledgerFieldClass, 'h-40 resize-y leading-6')}
               />
               <div className="mt-4 flex flex-col gap-3 md:flex-row">
                 <button
@@ -359,15 +357,15 @@ export function PracticePage() {
       ) : null}
 
       {done ? (
-        <section className="border-t border-[#EBE5D9]/10 pt-5">
-          <h2 className="font-serif text-2xl italic text-[#EBE5D9]">All Questions Answered</h2>
-          <p className="text-pretty mt-1.5 text-sm leading-6 text-[#EBE5D9]/70">
+        <section className="border-t border-line pt-7">
+          <h2 className="font-serif text-3xl italic text-ink">All Questions Answered</h2>
+          <p className="text-pretty mt-1.5 text-sm leading-6 text-ink/70">
             {pendingCount > 0
               ? `Finishing ${pendingCount} background ${pendingCount === 1 ? 'score' : 'scores'}. Open Results in the tracker when you’re ready.`
               : 'Your full report is ready. Open Results in the tracker to see it.'}
           </p>
           {finish.isPending ? (
-            <p className="mt-3 flex items-center gap-2 text-sm text-[#EBE5D9]/70" role="status">
+            <p className="mt-3 flex items-center gap-2 text-sm text-ink/70" role="status">
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
               Compiling your report…
             </p>
@@ -380,12 +378,12 @@ export function PracticePage() {
         </section>
       ) : null}
 
-      <div className="mt-6 border-t border-[#EBE5D9]/10 pt-4">
+      <div className="mt-10 border-t border-line pt-6">
         <Link to={sessionStepPath('preparing', currentStudyId)} className={textActionClass}>
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back to Preparing
         </Link>
       </div>
-    </LedgerCard>
+    </FlowStep>
   )
 }

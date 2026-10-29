@@ -98,6 +98,7 @@ async def google_callback(
             google_sub=profile["sub"],
             email=profile["email"],
             name=profile["name"],
+            picture=profile["picture"],
         )
         raw_session = await auth_service.create_session(db, user["id"])
         exchange_code = auth_service.store_exchange_code(cache, raw_session)
@@ -121,13 +122,17 @@ async def redeem_token(
     user = await auth_service.resolve_session(db, raw)
     if user is None:  # pragma: no cover - defensive; code implies a live session
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return TokenResponse(token=raw, user=MeResponse(id=user.id, email=user.email))
+    return TokenResponse(token=raw, user=_me(user))
 
 
 @router.get("/me", response_model=MeResponse, summary="Auth — verified caller profile")
 async def get_me(user: CurrentUser = Depends(get_current_user)):
-    """Return the caller's user id (and email)."""
-    return MeResponse(id=user.id, email=user.email)
+    """Return the caller's user id, email, name and Google picture."""
+    return _me(user)
+
+
+def _me(user: CurrentUser) -> MeResponse:
+    return MeResponse(id=user.id, email=user.email, name=user.name, picture=user.picture)
 
 
 @router.post("/logout", summary="Auth — revoke current session")

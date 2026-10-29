@@ -49,10 +49,12 @@ SESSION_TTL_DAYS = 30
 
 @dataclass(frozen=True)
 class CurrentUser:
-    """Authenticated caller: our app user id plus email."""
+    """Authenticated caller: our app user id, plus the profile Google gave us at sign-in."""
 
     id: str
     email: str | None = None
+    name: str | None = None
+    picture: str | None = None
 
 
 class AuthNotConfiguredError(RuntimeError):
@@ -123,7 +125,7 @@ async def resolve_session(db: Database, raw: str) -> CurrentUser | None:
         return None
     try:
         row = await db.fetchrow(
-            "SELECT s.user_id, s.expires_at, s.revoked_at, u.email "
+            "SELECT s.user_id, s.expires_at, s.revoked_at, u.email, u.name, u.picture_url "
             "FROM app_sessions s JOIN app_users u ON u.id = s.user_id "
             "WHERE s.token_hash = $1",
             hash_token(raw),
@@ -143,8 +145,17 @@ async def resolve_session(db: Database, raw: str) -> CurrentUser | None:
         )
     except Exception:
         logger.warning("Session touch failed")
-    email = row["email"]
-    return CurrentUser(id=str(row["user_id"]), email=email if isinstance(email, str) else None)
+    return CurrentUser(
+        id=str(row["user_id"]),
+        email=_text_or_none(row.get("email")),
+        name=_text_or_none(row.get("name")),
+        picture=_text_or_none(row.get("picture_url")),
+    )
+
+
+def _text_or_none(value: object) -> str | None:
+    """A non-empty string column, else None (rows created before a column existed hold '')."""
+    return value if isinstance(value, str) and value else None
 
 
 async def revoke_session(db: Database, raw: str) -> None:
@@ -280,7 +291,7 @@ async def exchange_google_code(code: str, verifier: str) -> dict:
 
 
 async def fetch_google_userinfo(access_token: str) -> dict:
-    """Return {sub, email, email_verified, name}. Raises 401 when unusable."""
+    """Return {sub, email, email_verified, name, picture}. Raises 401 when unusable."""
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(
@@ -305,8 +316,16 @@ async def fetch_google_userinfo(access_token: str) -> dict:
         "sub": sub,
         "email": email,
         "email_verified": True,
-        "name": name if isinstance(name, str) else "",
+        "name": name.strip() if isinstance(name, str) else "",
+        "picture": _safe_picture_url(info.get("picture")),
     }
+
+
+def _safe_picture_url(value: object) -> str:
+    """Google's avatar URL, kept only when it is a plain https URL the SPA can put in <img src>."""
+    if not isinstance(value, str) or len(value) > 2048:
+        return ""
+    return value if value.startswith("https://") else ""
 
 
 async def upsert_user_from_google(
@@ -315,33 +334,40 @@ async def upsert_user_from_google(
     google_sub: str,
     email: str,
     name: str,
+    picture: str = "",
 ) -> dict:
-    """Find-or-create our user by Google sub (adopting same-email rows)."""
+    """Find-or-create our user by Google sub (adopting same-email rows).
+
+    Name and picture are refreshed on every sign-in, so a changed Google profile follows.
+    """
     row = await db.fetchrow("SELECT id, email FROM app_users WHERE google_sub = $1", google_sub)
     if row is not None:
         await db.execute(
-            "UPDATE app_users SET email = $1, name = $2, email_verified = TRUE, "
-            "updated_at = NOW() WHERE id = $3",
+            "UPDATE app_users SET email = $1, name = $2, picture_url = $3, "
+            "email_verified = TRUE, updated_at = NOW() WHERE id = $4",
             email,
             name,
+            picture,
             row["id"],
         )
         return {"id": str(row["id"]), "email": email}
     row = await db.fetchrow("SELECT id FROM app_users WHERE LOWER(email) = LOWER($1)", email)
     if row is not None:
         await db.execute(
-            "UPDATE app_users SET google_sub = $1, name = $2, email_verified = TRUE, "
-            "updated_at = NOW() WHERE id = $3",
+            "UPDATE app_users SET google_sub = $1, name = $2, picture_url = $3, "
+            "email_verified = TRUE, updated_at = NOW() WHERE id = $4",
             google_sub,
             name,
+            picture,
             row["id"],
         )
         return {"id": str(row["id"]), "email": email}
     row = await db.fetchrow(
-        "INSERT INTO app_users (email, name, google_sub, email_verified) "
-        "VALUES ($1, $2, $3, TRUE) RETURNING id, email",
+        "INSERT INTO app_users (email, name, picture_url, google_sub, email_verified) "
+        "VALUES ($1, $2, $3, $4, TRUE) RETURNING id, email",
         email,
         name,
+        picture,
         google_sub,
     )
     if row is None:  # pragma: no cover - defensive; INSERT..RETURNING always yields a row

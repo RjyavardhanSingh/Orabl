@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
+import { StatusScreen } from '../components/layout/page'
 import { Alert } from '../components/ui/alert'
+import { buttonVariants } from '../components/ui/button-variants'
 import { ApiError } from '../lib/api'
 import { exchangeCode, setAccessToken } from '../lib/auth'
 import { useAuthStore } from '../lib/auth-state'
@@ -63,19 +65,17 @@ export function AuthCallbackPage() {
 
   if (displayError) {
     return (
-      <div className="min-h-dvh bg-canvas text-ink">
-        <div className="mx-auto flex min-h-dvh w-full max-w-sm flex-col items-center justify-center px-4 text-center">
-          <Alert>{displayError}</Alert>
-          <Link
-            to="/signin"
-            className="mt-6 text-sm font-semibold text-ink underline-offset-4 hover:underline rounded-xl"
-          >
-            Back to sign in
+      <div className="grid min-h-dvh place-items-center bg-canvas px-6 text-ink">
+        <div className="w-full max-w-sm">
+          <h1 className="border-b-2 border-rule pb-4 font-serif text-4xl italic">Sign-in stopped</h1>
+          <Alert className="mt-6 rounded-lg border-ink/30 bg-ink/5 text-ink">{displayError}</Alert>
+          <Link to="/signin" className={buttonVariants({}, 'mt-8')}>
+            Back to Sign In
           </Link>
         </div>
       </div>
     )
   }
 
-  return <div className="grid min-h-dvh place-items-center bg-canvas px-6 text-sm text-ink-muted" role="status">Signing you in…</div>
+  return <StatusScreen>Signing you in…</StatusScreen>
 }

@@ -1,39 +1,18 @@
 import { Slot } from '@radix-ui/react-slot'
-import { cva, type VariantProps } from 'class-variance-authority'
 import type { ButtonHTMLAttributes } from 'react'
 
-import { cn } from '../../lib/utils'
+import { buttonVariants, type ButtonVariantProps } from './button-variants'
 
-const buttonVariants = cva(
-  // Square-edged button + transition-colors (never transition-all): only paint animates.
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]',
-  {
-    variants: {
-      variant: {
-        default: 'bg-accent text-black hover:bg-accent-hover',
-        accent: 'border border-accent-edge bg-accent text-black hover:bg-accent-hover',
-        secondary: 'border border-line-strong bg-surface text-ink hover:bg-sunk',
-        ghost: 'text-ink-muted hover:bg-sunk hover:text-ink',
-        light: 'bg-ink/10 text-ink hover:bg-ink/20',
-      },
-      size: {
-        default: 'h-11 px-6',
-        sm: 'h-9 px-4 text-xs',
-        lg: 'h-13 px-7 text-base',
-        icon: 'size-10',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default',
-    },
-  },
-)
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & ButtonVariantProps & { asChild?: boolean }
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
-  VariantProps<typeof buttonVariants> & { asChild?: boolean }
-
-export function Button({ className, variant, size, asChild = false, ...props }: ButtonProps) {
+export function Button({ className, variant, size, asChild = false, type, ...props }: ButtonProps) {
   const Comp = asChild ? Slot : 'button'
-  return <Comp className={cn(buttonVariants({ variant, size }), className)} {...props} />
+  return (
+    <Comp
+      className={buttonVariants({ variant, size }, className)}
+      // A bare <button> inside a form submits it; make that opt-in.
+      type={asChild ? undefined : (type ?? 'button')}
+      {...props}
+    />
+  )
 }

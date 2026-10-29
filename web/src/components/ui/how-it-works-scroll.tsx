@@ -345,7 +345,7 @@ export function HowItWorksScroll() {
   return (
     <section
       id="how-it-works"
-      className="bg-[#EBE5D9] text-[#451017]"
+      className="bg-canvas text-ink"
       aria-labelledby="how-title"
     >
       <div
@@ -391,7 +391,7 @@ export function HowItWorksScroll() {
                       <h3 className="text-balance text-xl font-semibold tracking-[-0.035em] lg:text-3xl">
                         {step.title}
                       </h3>
-                      <p className="mt-1 hidden max-w-md text-pretty text-base leading-7 text-[#451017]/80 sm:block lg:mt-2 lg:text-lg">
+                      <p className="mt-1 hidden max-w-md text-pretty text-base leading-7 text-ink/80 sm:block lg:mt-2 lg:text-lg">
                         {step.description}
                       </p>
                     </div>
@@ -400,7 +400,7 @@ export function HowItWorksScroll() {
               </ol>
             </div>
 
-            <div className="relative h-[42vh] w-full overflow-hidden rounded-3xl bg-white p-8 lg:h-[min(600px,calc(100vh-8rem))] xl:h-[min(700px,calc(100vh-8rem))]">
+            <div className="relative h-[42vh] w-full overflow-hidden rounded-3xl bg-white p-8 dark:bg-paper lg:h-[min(600px,calc(100vh-8rem))] xl:h-[min(700px,calc(100vh-8rem))]">
               <RedactedDocument progress={progress} enter={enter} />
               <Waveform progress={progress} />
               <KnowledgeGraph progress={progress} />

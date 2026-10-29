@@ -191,7 +191,7 @@ export const api = {
 
   health: () => request<{ status: string; api_version: string }>('/health'),
 
-  me: () => request<{ id: string; email: string | null }>('/auth/me'),
+  me: () => request<{ id: string; email: string | null; name: string | null; picture: string | null }>('/auth/me'),
 
   uploadText: (payload: { content: string; name: string; kind: 'text' | 'markdown' }) =>
     request<Material>('/materials', {

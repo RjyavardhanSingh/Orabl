@@ -3,7 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { LoaderCircle } from 'lucide-react'
 
 import bustImage from '../assets/ascii-bust.png'
+import { ThemeToggle } from '../components/theme/theme-toggle'
 import { Alert } from '../components/ui/alert'
+import { buttonVariants } from '../components/ui/button-variants'
 import { ApiError } from '../lib/api'
 import { getGoogleAuthUrl } from '../lib/auth'
 import { useAuth } from '../lib/auth-state'
@@ -38,10 +40,10 @@ export function SignInPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col lg:flex-row">
+    <div className="flex min-h-dvh w-full flex-col bg-canvas lg:flex-row">
       {/* Left: the poster. Desktop only; the form stands alone on mobile. */}
       <div
-        className="relative hidden w-full items-center justify-center overflow-hidden bg-[#451017] p-12 lg:flex lg:w-1/2"
+        className="relative hidden w-full items-center justify-center overflow-hidden bg-maroon p-12 lg:flex lg:w-1/2"
         aria-hidden="true"
       >
         <div className="flex h-full w-full items-center justify-center">
@@ -56,33 +58,34 @@ export function SignInPage() {
             draggable={false}
           />
         </div>
-        <div className="absolute bottom-12 left-12 font-serif text-2xl text-[#EBE5D9]">Orabl</div>
+        <div className="absolute bottom-12 left-12 font-serif text-2xl text-paper">Orabl</div>
       </div>
 
       {/* Right: the form. */}
-      <div className="flex min-h-screen w-full items-center justify-center bg-[#EBE5D9] p-8 lg:w-1/2 lg:p-24">
+      <div className="relative flex min-h-dvh w-full items-center justify-center bg-canvas p-8 lg:w-1/2 lg:p-24">
+        <ThemeToggle className="absolute right-6 top-6 lg:right-10 lg:top-10" />
         <div className="flex w-full max-w-md flex-col gap-8">
           <div className="flex flex-col gap-4">
-            <h1 className="font-serif text-5xl leading-tight tracking-tight text-[#451017] lg:text-6xl">
+            <h1 className="font-serif text-5xl italic leading-[1.02] tracking-tight text-ink lg:text-7xl">
               Welcome to Orabl.
             </h1>
-            <p className="font-sans text-sm text-[#451017]/70">
+            <p className="font-sans text-base leading-7 text-ink/70">
               Your ideas are worth saying out loud. Sign in to start a session.
             </p>
           </div>
 
-          <div className="border-t border-[#451017]/20" />
+          <div className="border-t-2 border-rule" />
 
           <div>
-            {error ? <Alert className="mb-4">{error}</Alert> : null}
+            {error ? <Alert className="mb-4 rounded-lg border-ink/30 bg-ink/5 text-ink">{error}</Alert> : null}
             <button
               type="button"
               disabled={googlePending}
               onClick={handleGoogle}
-              className="flex w-full items-center justify-center gap-3 rounded-xl bg-black px-6 py-4 font-sans font-medium text-white transition-colors duration-150 hover:bg-[#451017] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#451017] disabled:cursor-not-allowed disabled:opacity-70"
+              className={buttonVariants({ size: 'lg' }, 'w-full gap-3')}
             >
               {googlePending ? (
-                <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />
+                <LoaderCircle className="animate-spin" aria-hidden="true" />
               ) : (
                 <GoogleIcon />
               )}
@@ -91,12 +94,12 @@ export function SignInPage() {
           </div>
 
           <div className="flex flex-col gap-3">
-            <p className="font-sans text-xs uppercase tracking-wider text-[#451017]/60">
+            <p className="font-sans text-xs uppercase tracking-[0.14em] text-ink/60">
               Your study material stays private to your account.
             </p>
             <Link
               to="/"
-              className="self-start font-sans text-xs uppercase tracking-wider text-[#451017]/60 transition-colors hover:text-[#451017]"
+              className={buttonVariants({ variant: 'ghost' }, 'self-start text-xs uppercase tracking-[0.14em]')}
             >
               ← Back to home
             </Link>
@@ -110,7 +113,7 @@ export function SignInPage() {
 // Standard multi-color Google "G", sized to sit beside the button label.
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="size-5! rounded-[3px] bg-white p-[1px]" aria-hidden="true">
       <path
         fill="#4285F4"
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"

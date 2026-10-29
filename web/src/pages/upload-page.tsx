@@ -6,15 +6,15 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { FlowStep } from '../components/layout/flow-step'
 import {
-  LedgerCard,
   ledgerAlertClass,
   ledgerErrorClass,
   ledgerFieldClass,
   ledgerLabelClass,
   ledgerPrimaryButtonClass,
   ledgerSecondaryButtonClass,
-} from '../components/layout/ledger-card'
+} from '../components/layout/classes'
 import { Alert } from '../components/ui/alert'
 import { api, ApiError, type Material } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
@@ -28,16 +28,16 @@ const CHARACTER_LIMIT = 50_000
 const MAX_FILES = 3
 const MATERIALS_KEY = 'recall.materials'
 
-const removeClass = 'shrink-0 rounded-lg p-1 text-[#EBE5D9]/50 transition-colors hover:text-[#EBE5D9]'
+const removeClass = 'shrink-0 rounded-lg p-1 text-ink/50 transition-colors hover:text-ink'
 
 /* Compact file ledger: fixed-height zone that scrolls inside the card instead of growing it. */
 const fileListClass =
-  'flex max-h-[120px] flex-col space-y-2 overflow-y-auto pr-2 [scrollbar-color:rgb(235_229_217/0.2)_transparent] [scrollbar-width:thin]'
+  'flex max-h-60 flex-col space-y-2 overflow-y-auto pr-1 [scrollbar-color:var(--color-line-strong)_transparent] [scrollbar-width:thin]'
 const fileRowClass =
-  'flex w-full min-w-0 items-center justify-between rounded-lg border border-[#EBE5D9]/10 bg-[#EBE5D9]/5 px-3 py-2'
-const fileIconClass = 'h-3 w-3 flex-shrink-0 text-[#EBE5D9]/50'
-const fileNameClass = 'block w-full truncate text-xs font-medium text-[#EBE5D9]'
-const fileMetaClass = 'tabular mt-0.5 block w-full truncate text-[10px] text-[#EBE5D9]/40'
+  'flex w-full min-w-0 items-center justify-between rounded-lg border border-line px-4 py-3'
+const fileIconClass = 'size-4 flex-shrink-0 text-ink/55'
+const fileNameClass = 'block w-full truncate text-sm font-medium text-ink'
+const fileMetaClass = 'tabular mt-0.5 block w-full truncate text-xs text-ink/50'
 
 function UploadedMaterial({ item, onRemove }: { item: Material; onRemove: (id: string) => void }) {
   return (
@@ -254,23 +254,23 @@ export function UploadPage() {
   const hasAnyMaterial = materials.length > 0
 
   return (
-    <LedgerCard
+    <FlowStep
       step={1}
       label="Material"
       title="Bring Something Worth Learning"
       description="Start with a PDF or paste your notes. This material shapes every question you get."
     >
         <Tabs.Root value={mode} onValueChange={(value) => selectMode(value as UploadMode)}>
-          <Tabs.List aria-label="Material type" className="flex gap-8">
+          <Tabs.List aria-label="Material type" className="flex gap-8 border-b border-line">
             {(['text', 'pdf'] as UploadMode[]).map((option) => (
               <Tabs.Trigger
                 key={option}
                 value={option}
                 className={cn(
-                  'border-b-2 pb-2 font-sans text-sm transition-colors',
+                  '-mb-px border-b-2 pb-3 font-sans text-sm transition-colors',
                   mode === option
-                    ? 'border-[#EBE5D9] font-bold text-[#EBE5D9]'
-                    : 'border-[#EBE5D9]/20 text-[#EBE5D9]/50 hover:text-[#EBE5D9]/80',
+                    ? 'border-rule font-bold text-ink'
+                    : 'border-transparent text-ink/50 hover:text-ink/80',
                 )}
               >
                 {option === 'text' ? 'Paste Text' : 'Upload PDF'}
@@ -302,7 +302,7 @@ export function UploadPage() {
               <div>
                 <div className="flex items-center justify-between gap-4">
                   <label htmlFor="material-content" className={ledgerLabelClass}>Your Notes</label>
-                  <span className="tabular mb-2 text-xs text-[#EBE5D9]/50">
+                  <span className="tabular mb-2 text-xs text-ink/50">
                     {content.length.toLocaleString()} / {CHARACTER_LIMIT.toLocaleString()}
                   </span>
                 </div>
@@ -313,8 +313,8 @@ export function UploadPage() {
                   aria-describedby={contentError ? 'material-content-error' : undefined}
                   {...textForm.register('content')}
                   placeholder="Paste a chapter, lecture notes, or an article…"
-                  rows={4}
-                  className={cn(ledgerFieldClass, 'h-28 min-h-[112px] resize-none leading-6')}
+                  rows={8}
+                  className={cn(ledgerFieldClass, 'h-56 min-h-32 resize-y leading-6')}
                 />
                 {contentError ? (
                   <p id="material-content-error" className={ledgerErrorClass}>
@@ -328,7 +328,7 @@ export function UploadPage() {
                       shouldDirty: true,
                     })
                   }
-                  className="mt-3 text-xs font-semibold text-[#EBE5D9]/60 underline underline-offset-4 transition-colors hover:text-[#EBE5D9]"
+                  className="mt-3 text-xs font-semibold text-ink/60 underline underline-offset-4 transition-colors hover:text-ink"
                 >
                   {kind === 'text' ? 'Save as Markdown' : 'Save as Plain Text'}
                 </button>
@@ -355,15 +355,15 @@ export function UploadPage() {
                   event.preventDefault()
                   selectFiles(Array.from(event.dataTransfer.files ?? []))
                 }}
-                className="flex min-h-56 flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#EBE5D9]/30 bg-transparent px-5 py-8 text-center transition-colors hover:border-[#EBE5D9] hover:bg-[#EBE5D9]/5"
+                className="flex min-h-72 flex-col items-center justify-center rounded-lg border-2 border-dashed border-ink/30 bg-transparent px-5 py-8 text-center transition-colors hover:border-ink hover:bg-ink/5"
               >
-                <span className="grid size-12 place-items-center rounded-xl border border-[#EBE5D9]/20">
-                  <UploadCloud className="size-5 text-[#EBE5D9]/70" aria-hidden="true" />
+                <span className="grid size-12 place-items-center rounded-lg border border-ink/20">
+                  <UploadCloud className="size-5 text-ink/70" aria-hidden="true" />
                 </span>
-                <span className="mt-5 font-serif text-2xl text-[#EBE5D9]">
+                <span className="mt-5 font-serif text-3xl italic text-ink">
                   Drop Your PDF Here
                 </span>
-                <span className="mt-2 text-xs text-[#EBE5D9]/60">
+                <span className="mt-2 text-sm text-ink/60">
                   or press Enter to browse · max 25&nbsp;MB each ·{' '}
                   {materials.length + files.length} of {MAX_FILES} files
                 </span>
@@ -408,7 +408,7 @@ export function UploadPage() {
             ) : null}
           </div>
 
-          <div className="mt-6 flex w-full flex-col gap-3 md:flex-row">
+          <div className="mt-10 flex w-full flex-col gap-3 border-t border-line pt-6 md:flex-row md:justify-end">
             <button
               type="button"
               className={hasAnyMaterial ? ledgerSecondaryButtonClass : ledgerPrimaryButtonClass}
@@ -439,6 +439,6 @@ export function UploadPage() {
             ) : null}
           </div>
         </Tabs.Root>
-    </LedgerCard>
+    </FlowStep>
   )
 }

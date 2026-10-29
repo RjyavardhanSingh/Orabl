@@ -262,6 +262,9 @@ class SttTokenResponse(BaseModel):
 class MeResponse(BaseModel):
     id: str
     email: str | None = None
+    # From the Google profile at sign-in; null until the person signs in again after 009.
+    name: str | None = None
+    picture: str | None = None
 
 
 class GoogleUrlResponse(BaseModel):

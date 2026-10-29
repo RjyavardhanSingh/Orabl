@@ -4,13 +4,17 @@ import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Sparkles } from 'lucide
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { FlowStep } from '../components/layout/flow-step'
 import {
-  LedgerCard,
+  ledgerActionsClass,
   ledgerAlertClass,
+  ledgerBackLinkClass,
   ledgerLabelClass,
+  ledgerListClass,
+  ledgerScrollClass,
   ledgerPrimaryButtonClass,
   ledgerSecondaryButtonClass,
-} from '../components/layout/ledger-card'
+} from '../components/layout/classes'
 import { Alert } from '../components/ui/alert'
 import { api, ApiError, type LearningContext, type QuestionList } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
@@ -76,7 +80,7 @@ export function PreparingPage() {
 
   if (!context) {
     return (
-      <LedgerCard
+      <FlowStep
         step={3}
         label="Prepare"
         title="Your Context Is Missing"
@@ -87,12 +91,12 @@ export function PreparingPage() {
           Start Over
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
-      </LedgerCard>
+      </FlowStep>
     )
   }
 
   return (
-    <LedgerCard
+    <FlowStep
       step={3}
       label="Prepare"
       title="Let's Make This Yours"
@@ -100,24 +104,24 @@ export function PreparingPage() {
       compact
     >
       {busy || isLoading ? (
-        <Progress.Root value={null} aria-label="Preparing questions" className="mb-4 h-1 w-full overflow-hidden rounded-sm bg-[#EBE5D9]/10">
-          <Progress.Indicator className="block h-full w-1/3 animate-pulse rounded-sm bg-[#EBE5D9]" />
+        <Progress.Root value={null} aria-label="Preparing questions" className="mb-6 h-0.5 w-full overflow-hidden bg-ink/10">
+          <Progress.Indicator className="block h-full w-1/3 animate-pulse bg-primary" />
         </Progress.Root>
       ) : null}
 
       {isLoading ? (
-        <p className="flex items-center gap-2 text-sm text-[#EBE5D9]/70" role="status">
+        <p className="flex items-center gap-2 text-sm text-ink/70" role="status">
           <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
           Looking for saved questions…
         </p>
       ) : null}
 
       {!isLoading && visible.length === 0 ? (
-        <div className="flex h-48 w-full flex-col items-center justify-center rounded-sm border border-dashed border-[#EBE5D9]/30 bg-[#EBE5D9]/5 px-6 text-center md:h-64">
-          <p className="mb-1 font-sans text-sm font-bold text-[#EBE5D9]">
+        <div className="flex h-48 w-full flex-col items-center justify-center rounded-lg border border-dashed border-ink/30 px-6 text-center md:h-72">
+          <p className="mb-2 font-serif text-2xl italic text-ink">
             {preparing ? 'Preparing your questions…' : 'Your questions will appear here.'}
           </p>
-          <p className="max-w-xs text-center font-sans text-xs text-[#EBE5D9]/50">
+          <p className="max-w-sm text-center font-sans text-sm leading-6 text-ink/60">
             {preparing
               ? 'You can leave this page and resume this session later. We’ll save the set when it’s ready.'
               : 'Generate a small practice set based on your material and goal.'}
@@ -131,16 +135,16 @@ export function PreparingPage() {
             <span className="tabular">{visible.length}</span> questions ready
           </p>
           {/* Same fixed-height footprint as the empty state; the set scrolls inside the locked card. */}
-          <ol className="h-48 divide-y divide-[#EBE5D9]/15 overflow-y-auto rounded-sm border border-[#EBE5D9] px-4 [scrollbar-color:rgb(235_229_217/0.2)_transparent] [scrollbar-width:thin] md:h-64">
+          <ol className={cn(ledgerListClass, ledgerScrollClass, 'max-h-[26rem] overflow-y-auto px-5')}>
             {visible.map((question, index) => (
-              <li key={question.id ?? `${question.text}-${index}`} className="flex min-w-0 gap-4 py-3">
-                <span className="tabular grid size-6 shrink-0 place-items-center rounded-sm bg-[#EBE5D9] text-[11px] font-bold text-[#451017]">
+              <li key={question.id ?? `${question.text}-${index}`} className="flex min-w-0 gap-4 py-4">
+                <span className="tabular grid size-6 shrink-0 place-items-center rounded-lg bg-primary text-[11px] font-bold text-on-primary">
                   {index + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-pretty break-words text-sm font-medium leading-6 text-[#EBE5D9]">{question.text}</p>
+                  <p className="text-pretty break-words text-sm font-medium leading-6 text-ink">{question.text}</p>
                   {question.topic ? (
-                    <p className="mt-1 truncate text-xs text-[#EBE5D9]/50">{question.topic}</p>
+                    <p className="mt-1 truncate text-xs text-ink/50">{question.topic}</p>
                   ) : null}
                 </div>
               </li>
@@ -160,11 +164,11 @@ export function PreparingPage() {
         <Alert className={cn('mt-4', ledgerAlertClass)}>{data.error || 'Question generation failed. Please try again.'}</Alert>
       ) : null}
 
-      <div className="mt-6 flex w-full flex-col-reverse gap-4 border-t border-[#EBE5D9]/10 pt-4 md:flex-row md:items-center md:justify-between">
+      <div className={ledgerActionsClass}>
         <Link
           to={sessionStepPath('goal', currentStudyId)}
           aria-disabled={busy || undefined}
-          className="flex items-center gap-2 font-sans text-sm font-medium text-[#EBE5D9]/60 transition-colors hover:text-[#EBE5D9] aria-disabled:pointer-events-none aria-disabled:opacity-50"
+          className={cn(ledgerBackLinkClass, 'self-start md:self-auto')}
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back to Goal
@@ -222,6 +226,6 @@ export function PreparingPage() {
           </button>
         </div>
       </div>
-    </LedgerCard>
+    </FlowStep>
   )
 }

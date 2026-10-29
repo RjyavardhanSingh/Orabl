@@ -2,7 +2,9 @@ import { ArrowUpRight } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { Link } from "react-router-dom";
 
+import { ThemeToggle } from "../components/theme/theme-toggle";
 import { AnimatedFooter } from "../components/ui/animated-footer";
+import { buttonVariants } from "../components/ui/button-variants";
 import { ClarityRail } from "../components/ui/clarity-rail";
 import { HowItWorksScroll } from "../components/ui/how-it-works-scroll";
 import { useAuthStore } from "../lib/auth-state";
@@ -46,7 +48,7 @@ export function LandingPage() {
     status === "in" ? "/sessions" : "/signin?next=%2Fsessions";
 
   return (
-    <div className="min-h-dvh overflow-x-clip bg-[#EBE5D9] font-sans text-[#EBE5D9]">
+    <div className="min-h-dvh overflow-x-clip bg-canvas font-sans text-paper">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[#EBE5D9] focus:px-4 focus:py-2 focus:text-[#451017]"
@@ -57,7 +59,7 @@ export function LandingPage() {
       <main>
         {/* The navbar and hero share one full-bleed maroon block, flush to the
           top and sides; only its bottom corners curve into the beige canvas. */}
-        <div className="flex min-h-dvh w-full flex-col overflow-hidden rounded-b-[2rem] bg-[#451017] md:rounded-b-[3rem]">
+        <div className="flex min-h-dvh w-full flex-col overflow-hidden rounded-b-[2rem] bg-maroon md:rounded-b-[3rem]">
           <header className="relative z-10 flex h-[88px] shrink-0 items-center pt-6 justify-between px-6 sm:px-10 lg:px-16 xl:px-24">
             <Link
               to="/"
@@ -67,7 +69,7 @@ export function LandingPage() {
             >
               Orabl
             </Link>
-            <nav aria-label="Main" className="flex items-center gap-4 sm:gap-7">
+            <nav aria-label="Main" className="flex items-center gap-3 sm:gap-6">
               <a
                 href="#how-it-works"
                 className="hidden text-sm font-medium text-[#EBE5D9] transition-colors duration-75 hover:text-white sm:inline"
@@ -83,21 +85,19 @@ export function LandingPage() {
                   >
                     Sign out
                   </button>
-                  <Link
-                    to="/sessions"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#EBE5D9] px-5 py-2.5 text-sm font-bold text-[#451017] transition-colors duration-75 hover:bg-white"
-                  >
+                  <ThemeToggle tone="paper" />
+                  <Link to="/sessions" className={buttonVariants({ variant: "inverse" })}>
                     Dashboard{" "}
                     <ArrowUpRight className="size-4" aria-hidden="true" />
                   </Link>
                 </>
               ) : (
-                <Link
-                  to="/signin"
-                  className="inline-flex items-center rounded-lg bg-[#EBE5D9] px-5 py-2.5 text-sm font-bold text-[#451017] transition-colors duration-75 hover:bg-white"
-                >
-                  Sign In
-                </Link>
+                <>
+                  <ThemeToggle tone="paper" />
+                  <Link to="/signin" className={buttonVariants({ variant: "inverse" })}>
+                    Sign In
+                  </Link>
+                </>
               )}
             </nav>
           </header>
@@ -127,6 +127,15 @@ export function LandingPage() {
                   Practice explaining your own material. Find the gaps, then
                   learn what sticks.
                 </p>
+                <div className="mt-10 flex flex-wrap items-center gap-3">
+                  <Link to={learningPath} className={buttonVariants({ variant: "inverse", size: "lg" })}>
+                    {status === "in" ? "Go to Dashboard" : "Start Learning"}
+                    <ArrowUpRight aria-hidden="true" />
+                  </Link>
+                  <a href="#how-it-works" className={buttonVariants({ variant: "inverse-outline", size: "lg" })}>
+                    See How It Works
+                  </a>
+                </div>
               </div>
 
               {/* No backing card: the rail floats on the maroon itself. It scales
@@ -153,12 +162,12 @@ export function LandingPage() {
         <HowItWorksScroll />
 
         <section
-          className="bg-[#EBE5D9] px-6 pb-24 pt-24 sm:px-10 lg:px-16 lg:pb-32 xl:px-24"
+          className="bg-canvas px-6 pb-24 pt-24 sm:px-10 lg:px-16 lg:pb-32 xl:px-24"
           aria-labelledby="cta-title"
         >
           {/* Corner-anchored spread: label pinned top-left, headline and
               action share the bottom edge, ghost ASCII brain behind on the right. */}
-          <div className="relative mx-auto flex min-h-[500px] w-full max-w-7xl flex-col justify-between overflow-hidden rounded-3xl bg-[#451017] p-8 md:min-h-[600px] md:p-12 lg:min-h-[70vh] lg:p-16">
+          <div className="relative mx-auto flex min-h-[500px] w-full max-w-7xl flex-col justify-between overflow-hidden rounded-3xl bg-maroon p-8 md:min-h-[600px] md:p-12 lg:min-h-[70vh] lg:p-16">
             {/* Confined to the right half and pushed past the card edge, with a
                 left-to-right mask so the brain emerges from the maroon instead
                 of running into the headline. */}
@@ -190,10 +199,10 @@ export function LandingPage() {
               </h2>
               <Link
                 to={learningPath}
-                className="inline-flex shrink-0 items-center gap-3 rounded-xl bg-[#EBE5D9] px-8 py-4 font-sans text-lg font-semibold text-[#451017] transition-colors duration-75 hover:bg-black hover:text-white focus-visible:outline-[#EBE5D9]"
+                className={buttonVariants({ variant: "inverse", size: "lg" }, "focus-visible:outline-paper")}
               >
-                {status === "in" ? "Go to Dashboard" : "Start Learning"}{" "}
-                <ArrowUpRight className="size-5" aria-hidden="true" />
+                {status === "in" ? "Go to Dashboard" : "Start Learning"}
+                <ArrowUpRight aria-hidden="true" />
               </Link>
             </div>
           </div>

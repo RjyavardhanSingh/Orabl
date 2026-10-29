@@ -34,7 +34,7 @@ export function LedgerFlow() {
   return (
     // Practice hands its "open results" action to the tracker through this provider.
     <FlowResultsProvider>
-      <AppShell variant="ledger">
+      <AppShell>
         <AnimatePresence initial={false} mode="popLayout" custom={direction}>
           <motion.div
             key={step}

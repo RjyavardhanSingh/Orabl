@@ -1,15 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, BookOpen, Clock3, LoaderCircle, Plus } from 'lucide-react'
+import { ArrowRight, LoaderCircle, Plus, RotateCw } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
-
-import { AppNavbar } from '../components/layout/app-navbar'
-import { MetricCard } from '../components/ui/metric-card'
-
-import { Table, TableBody, TableCaption, TableCell, TableRow } from '../components/ui/table'
+import { AppPage, PageHeader, Section, SectionCount } from '../components/layout/page'
+import { Button } from '../components/ui/button'
 import { api, type StudySessionSummary } from '../lib/api'
+import { useAuthStore } from '../lib/auth-state'
+import { firstName } from '../lib/profile'
 import { activeStudySessionId, clearFlowCache, markStudySessionHydrated, restoreStudySession, sessionStepPath, setActiveStudySession } from '../lib/study-session'
+import { cn } from '../lib/utils'
+
+const STAGES = ['Material', 'Goal', 'Prepare', 'Practice', 'Results'] as const
+
+/** How far a session got, 0 (no material yet) to 4 (results ready). */
+function stageIndex(session: StudySessionSummary): number {
+  if (session.practice_status === 'completed') return 4
+  if (session.practice_status) return 3
+  if (session.context_id) return 2
+  if (session.material_count) return 1
+  return 0
+}
 
 function nextStep(session: StudySessionSummary): string {
   if (session.practice_status === 'completed') return 'Results ready'
@@ -25,6 +37,7 @@ function isLive(session: StudySessionSummary): boolean {
 
 // One formatter per locale, built once: no hardcoded date formats.
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+const longDateFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
 const relativeFormat = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto', style: 'narrow' })
 
 function timeAgo(iso: string): string {
@@ -35,79 +48,47 @@ function timeAgo(iso: string): string {
   return relativeFormat.format(-Math.round(hours / 24), 'day')
 }
 
-/** Shared action style: a text button with a rule under it, never a pill. */
-const actionClass =
-  'inline-flex items-center gap-1.5 border-b border-[#451017]/20 pb-0.5 text-sm font-semibold text-black transition-colors hover:border-[#451017] hover:text-[#451017] disabled:pointer-events-none disabled:opacity-50'
-
-const HEATMAP_DAYS = 30
-const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-
-/** Monochrome maroon scale; never rounded-full, never dots. */
-const heatLevelClass = [
-  'bg-transparent border border-[#451017]/10 text-[#451017]/40',
-  'bg-[#451017]/20 text-[#451017]',
-  'bg-[#451017]/50 text-[#EBE5D9]',
-  'bg-[#451017]/80 text-[#EBE5D9]',
-]
-const todayNodeClass = 'bg-[#451017] text-[#EBE5D9] shadow-[2px_2px_0px_#000000] border border-black font-bold'
-
-/** Activity per local day: how many sessions were created or worked on that day. */
-function activityByDay(sessions: StudySessionSummary[]): Map<string, number> {
-  const counts = new Map<string, number>()
-  for (const session of sessions) {
-    const days = new Set([session.created_at, session.updated_at].map((iso) => new Date(iso).toDateString()))
-    for (const day of days) counts.set(day, (counts.get(day) ?? 0) + 1)
-  }
-  return counts
+function greeting(now = new Date()): string {
+  const hour = now.getHours()
+  if (hour < 5) return 'Working late'
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
 }
 
-function ActivityHeatmap({ sessions }: { sessions: StudySessionSummary[] }) {
-  const counts = activityByDay(sessions)
-  const today = new Date()
-  const days = Array.from({ length: HEATMAP_DAYS }, (_, index) => {
-    const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (HEATMAP_DAYS - 1 - index))
-    return { day, count: counts.get(day.toDateString()) ?? 0, isToday: index === HEATMAP_DAYS - 1 }
-  })
-  // Pad so the first day lands under its weekday column.
-  const leading = days[0].day.getDay()
+const pad = (value: number) => String(value).padStart(2, '0')
 
+/* ---- Stage meter --------------------------------------------------------------------- */
+
+/** Five square segments, one per flow step, filled up to the step the session has reached. */
+function StageMeter({ session }: { session: StudySessionSummary }) {
+  const reached = stageIndex(session)
   return (
-    <div className="col-span-12 lg:col-span-4 border border-[#451017]/20 rounded-sm p-6 flex flex-col bg-transparent min-h-[300px]">
-      <h3 className="font-sans uppercase tracking-[0.2em] text-xs font-bold text-black border-b border-[#451017]/20 pb-4 mb-6 flex justify-between items-end">
-        <span>Activity Heatmap</span> <span className="text-[10px] text-[#451017]/60">LAST 30 DAYS</span>
-      </h3>
-      <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full">
-        {WEEKDAY_LABELS.map((label, index) => (
-          <span key={index} aria-hidden="true" className="text-[9px] font-sans font-bold text-[#451017]/40 text-center pb-2">
-            {label}
-          </span>
+    <span className="flex flex-col gap-2">
+      <span className="flex gap-1" aria-hidden="true">
+        {STAGES.map((stage, index) => (
+          <span key={stage} className={cn('h-1.5 w-6 rounded-[1px]', index <= reached ? 'bg-ink' : 'bg-ink/15')} />
         ))}
-        {Array.from({ length: leading }, (_, index) => (
-          <span key={`pad-${index}`} aria-hidden="true" />
-        ))}
-        {days.map(({ day, count, isToday }) => {
-          const label = `${dateFormat.format(day)}: ${count} ${count === 1 ? 'session' : 'sessions'}`
-          return (
-            <span
-              key={day.toDateString()}
-              title={label}
-              aria-label={label}
-              className={`aspect-square flex items-center justify-center text-[8px] font-sans font-medium rounded-sm transition-colors cursor-default ${
-                isToday ? todayNodeClass : heatLevelClass[Math.min(count, 3)]
-              }`}
-            >
-              {day.getDate()}
-            </span>
-          )
-        })}
-      </div>
-    </div>
+      </span>
+      <span className="text-xs text-ink/65">
+        <span className="sr-only">Step {reached + 1} of {STAGES.length}: </span>
+        {nextStep(session)}
+      </span>
+    </span>
   )
 }
+
+/* ---- Page ---------------------------------------------------------------------------- */
+
+type Filter = 'all' | 'live' | 'done'
+
+const thClass = 'pb-3 pt-4 text-left align-bottom text-[10px] font-bold uppercase tracking-[0.18em] text-ink/55 md:text-xs'
 
 export function SessionsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const user = useAuthStore((state) => state.user)
+  const [filter, setFilter] = useState<Filter>('all')
 
   const sessions = useQuery({ queryKey: ['study-sessions'], queryFn: api.listStudySessions, retry: false })
   const create = useMutation({
@@ -128,237 +109,186 @@ export function SessionsPage() {
   })
 
   const items = sessions.data ?? []
-  const liveCount = items.filter(isLive).length
-  const sourceCount = items.reduce((total, session) => total + session.material_count, 0)
-  const lastTouched = items[0]?.updated_at
+  const liveItems = items.filter(isLive)
+  const doneCount = items.length - liveItems.length
+  const latestLive = liveItems[0]
   const activeId = activeStudySessionId()
+  const loading = sessions.isLoading
+  const visible = filter === 'live' ? liveItems : filter === 'done' ? items.filter((s) => !isLive(s)) : items
+
+  const startButton = (
+    <Button onClick={() => create.mutate()} disabled={create.isPending}>
+      {create.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
+      New Session
+    </Button>
+  )
+
+  const filters: Array<{ value: Filter; label: string; count: number }> = [
+    { value: 'all', label: 'All', count: items.length },
+    { value: 'live', label: 'In progress', count: liveItems.length },
+    { value: 'done', label: 'Completed', count: doneCount },
+  ]
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[#EBE5D9] text-[#451017]">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3 focus:text-black">
-        Skip to content
-      </a>
-
-      <AppNavbar
-        showSessionsLink={false}
-        className="max-w-7xl px-5 sm:px-8 lg:px-12"
+    <AppPage>
+      <PageHeader
+        overline={longDateFormat.format(new Date())}
+        title={`${greeting()}, ${firstName(user)}.`}
+        description={
+          latestLive
+            ? `“${latestLive.title}” is waiting for you. ${nextStep(latestLive)}.`
+            : 'Bring a source, say what you know, and see what sticks.'
+        }
         actions={
-          <button
-            type="button"
-            onClick={() => create.mutate()}
-            disabled={create.isPending}
-            className="bg-[#451017] text-[#EBE5D9] hover:bg-[#451017]/85 px-5 py-2.5 rounded-sm font-sans font-bold text-[10px] md:text-xs uppercase tracking-widest transition-colors shrink-0 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {create.isPending ? (
-              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Plus className="size-4" aria-hidden="true" />
-            )}
-            <span className="hidden sm:inline">Start Session</span>
-            <span className="sm:hidden">Start</span>
-          </button>
+          <>
+            {latestLive ? (
+              <Button
+                variant="secondary"
+                onClick={() => resume.mutate(latestLive.id)}
+                disabled={resume.isPending}
+              >
+                {resume.isPending && resume.variables === latestLive.id ? (
+                  <LoaderCircle className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <RotateCw aria-hidden="true" />
+                )}
+                Resume Latest
+              </Button>
+            ) : null}
+            {startButton}
+          </>
         }
       />
 
-      <div className="flex flex-1 flex-col overflow-y-auto">
-        <main id="main-content" className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12 pt-8 pb-16">
-          {/* Hero Header & Metric Grid */}
-          <section className="mb-8">
-            <h1 className="font-serif italic text-5xl md:text-6xl text-[#451017] tracking-tight leading-tight mb-8">
-              Welcome back, Raj.
-            </h1>
-
-            <div className="grid grid-cols-12 gap-6 md:gap-8">
-            {/* The Metric Ledger — left of the heatmap */}
-            <div className="col-span-12 lg:col-span-8 grid grid-cols-2 gap-4 md:gap-6 content-start">
-              <MetricCard
-                label="In Progress"
-                value={String(liveCount).padStart(2, '0')}
-                hint={liveCount ? 'Ready to resume' : 'Nothing open'}
-              />
-              <MetricCard
-                label="Completed"
-                value={String(items.length - liveCount).padStart(2, '0')}
-                hint="Results saved"
-              />
-              <MetricCard
-                label="Sources"
-                value={String(sourceCount).padStart(2, '0')}
-                hint="Materials uploaded"
-              />
-              <MetricCard
-                label="Last Activity"
-                value={lastTouched ? timeAgo(lastTouched) : '—'}
-                hint={lastTouched ? dateFormat.format(new Date(lastTouched)) : 'No sessions yet'}
-              />
-            </div>
-
-            <ActivityHeatmap sessions={items} />
-            </div>
-          </section>
-
-          {/* The Sessions Ledger (Table) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
-            <section className="col-span-12 lg:col-span-9 min-w-0" aria-labelledby="sessions-title">
-              <div className="border-b-2 border-black pb-4 mb-0">
-                <h2 id="sessions-title" className="font-serif text-4xl text-[#451017]">
-                  Sessions Ledger
-                </h2>
-              </div>
-
-            {/* Fixed-height ledger: every state (error, empty, rows) scrolls inside 400px with the scrollbar hidden. */}
-            <div className="h-[400px] overflow-y-auto pr-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {sessions.isError ? (
-              <p className="py-10 text-sm text-[#451017]/70">
-                Could not load your sessions. Check your connection and{' '}
-                <button type="button" onClick={() => void sessions.refetch()} className="underline underline-offset-4">
-                  retry
-                </button>
-                .
-              </p>
-            ) : null}
-
-            {!sessions.isLoading && !sessions.isError && items.length === 0 ? (
-              <div className="flex flex-col items-start gap-4 py-12 text-[#451017]/70">
-                <BookOpen className="size-6" aria-hidden="true" />
-                <p className="max-w-sm text-sm leading-6">Your first session will appear here and save as you go.</p>
+      <Section
+        id="sessions-title"
+        title="Sessions"
+        aside={
+          items.length > 0 ? (
+            <div role="group" aria-label="Filter sessions" className="flex items-center gap-4">
+              {filters.map((option) => (
                 <button
+                  key={option.value}
                   type="button"
-                  onClick={() => create.mutate()}
-                  disabled={create.isPending}
-                  className={actionClass}
+                  aria-pressed={filter === option.value}
+                  onClick={() => setFilter(option.value)}
+                  className={cn(
+                    'text-xs font-bold uppercase tracking-[0.14em] transition-colors',
+                    filter === option.value ? 'text-ink' : 'text-ink/45 hover:text-ink',
+                  )}
                 >
-                  {create.isPending ? (
-                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Plus className="size-4" aria-hidden="true" />
-                  )}{' '}
-                  Start a Session <ArrowRight className="size-4" aria-hidden="true" />
+                  {option.label} <span className="tabular font-mono font-normal">{pad(option.count)}</span>
                 </button>
-              </div>
-            ) : null}
-
-            {sessions.isLoading || items.length > 0 ? (
-              <div className="bg-transparent">
-                <Table className="w-full table-fixed border-collapse text-left">
-                  <TableCaption className="sr-only">
-                    Your study sessions, their current stage, and how to continue them.
-                  </TableCaption>
-                  {/* Sticky labels; the rule is a shadow because collapsed table borders don't travel with sticky cells. */}
-                  <thead className="sticky top-0 z-10 bg-[#EBE5D9] shadow-[0_2px_0_#000000]">
-                    <tr className="bg-transparent hover:bg-transparent border-none">
-                      <th scope="col" className="hidden w-16 pt-4 pb-3 pl-4 text-left align-middle text-black font-sans font-bold text-[10px] md:text-xs uppercase tracking-[0.15em] opacity-70 sm:table-cell">
-                        #
-                      </th>
-                      <th scope="col" className="pt-4 pb-3 pl-4 pr-3 text-left align-middle text-black font-sans font-bold text-[10px] md:text-xs uppercase tracking-[0.15em] opacity-70 sm:pl-0 sm:pr-5">
-                        Session
-                      </th>
-                      <th scope="col" className="hidden w-60 pt-4 pb-3 pr-5 text-left align-middle text-black font-sans font-bold text-[10px] md:text-xs uppercase tracking-[0.15em] opacity-70 lg:table-cell">
-                        Stage
-                      </th>
-                      <th scope="col" className="hidden w-44 pt-4 pb-3 pr-5 text-left align-middle text-black font-sans font-bold text-[10px] md:text-xs uppercase tracking-[0.15em] opacity-70 md:table-cell">
-                        Updated
-                      </th>
-                      <th scope="col" className="w-30 pt-4 pb-3 pr-4 text-right align-middle text-black font-sans font-bold text-[10px] md:text-xs uppercase tracking-[0.15em] opacity-70 sm:w-40 sm:pr-6">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <TableBody>
-                    {sessions.isLoading
-                      ? Array.from({ length: 3 }, (_, index) => (
-                          <TableRow key={index} className="border-b border-[#451017]/10" aria-hidden="true">
-                            <TableCell className="hidden py-4 pl-4 sm:table-cell">
-                              <span className="block h-4 w-6 animate-pulse bg-[#451017]/10" />
-                            </TableCell>
-                            <TableCell className="py-4 pl-4 pr-3 sm:pl-0 sm:pr-5">
-                              <span className="block h-4 w-3/4 animate-pulse bg-[#451017]/10" />
-                            </TableCell>
-                            <TableCell className="hidden py-4 pr-5 lg:table-cell">
-                              <span className="block h-4 w-32 animate-pulse bg-[#451017]/10" />
-                            </TableCell>
-                            <TableCell className="hidden py-4 pr-5 md:table-cell">
-                              <span className="block h-4 w-24 animate-pulse bg-[#451017]/10" />
-                            </TableCell>
-                            <TableCell className="py-4 pr-4 text-right sm:pr-6">
-                              <span className="ml-auto block h-4 w-16 animate-pulse bg-[#451017]/10" />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      : items.map((session, index) => {
-                          const live = isLive(session)
-                          const active = session.id === activeId && live
-                          const pending = resume.isPending && resume.variables === session.id
-                          return (
-                            <TableRow
-                              key={session.id}
-                              className="border-b border-[#451017]/20 align-middle transition-colors hover:bg-[#451017]/5"
-                            >
-                              <TableCell className="hidden w-16 py-6 pl-4 text-left sm:table-cell">
-                                <span className="font-mono text-sm text-[#451017]/50 w-8">{String(index + 1).padStart(2, '0')}.</span>
-                              </TableCell>
-                              <TableCell scope="row" className="min-w-0 py-6 pl-4 pr-3 text-left font-normal sm:pl-0 sm:pr-5">
-                                <span className="flex min-w-0 items-center gap-3">
-                                  <span className="min-w-0 truncate font-serif text-2xl leading-tight text-black hover:text-[#451017] transition-colors">
-                                    {session.title}
-                                  </span>
-                                  {active ? (
-                                    <span className="shrink-0 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-black">
-                                      ACTIVE
-                                    </span>
-                                  ) : null}
-                                </span>
-                                <span className="mt-1 block truncate text-sm text-black/50">
-                                  {session.material_count} {session.material_count === 1 ? 'source' : 'sources'}
-                                  <span className="lg:hidden"> · {nextStep(session)}</span>
-                                </span>
-                              </TableCell>
-                              <TableCell className="hidden py-6 pr-5 text-sm text-black/60 lg:table-cell">
-                                {nextStep(session)}
-                              </TableCell>
-                              <TableCell className="hidden py-6 pr-5 md:table-cell">
-                                <span className="flex items-center gap-2 text-xs whitespace-nowrap text-black/60">
-                                  <Clock3 className="size-3.5 shrink-0" aria-hidden="true" />
-                                  <time dateTime={session.updated_at}>{dateFormat.format(new Date(session.updated_at))}</time>
-                                </span>
-                              </TableCell>
-                              <TableCell className="py-6 pr-4 text-right sm:pr-6">
-                                <button
-                                  type="button"
-                                  onClick={() => resume.mutate(session.id)}
-                                  disabled={resume.isPending}
-                                  className="font-sans font-bold uppercase text-xs tracking-wider text-[#451017] hover:text-black inline-flex items-center gap-2 transition-all hover:translate-x-1 disabled:opacity-50"
-                                >
-                                  {live ? 'Resume' : 'View'}{' '}
-                                  {pending ? (
-                                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                                  ) : (
-                                    <ArrowRight className="size-4" aria-hidden="true" />
-                                  )}
-                                </button>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : null}
+              ))}
             </div>
-            </section>
-
-            {/* Coming Soon Vertical Block */}
-            {/* 400px when stacked; beside the ledger it stretches to the ledger's now-fixed height. */}
-            <aside className="col-span-12 lg:col-span-3">
-              <div className="h-[400px] lg:h-full w-full border border-[#451017]/20 rounded-sm flex flex-col items-center justify-center p-6 bg-[#451017]/5">
-                <span className="font-serif text-2xl md:text-3xl text-[#451017]/30 text-center leading-[1.15] bg-transparent">
-                  More Features<br />Coming<br />Soon
-                </span>
-              </div>
-            </aside>
+          ) : (
+            <SectionCount value={items.length} />
+          )
+        }
+      >
+        {sessions.isError ? (
+          <div className="flex flex-col items-start gap-4 border-b border-line py-10">
+            <p className="text-sm text-ink/70">Could not load your sessions. Check your connection and try again.</p>
+            <Button variant="ghost" onClick={() => void sessions.refetch()}>
+              <RotateCw aria-hidden="true" /> Retry
+            </Button>
           </div>
-        </main>
-      </div>
-    </div>
+        ) : null}
+
+        {!loading && !sessions.isError && items.length === 0 ? (
+          <div className="flex flex-col items-start border-b border-line py-14">
+            <p className="font-serif text-3xl italic text-ink md:text-4xl">Nothing on the ledger yet.</p>
+            <p className="text-pretty mt-3 max-w-md text-sm leading-6 text-ink/65">
+              Start a session with a PDF or your own notes. It saves as you go, so you can stop at any step and pick it up here.
+            </p>
+            <div className="mt-8">{startButton}</div>
+          </div>
+        ) : null}
+
+        {!loading && items.length > 0 && visible.length === 0 ? (
+          <p className="border-b border-line py-10 text-sm text-ink/65">
+            {filter === 'live' ? 'Nothing in progress. Every session has its results.' : 'No completed sessions yet.'}
+          </p>
+        ) : null}
+
+        {loading || visible.length > 0 ? (
+          <table className="w-full table-fixed border-collapse text-left text-sm">
+            <caption className="sr-only">Your study sessions, how far each got, and how to continue them.</caption>
+            <thead className="border-b border-line">
+              <tr>
+                <th scope="col" className={cn(thClass, 'hidden w-14 sm:table-cell')}>#</th>
+                <th scope="col" className={thClass}>Session</th>
+                <th scope="col" className={cn(thClass, 'hidden w-48 lg:table-cell')}>Stage</th>
+                <th scope="col" className={cn(thClass, 'hidden w-32 md:table-cell')}>Updated</th>
+                <th scope="col" className={cn(thClass, 'w-28 text-right')}>
+                  <span className="sr-only">Action</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading
+                ? Array.from({ length: 4 }, (_, index) => (
+                    <tr key={index} className="border-b border-line" aria-hidden="true">
+                      <td className="hidden py-6 sm:table-cell"><span className="block h-4 w-6 animate-pulse rounded-sm bg-ink/10" /></td>
+                      <td className="py-6 pr-4"><span className="block h-5 w-3/4 animate-pulse rounded-sm bg-ink/10" /></td>
+                      <td className="hidden py-6 lg:table-cell"><span className="block h-3 w-32 animate-pulse rounded-sm bg-ink/10" /></td>
+                      <td className="hidden py-6 md:table-cell"><span className="block h-3 w-20 animate-pulse rounded-sm bg-ink/10" /></td>
+                      <td className="py-6"><span className="ml-auto block h-4 w-16 animate-pulse rounded-sm bg-ink/10" /></td>
+                    </tr>
+                  ))
+                : visible.map((session) => {
+                    const live = isLive(session)
+                    const active = session.id === activeId && live
+                    const pending = resume.isPending && resume.variables === session.id
+                    const number = items.indexOf(session) + 1
+                    return (
+                      <tr key={session.id} className="group border-b border-line align-middle transition-colors hover:bg-ink/[0.035]">
+                        <td className="tabular hidden py-6 font-mono text-sm text-ink/45 sm:table-cell">{pad(number)}.</td>
+                        <th scope="row" className="min-w-0 py-6 pr-4 text-left font-normal">
+                          <span className="flex min-w-0 items-center gap-3">
+                            <span className="min-w-0 truncate font-serif text-xl leading-tight text-strong md:text-2xl">{session.title}</span>
+                            {active ? (
+                              <span className="shrink-0 rounded-[3px] border border-ink/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-ink">
+                                Open
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="mt-1.5 block truncate text-sm text-ink/55">
+                            {session.material_count} {session.material_count === 1 ? 'source' : 'sources'}
+                            <span className="lg:hidden"> · {nextStep(session)}</span>
+                          </span>
+                        </th>
+                        <td className="hidden py-6 pr-4 lg:table-cell">
+                          <StageMeter session={session} />
+                        </td>
+                        <td className="hidden py-6 pr-4 text-xs whitespace-nowrap text-ink/60 md:table-cell">
+                          <time dateTime={session.updated_at} title={dateFormat.format(new Date(session.updated_at))}>
+                            {timeAgo(session.updated_at)}
+                          </time>
+                        </td>
+                        <td className="py-6 text-right">
+                          <button
+                            type="button"
+                            onClick={() => resume.mutate(session.id)}
+                            disabled={resume.isPending}
+                            aria-label={`${live ? 'Resume' : 'View results of'} ${session.title}`}
+                            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:text-strong disabled:opacity-50"
+                          >
+                            {live ? 'Resume' : 'Results'}
+                            {pending ? (
+                              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+            </tbody>
+          </table>
+        ) : null}
+      </Section>
+    </AppPage>
   )
 }

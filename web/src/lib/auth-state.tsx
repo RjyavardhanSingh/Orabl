@@ -10,7 +10,8 @@ import {
   signOut as requestSignOut,
 } from './auth'
 
-export type AuthUser = { id: string; email: string | null }
+/** The signed-in person. `name` and `picture` come from their Google profile (null before a re-sign-in). */
+export type AuthUser = { id: string; email: string | null; name?: string | null; picture?: string | null }
 export type AuthStatus = 'loading' | 'in' | 'out'
 
 type AuthStore = {

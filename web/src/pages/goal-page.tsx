@@ -7,15 +7,17 @@ import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { FlowStep } from '../components/layout/flow-step'
 import {
-  LedgerCard,
   ledgerAlertClass,
   ledgerBackLinkClass,
   ledgerErrorClass,
   ledgerFieldClass,
+  ledgerActionsClass,
   ledgerLabelClass,
+  ledgerListClass,
   ledgerPrimaryButtonClass,
-} from '../components/layout/ledger-card'
+} from '../components/layout/classes'
 import { Alert } from '../components/ui/alert'
 import { api, ApiError, type Material } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
@@ -29,12 +31,12 @@ const levels: Array<{ value: GoalValues['level']; title: string; text: string }>
 ]
 
 /* Choice lists on the maroon card: ruled rows with square marks, beige when chosen. */
-const listClass = 'divide-y divide-[#EBE5D9]/15 rounded-sm border border-[#EBE5D9] px-3'
-const rowClass = 'flex min-w-0 items-center gap-2 py-2 transition-colors'
-const rowOnClass = 'text-[#EBE5D9]'
-const rowOffClass = 'text-[#EBE5D9]/60 hover:text-[#EBE5D9]'
+const listClass = cn(ledgerListClass, 'px-4')
+const rowClass = 'flex min-w-0 items-center gap-3 py-3 transition-colors'
+const rowOnClass = 'text-ink'
+const rowOffClass = 'text-ink/55 hover:text-ink'
 const markClass =
-  'grid size-5 shrink-0 place-items-center rounded-md border-2 border-[#EBE5D9]/40 text-[#451017] transition-colors data-[state=checked]:border-[#EBE5D9] data-[state=checked]:bg-[#EBE5D9]'
+  'grid size-5 shrink-0 place-items-center rounded-[4px] border-2 border-ink/40 text-on-primary transition-colors data-[state=checked]:border-ink data-[state=checked]:bg-primary'
 
 function readMaterials(): Material[] {
   try {
@@ -192,7 +194,7 @@ export function GoalPage() {
 
   if (materials.length === 0) {
     return (
-      <LedgerCard
+      <FlowStep
         step={2}
         label="Goal"
         title="Start With Your Material"
@@ -204,7 +206,7 @@ export function GoalPage() {
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </div>
-      </LedgerCard>
+      </FlowStep>
     )
   }
 
@@ -215,7 +217,7 @@ export function GoalPage() {
   }
 
   return (
-    <LedgerCard
+    <FlowStep
       step={2}
       label="Goal"
       title="What Do You Want to Understand?"
@@ -223,9 +225,9 @@ export function GoalPage() {
       description="A clear goal keeps every question relevant to you. Three details are enough to begin."
     >
       <form id="goal-form" onSubmit={submit} noValidate>
-        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2">
           {/* Left: context and topic. */}
-          <div className="flex w-full min-w-0 flex-col gap-4 overflow-hidden">
+          <div className="flex w-full min-w-0 flex-col gap-6 overflow-hidden">
             {/* Fieldsets default to min-inline-size: min-content, which let long filenames widen the column. */}
             <fieldset className="min-w-0">
               <legend className={ledgerLabelClass}>
@@ -249,8 +251,8 @@ export function GoalPage() {
                         <Checkbox.Indicator><Check className="size-3.5" strokeWidth={3} aria-hidden="true" /></Checkbox.Indicator>
                       </Checkbox.Root>
                       <label htmlFor={`material-${item.id}`} className="block min-w-0 flex-1 cursor-pointer overflow-hidden">
-                        <span className="block w-full truncate text-sm font-medium text-[#EBE5D9]">{item.name}</span>
-                        <span className="tabular block w-full truncate text-xs text-[#EBE5D9]/50">
+                        <span className="block w-full truncate text-sm font-medium text-ink">{item.name}</span>
+                        <span className="tabular block w-full truncate text-xs text-ink/50">
                           {item.word_count.toLocaleString()} words
                         </span>
                       </label>
@@ -280,10 +282,9 @@ export function GoalPage() {
 
             <div>
               <label htmlFor="deadline" className={ledgerLabelClass}>
-                Deadline <span className="font-normal normal-case tracking-normal text-[#EBE5D9]/50">(optional)</span>
+                Deadline <span className="font-normal normal-case tracking-normal text-ink/50">(optional)</span>
               </label>
-              {/* Dark scheme so the native calendar icon reads on maroon. */}
-              <input id="deadline" type="date" {...form.register('deadline')} className={cn(ledgerFieldClass, '[color-scheme:dark]')} />
+                            <input id="deadline" type="date" {...form.register('deadline')} className={cn(ledgerFieldClass,'')} />
             </div>
             <div>
               <label htmlFor="language" className={ledgerLabelClass}>Language</label>
@@ -300,7 +301,7 @@ export function GoalPage() {
           </div>
 
           {/* Right: what success looks like and how familiar it is. */}
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-6">
             <div>
               <label htmlFor="target" className={ledgerLabelClass}>What Do You Want to Be Able to Do?</label>
               <input
@@ -336,7 +337,7 @@ export function GoalPage() {
                     </RadioGroup.Item>
                     <label htmlFor={`level-${option.value}`} className="min-w-0 flex-1 cursor-pointer">
                       <span className="block font-serif text-sm italic leading-tight">{option.title}</span>
-                      <span className="mt-0.5 block text-xs text-[#EBE5D9]/60">{option.text}</span>
+                      <span className="mt-0.5 block text-xs text-ink/60">{option.text}</span>
                     </label>
                   </div>
                 ))}
@@ -349,7 +350,7 @@ export function GoalPage() {
       </form>
 
       {/* Back stays left; the forward action sits right. */}
-      <div className="mt-6 flex w-full flex-col-reverse gap-4 md:flex-row md:items-center md:justify-between">
+      <div className={ledgerActionsClass}>
         <Link to={sessionStepPath('upload', currentStudyId)} className={ledgerBackLinkClass}>
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back
@@ -368,6 +369,6 @@ export function GoalPage() {
           )}
         </button>
       </div>
-    </LedgerCard>
+    </FlowStep>
   )
 }

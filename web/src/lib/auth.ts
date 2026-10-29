@@ -77,7 +77,10 @@ export async function getGoogleAuthUrl(next: string): Promise<string> {
   return data.url
 }
 
-export type ExchangedSession = { token: string; user: { id: string; email: string | null } }
+export type ExchangedSession = {
+  token: string
+  user: { id: string; email: string | null; name: string | null; picture: string | null }
+}
 
 /** Redeems the single-use callback code for the session token (revealed once).
  *  Aborts after `timeoutMs` so the UI can never hang on an infinite spinner —

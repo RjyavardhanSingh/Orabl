@@ -1,64 +1,134 @@
-import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { LogOut, Mail, Monitor, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { useTheme } from 'next-themes'
+import { useNavigate } from 'react-router-dom'
 
-import { AppNavbar } from '../components/layout/app-navbar'
+import { ActivityHeatmap, HEATMAP_DAYS } from '../components/activity-heatmap'
+import { UserAvatar } from '../components/user-avatar'
+import { AppPage, PageHeader, Section } from '../components/layout/page'
+import { Button } from '../components/ui/button'
+import { api } from '../lib/api'
 import { useAuthStore } from '../lib/auth-state'
+import { displayName } from '../lib/profile'
 import { cn } from '../lib/utils'
 
-/* Editorial Ledger: beige canvas, maroon rules and type, no default grays, no pills. */
-const overlineClass = 'font-sans text-xs font-bold uppercase tracking-[0.2em] text-[#451017]/70'
-const sectionTitleClass = 'border-b-2 border-black pb-3 font-serif text-3xl text-[#451017]'
-const rowClass = 'flex items-start gap-4 border-t border-[#451017]/20 py-5'
-const labelClass = 'text-xs font-semibold uppercase tracking-[0.14em] text-[#451017]/60'
-const valueClass = 'mt-1 break-all text-sm text-black'
-const mutedValueClass = 'mt-1 text-sm text-[#451017]/60'
-const backLinkClass =
-  'inline-flex items-center gap-2 border-b border-[#451017]/20 pb-0.5 text-sm font-semibold text-black transition-colors hover:border-[#451017] hover:text-[#451017]'
+/* Editorial Ledger: open sections over a heavy rule, one hairline per row, no cards. */
+const rowClass = 'grid grid-cols-1 gap-3 border-b border-line py-6 sm:grid-cols-[14rem_minmax(0,1fr)] sm:gap-8'
+const labelClass = 'flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-ink/60'
+const valueClass = 'min-w-0 break-all text-base text-strong'
+
+const themes = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+] as const
 
 export function SettingsPage() {
   const user = useAuthStore((state) => state.user)
+  const signOut = useAuthStore((state) => state.signOut)
+  const navigate = useNavigate()
+  const { theme = 'system', setTheme } = useTheme()
+  // Same query as the dashboard, so the cached list is reused when coming from there.
+  const sessions = useQuery({ queryKey: ['study-sessions'], queryFn: api.listStudySessions, retry: false })
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[#EBE5D9] text-[#451017]">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-[#451017] focus:p-3 focus:text-[#EBE5D9]">
-        Skip to content
-      </a>
-      <AppNavbar className="max-w-[80rem] px-[clamp(1.25rem,4vw,4rem)]" />
+    <AppPage>
+      <PageHeader overline="Your account" title="Settings" description="Your account, your study activity, and how Orabl looks on this device." />
 
-      <main id="main-content" className="scroll-area mx-auto min-h-0 w-full max-w-[80rem] flex-1 px-[clamp(1.25rem,4vw,4rem)] pb-10 pt-10 sm:pt-14">
-        <Link to="/sessions" className={backLinkClass}>
-          <ArrowLeft className="size-4" aria-hidden="true" /> Dashboard
-        </Link>
-        <div className="mt-8 max-w-2xl">
-          <p className={overlineClass}>Your account</p>
-          <h1 className={cn(sectionTitleClass, 'mt-3 font-serif text-[clamp(1.4rem,2.5vw,1.9rem)] leading-[1.18] tracking-[-0.025em] text-[#451017] border-none pb-0')}>
-            Settings
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-[#451017]/70">Your Orabl account details.</p>
+      <div className="grid max-w-4xl gap-16">
+        <Section id="account-heading" title="Account">
+          <dl>
+            <div className={cn(rowClass, 'sm:items-center')}>
+              <dt className={labelClass}>
+                <UserRound className="size-4" aria-hidden="true" /> Name
+              </dt>
+              <dd className="flex min-w-0 items-center gap-4">
+                <UserAvatar name={displayName(user)} picture={user?.picture} className="size-14 text-2xl" />
+                <span className="min-w-0">
+                  <span className="block truncate font-serif text-2xl text-strong">{displayName(user)}</span>
+                  <span className="mt-0.5 block text-sm text-ink/55">From your Google profile</span>
+                </span>
+              </dd>
+            </div>
+            <div className={rowClass}>
+              <dt className={labelClass}>
+                <Mail className="size-4" aria-hidden="true" /> Email
+              </dt>
+              <dd className={valueClass}>{user?.email ?? 'No email available'}</dd>
+            </div>
+            <div className={rowClass}>
+              <dt className={labelClass}>
+                <ShieldCheck className="size-4" aria-hidden="true" /> Sign-in method
+              </dt>
+              <dd className="text-base text-ink/70">Google</dd>
+            </div>
+          </dl>
+        </Section>
 
-          <section className="mt-10 border-y border-[#451017]/20" aria-labelledby="account-heading">
-            <h2 id="account-heading" className="py-5 font-serif text-xl text-[#451017]">
-              Account
-            </h2>
-            <dl>
-              <div className={rowClass}>
-                <Mail className="mt-0.5 size-5 shrink-0 text-[#451017]/40" aria-hidden="true" />
-                <div className="min-w-0">
-                  <dt className={labelClass}>Email</dt>
-                  <dd className={valueClass}>{user?.email ?? 'No email available'}</dd>
-                </div>
+        <Section
+          id="activity-heading"
+          title="Activity"
+          aside={<span className="text-[10px] font-bold uppercase tracking-[0.18em] text-ink/50">Last {HEATMAP_DAYS} days</span>}
+        >
+          {sessions.isError ? (
+            <p className="border-b border-line py-6 text-sm text-ink/65">Could not load your activity right now.</p>
+          ) : (
+            <div className="border-b border-line pb-6">
+              <ActivityHeatmap sessions={sessions.data ?? []} />
+            </div>
+          )}
+        </Section>
+
+        <Section id="appearance-heading" title="Appearance">
+          <div className={rowClass}>
+            <p className={labelClass} id="theme-label">Theme</p>
+            <div>
+              <div role="radiogroup" aria-labelledby="theme-label" className="inline-grid grid-cols-3 overflow-hidden rounded-lg border border-ink/25">
+                {themes.map(({ value, label, icon: Icon }) => {
+                  const selected = theme === value
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setTheme(value)}
+                      className={cn(
+                        'inline-flex h-11 items-center justify-center gap-2 px-5 text-sm font-semibold transition-colors [&:not(:first-child)]:border-l [&:not(:first-child)]:border-ink/25',
+                        selected ? 'bg-primary text-on-primary' : 'text-ink/70 hover:bg-ink/5 hover:text-ink',
+                      )}
+                    >
+                      <Icon className="size-4" aria-hidden="true" />
+                      {label}
+                    </button>
+                  )
+                })}
               </div>
-              <div className={rowClass}>
-                <ShieldCheck className="mt-0.5 size-5 shrink-0 text-[#451017]/40" aria-hidden="true" />
-                <div>
-                  <dt className={labelClass}>Sign-in method</dt>
-                  <dd className={mutedValueClass}>Google</dd>
-                </div>
-              </div>
-            </dl>
-          </section>
-        </div>
-      </main>
-    </div>
+              <p className="mt-3 text-sm text-ink/55">System follows your device’s light or dark setting.</p>
+            </div>
+          </div>
+        </Section>
+
+        <Section id="session-heading" title="Session">
+          <div className={cn(rowClass, 'sm:items-center')}>
+            <p className={labelClass}>Sign out</p>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="text-sm text-ink/65">Your sessions stay saved to your account.</p>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  void signOut().then(
+                    () => navigate('/'),
+                    () => navigate('/'),
+                  )
+                }
+              >
+                <LogOut aria-hidden="true" /> Log Out
+              </Button>
+            </div>
+          </div>
+        </Section>
+      </div>
+    </AppPage>
   )
 }

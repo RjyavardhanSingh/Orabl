@@ -73,10 +73,12 @@ class _FakeDb:
         return []
 
 
-def _live_row(user_id="user-1", email="u@example.com"):
+def _live_row(user_id="user-1", email="u@example.com", name="", picture_url=""):
     return {
         "user_id": user_id,
         "email": email,
+        "name": name,
+        "picture_url": picture_url,
         "expires_at": datetime.now(timezone.utc) + timedelta(days=30),
         "revoked_at": None,
     }
@@ -159,6 +161,26 @@ def test_create_and_resolve_session():
 
     assert user == CurrentUser(id="user-1", email="u@example.com")
     assert any("app_sessions" in sql for sql, _ in db.queries)
+
+
+def test_resolve_session_carries_google_profile():
+    row = _live_row(name="Uma Rao", picture_url="https://lh3.googleusercontent.com/a/u")
+    user = asyncio.run(auth_service.resolve_session(_FakeDb(fetchrow_result=row), "any-token"))
+
+    assert user == CurrentUser(
+        id="user-1",
+        email="u@example.com",
+        name="Uma Rao",
+        picture="https://lh3.googleusercontent.com/a/u",
+    )
+
+
+def test_safe_picture_url_keeps_only_https():
+    assert auth_service._safe_picture_url("https://lh3.googleusercontent.com/a/u") == (
+        "https://lh3.googleusercontent.com/a/u"
+    )
+    for bad in ("http://example.com/a.png", "javascript:alert(1)", None, 42, "https://" + "a" * 2048):
+        assert auth_service._safe_picture_url(bad) == ""
 
 
 def test_resolve_expired_revoked_missing():
@@ -281,7 +303,12 @@ def test_me_route_returns_profile():
     response = client.get("/v1/auth/me")
 
     assert response.status_code == 200
-    assert response.json() == {"id": "user-1", "email": "u@example.com"}
+    assert response.json() == {
+        "id": "user-1",
+        "email": "u@example.com",
+        "name": None,
+        "picture": None,
+    }
 
 
 def test_google_url_route(env_google, cache):
@@ -336,14 +363,25 @@ def test_callback_to_token_roundtrip(monkeypatch, cache):
 
     async def fake_userinfo(access_token):
         assert access_token == "google-at"
-        return {"sub": "g-1", "email": "u@example.com", "email_verified": True, "name": "U"}
+        return {
+            "sub": "g-1",
+            "email": "u@example.com",
+            "email_verified": True,
+            "name": "Uma Rao",
+            "picture": "https://lh3.googleusercontent.com/a/u",
+        }
 
     monkeypatch.setattr(auth_service, "exchange_google_code", fake_exchange)
     monkeypatch.setattr(auth_service, "fetch_google_userinfo", fake_userinfo)
 
     auth_service.store_oauth_state(cache, "state-1", "v", "/goal")
     db = _FakeDb(
-        fetchrow_result=_live_row(user_id="u-1", email="u@example.com"),
+        fetchrow_result=_live_row(
+            user_id="u-1",
+            email="u@example.com",
+            name="Uma Rao",
+            picture_url="https://lh3.googleusercontent.com/a/u",
+        ),
         results=[None, None, {"id": "u-1", "email": "u@example.com"}],
     )
 
@@ -363,7 +401,14 @@ def test_callback_to_token_roundtrip(monkeypatch, cache):
     first = client.post("/v1/auth/token", json={"code": exchange_code})
     assert first.status_code == 200
     body = first.json()
-    assert body["user"] == {"id": "u-1", "email": "u@example.com"}
+    assert body["user"] == {
+        "id": "u-1",
+        "email": "u@example.com",
+        "name": "Uma Rao",
+        "picture": "https://lh3.googleusercontent.com/a/u",
+    }
+    insert_args = next(args for sql, args in db.queries if "INSERT INTO app_users" in sql)
+    assert insert_args[:3] == ("u@example.com", "Uma Rao", "https://lh3.googleusercontent.com/a/u")
     assert body["token"]
 
     replay = client.post("/v1/auth/token", json={"code": exchange_code})
