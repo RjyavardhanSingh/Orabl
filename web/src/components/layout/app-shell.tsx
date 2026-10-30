@@ -27,10 +27,10 @@ let lastRailStep: { sessionId: string | null; index: number } | undefined
  */
 const LEDGER_RAIL = [
   '[&_[data-slot=rail-toc-plane]]:[filter:none]',
-  '[&_[data-slot=rail-toc-title]]:mb-8 [&_[data-slot=rail-toc-title]]:tracking-widest [&_[data-slot=rail-toc-title]]:text-ink',
-  '[&_[data-slot=rail-toc-list]]:flex [&_[data-slot=rail-toc-list]]:flex-col [&_[data-slot=rail-toc-list]]:gap-7',
-  '[&_[data-slot=rail-toc-list]_button]:font-serif [&_[data-slot=rail-toc-list]_button]:text-base [&_[data-slot=rail-toc-list]_button]:italic',
-  '[&_[aria-current=step]]:text-xl! [&_[aria-current=step]]:font-bold',
+  '[&_[data-slot=rail-toc-title]]:mb-9 [&_[data-slot=rail-toc-title]]:text-xs [&_[data-slot=rail-toc-title]]:tracking-widest [&_[data-slot=rail-toc-title]]:text-ink',
+  '[&_[data-slot=rail-toc-list]]:flex [&_[data-slot=rail-toc-list]]:flex-col [&_[data-slot=rail-toc-list]]:gap-9',
+  '[&_[data-slot=rail-toc-list]_button]:font-serif [&_[data-slot=rail-toc-list]_button]:text-lg [&_[data-slot=rail-toc-list]_button]:italic',
+  '[&_[aria-current=step]]:text-2xl! [&_[aria-current=step]]:font-bold',
 ].join(' ')
 
 function unlocked(): boolean[] {
@@ -112,8 +112,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className={cn(pageContainerClass, 'flex min-h-0 flex-1')}>
         {active >= 0 ? (
-          <aside className={cn('hidden w-60 shrink-0 border-r border-line py-12 pr-8 font-sans lg:block xl:w-64', LEDGER_RAIL)} aria-label="Session progress">
-            <p className="mb-10 text-xs font-bold uppercase tracking-[0.2em] text-ink/65">Step {active + 1} of {steps.length}</p>
+          // No divider: the rail sits on the canvas beside the step. Centred in the column's height,
+          // lifted slightly (pb > pt) so it reads level with the card's upper half.
+          <aside
+            className={cn('hidden w-64 shrink-0 flex-col justify-center pb-24 pr-8 pt-12 font-sans lg:flex xl:w-72', LEDGER_RAIL)}
+            aria-label="Session progress"
+          >
+            <p className="mb-10 text-sm font-bold uppercase tracking-[0.2em] text-ink/65">Step {active + 1} of {steps.length}</p>
             <RailToc
               items={items}
               activeIndex={Math.max(0, active)}
