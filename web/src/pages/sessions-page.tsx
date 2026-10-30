@@ -213,7 +213,7 @@ export function SessionsPage() {
           {loading || visible.length > 0 ? (
             <table className="w-full table-fixed border-collapse text-left text-sm">
               <caption className="sr-only">Your study sessions, how far each got, and how to continue them.</caption>
-              <thead className="sticky top-0 bg-[#EBE5D9] z-10 border-b border-line">
+              <thead className="sticky top-0 bg-canvas z-10 border-b border-line">
                 <tr>
                   <th scope="col" className={cn(thClass, 'hidden w-14 sm:table-cell')}>#</th>
                   <th scope="col" className={thClass}>Session</th>
