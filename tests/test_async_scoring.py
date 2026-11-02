@@ -1,15 +1,13 @@
 """Async scoring, question IDs, weak-area retest, and topic summaries."""
 
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from services import question_service, session_service
-from services.session_service import (
-    RetestWindowExpiredError,
-    SessionConflictError,
-)
+from services.session_service import SessionConflictError
 
 
 class _FakeCache:
@@ -34,12 +32,14 @@ class _FakeDb:
         self.executes = []
         self.fetchrow_result = fetchrow_result
         self.fetch_result = fetch_result if fetch_result is not None else []
+        self.fetchrow_calls = 0
 
     async def execute(self, query, *args):
         self.executes.append((query, args))
         return "OK"
 
     async def fetchrow(self, query, *args):
+        self.fetchrow_calls += 1
         return self.fetchrow_result
 
     async def fetch(self, query, *args):
@@ -204,19 +204,65 @@ def test_create_retest_filters_weak_and_links_parent():
     assert state["questions"][0]["previous_attempt"]["score"] == 40
 
 
-def test_create_retest_window_expired():
-    row = {
+def _completed_row(hours_ago: float) -> dict:
+    # JSONB arrives as text from asyncpg, as in production.
+    return {
         "id": "p1",
+        "user_id": "user-1",
         "context_id": "c1",
-        "questions": [_question(0)],
-        "answers": [{"question_index": 0, "score": 40}],
-        "completed_at": datetime.now(timezone.utc) - timedelta(hours=25),
+        "parent_session_id": None,
+        "is_retest": False,
+        "weak_only": False,
+        "questions": json.dumps([_question(0)]),
+        "answers": json.dumps([{"question_index": 0, "score": 40}]),
+        "scores": json.dumps([{"question_index": 0, "score": 40}]),
+        "readiness_score": 40,
+        "topic_summary": json.dumps({"A": {"average_score": 40}}),
+        "weak_topics": json.dumps(["A"]),
+        "started_at": datetime.now(timezone.utc) - timedelta(hours=hours_ago, minutes=10),
+        "completed_at": datetime.now(timezone.utc) - timedelta(hours=hours_ago),
     }
+
+
+def test_create_retest_after_cache_expiry_rehydrates_from_db():
+    """Cold path: 25h later the cache entry is gone; retest still works, and the parent is
+    rebuilt from its `sessions` row and written back to DragonFly."""
     cache = _FakeCache(None)
+    db = _FakeDb(fetchrow_result=_completed_row(hours_ago=25))
+
+    state, meta = asyncio.run(
+        session_service.create_retest(cache, db, "p1", weak_only=True, user_id="user-1")
+    )
+
+    assert state["parent_session_id"] == "p1"
+    assert meta["previous_scores"] == {"c1:q0": 40}
+    parent = cache.store["session:p1"]
+    assert parent["status"] == "completed"
+    assert parent["user_id"] == "user-1"
+    assert parent["questions"][0]["id"] == "c1:q0"
+    assert parent["current_index"] == 1
+    assert parent["weak_topics"] == ["A"]
+    assert isinstance(parent["completed_at"], str)
+
+
+def test_load_completed_session_hot_path_skips_db():
+    hot = {"id": "p1", "user_id": "user-1", "status": "completed", "questions": [_question(0)]}
+    cache = _FakeCache(None)
+    cache.store["session:p1"] = hot
+    db = _FakeDb(fetchrow_result=None)
+
+    state = asyncio.run(session_service.load_completed_session(cache, db, "p1", "user-1"))
+
+    assert state is hot
+    assert db.fetchrow_calls == 0
+
+
+def test_load_completed_session_rejects_unfinished_session():
+    row = _completed_row(hours_ago=1) | {"completed_at": None}
     db = _FakeDb(fetchrow_result=row)
 
-    with pytest.raises(RetestWindowExpiredError):
-        asyncio.run(session_service.create_retest(cache, db, "p1", weak_only=True))
+    with pytest.raises(SessionConflictError):
+        asyncio.run(session_service.load_completed_session(_FakeCache(None), db, "p1", "user-1"))
 
 
 def test_complete_session_keeps_questions_cache():
