@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 import { cn } from '../../lib/utils'
 import { AppNavbar } from './app-navbar'
-import { overlineClass, pageContainerClass } from './classes'
+import { overlineClass } from './classes'
 
 /*
  * Editorial Ledger page kit for every signed-in page. Nothing here is a card: content sits
@@ -13,7 +13,7 @@ import { overlineClass, pageContainerClass } from './classes'
 /** A signed-in page: skip link, navbar, then a body that scrolls under the fixed navbar. */
 export function AppPage({ children, navActions }: { children: ReactNode; navActions?: ReactNode }) {
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-canvas text-ink">
+    <div className="h-screen max-h-screen w-full flex flex-col overflow-hidden bg-[#EBE5D9] text-ink">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary"
@@ -22,7 +22,7 @@ export function AppPage({ children, navActions }: { children: ReactNode; navActi
       </a>
       <AppNavbar actions={navActions} />
       <div className="scroll-area flex min-h-0 flex-1 flex-col">
-        <main id="main-content" className={cn(pageContainerClass, 'overflow-x-hidden pb-20 pt-10 md:pt-14')}>
+        <main id="main-content" className="flex-1 w-full max-w-6xl mx-auto px-6 md:px-8 py-8 md:py-12 flex flex-col min-h-0">
           {children}
         </main>
       </div>
