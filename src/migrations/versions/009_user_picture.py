@@ -16,7 +16,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TABLE app_users ADD COLUMN IF NOT EXISTS picture_url TEXT NOT NULL DEFAULT ''")
+    op.execute(
+        "ALTER TABLE app_users ADD COLUMN IF NOT EXISTS picture_url TEXT NOT NULL DEFAULT ''"
+    )
 
 
 def downgrade() -> None:

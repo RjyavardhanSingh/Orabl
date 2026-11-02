@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { overlineClass } from '../components/layout/classes'
+import { ledgerScrollClass, overlineClass } from '../components/layout/classes'
 import { AppPage, PageHeader, Section, SectionCount, Stat, StatStrip } from '../components/layout/page'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
@@ -42,7 +42,6 @@ export function ResultsPage() {
   const currentStudyId = studyId || activeStudySessionId()
   // Sessions save themselves to the dashboard, so the report has no save action.
   const [results] = useState<SessionResults | null>(readResults)
-  const [expired, setExpired] = useState(false)
 
   const retest = useMutation({
     mutationFn: (weakOnly: boolean) =>
@@ -68,10 +67,6 @@ export function ResultsPage() {
       navigate(sessionStepPath('practice', currentStudyId))
     },
     onError: (error) => {
-      if (error instanceof ApiError && error.status === 410) {
-        setExpired(true)
-        return
-      }
       toast.error(error instanceof ApiError ? error.message : 'Could not start retest.')
     },
   })
@@ -112,36 +107,30 @@ export function ResultsPage() {
           'Your readiness score, what to fix next, and the mix-ups that kept showing up.'
         }
         actions={
-          !expired ? (
-            <>
-              <Button variant="secondary" disabled={retest.isPending} onClick={() => retest.mutate(false)}>
-                <RefreshCw aria-hidden="true" />
-                Full Test Again
-              </Button>
-              <Button disabled={retest.isPending || weakTopics.length === 0} onClick={() => retest.mutate(true)}>
-                {retest.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
-                Retest Weak Areas
-              </Button>
-            </>
-          ) : null
+          // Retests work at any time: the API reloads an expired session from the database.
+          <>
+            <Button variant="secondary" disabled={retest.isPending} onClick={() => retest.mutate(false)}>
+              <RefreshCw aria-hidden="true" />
+              Full Test Again
+            </Button>
+            <Button disabled={retest.isPending || weakTopics.length === 0} onClick={() => retest.mutate(true)}>
+              {retest.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
+              Retest Weak Areas
+            </Button>
+          </>
         }
       >
-        {expired ? (
-          <Alert className={cn('mt-8', alertClass)}>
-            This session’s 24-hour review window has closed. Generate a fresh practice set to keep going.
-          </Alert>
-        ) : null}
-        {weakTopics.length === 0 && !expired ? (
+        {weakTopics.length === 0 ? (
           <p className="mt-4 text-sm text-ink/60">No weak areas to retest: every topic cleared the bar.</p>
         ) : null}
-        {retest.isError && !(retest.error instanceof ApiError && retest.error.status === 410) ? (
+        {retest.isError ? (
           <Alert className={cn('mt-8', alertClass)}>
             {retest.error instanceof ApiError ? retest.error.message : 'Could not start retest. Try again in a moment.'}
           </Alert>
         ) : null}
       </PageHeader>
 
-      <StatStrip className="mb-14 md:mb-20">
+      <StatStrip className="mb-8 md:mb-10">
         <Stat label="Readiness" value={`${results.readiness_score}%`} hint="Overall score" />
         <Stat
           label="Answered"
@@ -152,9 +141,19 @@ export function ResultsPage() {
         <Stat label="To fix" value={String(weakTopics.length).padStart(2, '0')} hint="Topics to revisit" />
       </StatStrip>
 
-      {/* Transparent ledgers: topics on the left, every question on the right */}
-      <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
-        <div className="space-y-12 lg:col-span-5">
+      {/*
+        Transparent ledgers: topics on the left, every question on the right. AppPage locks the
+        window, so this area takes the height left under the stats and nothing grows the page:
+        stacked (mobile) the area scrolls as one; side by side each column scrolls on its own,
+        and opening questions scrolls inside the Every Question list.
+      */}
+      <div
+        className={cn(
+          'grid min-h-0 flex-1 grid-cols-1 gap-12 overflow-y-auto lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden',
+          ledgerScrollClass,
+        )}
+      >
+        <div className={cn('space-y-12 lg:col-span-5 lg:min-h-0 lg:overflow-y-auto lg:pr-2', ledgerScrollClass)}>
           <Section title="What to Fix" aside={<SectionCount value={weakTopics.length} />}>
             {weakTopics.length === 0 ? (
               <p className="py-6 text-sm text-ink/70">Every topic cleared the {WEAK_THRESHOLD}% bar. Nice work.</p>
@@ -208,14 +207,19 @@ export function ResultsPage() {
           ) : null}
         </div>
 
-        <div className="lg:col-span-7">
-          <Section title="Every Question" aside={<SectionCount value={results.questions.length} />}>
-            <p className="pt-4 text-sm text-ink/60">Open one to see what you said and the feedback.</p>
+        <div className="lg:col-span-7 lg:min-h-0">
+          <Section
+            title="Every Question"
+            aside={<SectionCount value={results.questions.length} />}
+            className="lg:flex lg:h-full lg:min-h-0 lg:flex-col"
+          >
+            <p className="shrink-0 pt-4 text-sm text-ink/60">Open one to see what you said and the feedback.</p>
             {results.questions.length === 0 ? (
               <p className="py-6 text-sm text-ink/70">No questions were recorded.</p>
             ) : (
               <Accordion.Root
                 type="multiple"
+                className={cn('lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2', ledgerScrollClass)}
               >
                 {results.questions.map((question: Question, position: number) => {
                   const answer = answersByIndex.get(position)
@@ -257,7 +261,7 @@ export function ResultsPage() {
         </div>
       </div>
 
-      <div className="mt-16 flex flex-wrap items-center justify-between gap-6 border-t border-line pt-6">
+      <div className="mt-6 flex shrink-0 flex-wrap items-center justify-between gap-6 border-t border-line py-4">
         <Link to={sessionStepPath('preparing', currentStudyId)} className={buttonVariants({ variant: 'ghost' }, 'text-xs uppercase tracking-[0.14em]')}>
           <ArrowLeft aria-hidden="true" />
           Back to Preparing

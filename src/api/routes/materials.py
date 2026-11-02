@@ -20,12 +20,24 @@ MAX_PDF_BYTES = int(os.getenv("MAX_PDF_UPLOAD_BYTES", str(25 * 1024 * 1024)))
 
 
 def _to_response(doc) -> MaterialResponse:
+    """From the parsed document the upload services return."""
     return MaterialResponse(
         id=doc.source_id,
         name=doc.name,
         kind=doc.kind.value,
         page_count=doc.page_count,
         word_count=doc.word_count,
+    )
+
+
+def _record_to_response(record: dict) -> MaterialResponse:
+    """From a `materials` row, as material_service.get_material returns it."""
+    return MaterialResponse(
+        id=record["id"],
+        name=record["name"],
+        kind=record["kind"],
+        page_count=record["page_count"],
+        word_count=record["word_count"],
     )
 
 
@@ -81,13 +93,7 @@ async def get_material(
     record = await material_service.get_material(db, material_id, user_id=user.id)
     if record is None:
         raise HTTPException(status_code=404, detail="Material not found")
-    return MaterialResponse(
-        id=record["id"],
-        name=record["name"],
-        kind=record["kind"],
-        page_count=record["page_count"],
-        word_count=record["word_count"],
-    )
+    return _record_to_response(record)
 
 
 @router.get("/{material_id}/download", response_model=MaterialDownloadResponse)

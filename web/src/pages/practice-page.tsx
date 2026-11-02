@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import * as Progress from '@radix-ui/react-progress'
 import { ArrowLeft, ArrowRight, Clock, Edit3, LoaderCircle, Mic, RotateCcw, SkipForward, Square } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -25,21 +25,56 @@ import { cn } from '../lib/utils'
 /** Quiet text action used for Skip, Type Answer and Back. */
 const textActionClass = buttonVariants({ variant: 'ghost' }, 'text-xs uppercase tracking-[0.14em]')
 
-/** Live level bars: square beige bars growing from the baseline, centred in a 72px circle. */
-function ListeningBars({ level }: { level: number }) {
-  const pattern = [0.35, 0.6, 0.25, 0.75, 0.4]
+/*
+ * Each bar has its own weight (the centre reads tallest) and its own wobble speed and phase, so
+ * the five move independently instead of scaling as one fixed shape. Silence leaves a short rest.
+ */
+const BARS = [
+  { weight: 0.55, speed: 5.1, phase: 0.0 },
+  { weight: 0.8, speed: 6.7, phase: 1.3 },
+  { weight: 1.0, speed: 4.3, phase: 2.1 },
+  { weight: 0.8, speed: 7.3, phase: 0.6 },
+  { weight: 0.55, speed: 5.9, phase: 2.8 },
+] as const
+const REST = 0.12
+
+/**
+ * Live level bars, grown from the vertical centre. They animate in their own frame loop from the
+ * mic level ref and write `transform: scaleY` directly: no React render and no layout per frame.
+ */
+function ListeningBars({ level }: { level: RefObject<number> }) {
+  const bars = useRef<(HTMLSpanElement | null)[]>([])
+
+  useEffect(() => {
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let frame = 0
+    const tick = (now: number) => {
+      const t = now / 1000
+      const value = level.current ?? 0
+      BARS.forEach(({ weight, speed, phase }, i) => {
+        const wobble = still ? 1 : 0.7 + 0.3 * Math.sin(t * speed + phase)
+        const scale = REST + (1 - REST) * value * weight * wobble
+        const bar = bars.current[i]
+        if (bar) bar.style.transform = `scaleY(${scale.toFixed(3)})`
+      })
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [level])
+
   return (
-    <div className="flex items-end justify-center gap-[4px] h-[72px] w-[72px]" aria-hidden="true">
-      {pattern.map((base, i) => {
-        const height = Math.min(1, Math.max(0.1, base * level + 0.1))
-        return (
-          <span
-            key={i}
-            style={{ height: `${height * 100}%` }}
-            className="w-[4px] rounded-lg bg-primary transition-[height] duration-100"
-          />
-        )
-      })}
+    <div className="flex h-[72px] w-[72px] items-center justify-center gap-[5px]" aria-hidden="true">
+      {BARS.map((_, i) => (
+        <span
+          key={i}
+          ref={(el) => {
+            bars.current[i] = el
+          }}
+          style={{ transform: `scaleY(${REST})` }}
+          className="h-full w-[5px] origin-center rounded-lg bg-primary will-change-transform"
+        />
+      ))}
     </div>
   )
 }

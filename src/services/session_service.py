@@ -588,11 +588,80 @@ async def _upsert_concept_mastery(db: Database, state: dict) -> None:
         )
 
 
-RETEST_WINDOW_HOURS = 24
+# How long a session stays hot in DragonFly after it is written or rehydrated.
+SESSION_CACHE_TTL = 86400
 
 
-class RetestWindowExpiredError(ValueError):
-    """Raised when a retest is requested after the review window closed."""
+def _from_json(value: object, default: object) -> object:
+    """asyncpg returns JSONB as text unless a codec is registered; accept either."""
+    if value is None:
+        return default
+    return json.loads(value) if isinstance(value, str) else value
+
+
+def _iso(value: object) -> str | None:
+    parsed = _parse_completed_at(value)
+    return parsed.isoformat() if parsed else None
+
+
+async def load_completed_session(
+    cache: CacheService, db: Database, session_id: str, user_id: str | None = None
+) -> dict:
+    """Hot/cold read of a completed session.
+
+    Hot: the DragonFly copy, while it is cached. Cold: once the cache entry has expired (or was
+    dropped at completion), rebuild the same state from its `sessions` row and write it back to
+    DragonFly, so the next read is hot again. Raises SessionNotFoundError when neither has it
+    for this caller, and SessionConflictError when it is not completed.
+    """
+    key = f"session:{session_id}"
+    state = cache.get(key)
+    if state is not None:
+        try:
+            _require_owner(state, user_id)
+        except SessionNotFoundError:
+            state = None
+    if state is not None:
+        if state.get("status", "completed") != "completed":
+            raise SessionConflictError("Complete the parent session before retesting")
+        return state
+
+    if user_id is None:
+        row = await db.fetchrow("SELECT * FROM sessions WHERE id = $1", session_id)
+    else:
+        row = await db.fetchrow(
+            "SELECT * FROM sessions WHERE id = $1 AND user_id = $2", session_id, user_id
+        )
+    if row is None:
+        raise SessionNotFoundError(f"Session not found: {session_id}")
+    if not row["completed_at"]:
+        raise SessionConflictError("Complete the parent session before retesting")
+
+    record = dict(row)
+    questions = _from_json(record.get("questions"), [])
+    weak_topics = _from_json(record.get("weak_topics"), [])
+    state = {
+        "id": record["id"],
+        "context_id": record.get("context_id"),
+        "user_id": record.get("user_id"),
+        "parent_session_id": record.get("parent_session_id"),
+        "is_retest": bool(record.get("is_retest")),
+        "weak_only": bool(record.get("weak_only")),
+        "questions": questions,
+        "answers": _from_json(record.get("answers"), []),
+        "scores": _from_json(record.get("scores"), []),
+        "current_index": len(questions),
+        "status": "completed",
+        "started_at": _iso(record.get("started_at")),
+        "completed_at": _iso(record.get("completed_at")),
+        "readiness_score": record.get("readiness_score"),
+        "topic_summary": _from_json(record.get("topic_summary"), {}),
+        "weak_topics": weak_topics,
+        # Not stored on the row; derived from the weak topics exactly as at completion.
+        "next_review_suggestion": _next_review_suggestion(weak_topics),
+    }
+    cache.set(key, state, ttl=SESSION_CACHE_TTL)
+    return state
 
 
 def select_retest_indices(
@@ -647,53 +716,12 @@ async def create_retest(
     """Create a retest session from a completed parent.
 
     Returns (new_state, meta) where meta holds weak_topics and
-    previous_scores for the UI. Enforces the 24h review window.
+    previous_scores for the UI. The parent is read hot/cold, so retests work at any time.
     The retest belongs to the caller, never the parent's owner.
     """
-    parent = cache.get(f"session:{parent_session_id}")
-    if parent is not None:
-        try:
-            _require_owner(parent, user_id)
-        except SessionNotFoundError:
-            parent = None
-    if parent is None:
-        if user_id is None:
-            row = await db.fetchrow("SELECT * FROM sessions WHERE id = $1", parent_session_id)
-        else:
-            row = await db.fetchrow(
-                "SELECT * FROM sessions WHERE id = $1 AND user_id = $2",
-                parent_session_id,
-                user_id,
-            )
-        if row is None:
-            raise SessionNotFoundError(f"Parent session not found: {parent_session_id}")
-        if not row["completed_at"]:
-            raise SessionConflictError("Complete the parent session before retesting")
-        parent = {
-            "id": row["id"],
-            "context_id": row["context_id"],
-            "questions": json.loads(row["questions"])
-            if isinstance(row["questions"], str)
-            else row["questions"],
-            "answers": json.loads(row["answers"])
-            if isinstance(row["answers"], str)
-            else row["answers"],
-            "status": "completed",
-            "completed_at": row["completed_at"],
-        }
-    if parent.get("status", "completed") != "completed":
-        raise SessionConflictError("Complete the parent session before retesting")
-
-    completed_at = _parse_completed_at(parent.get("completed_at"))
-    if completed_at is not None:
-        from datetime import timedelta
-
-        age = datetime.now(timezone.utc) - completed_at
-        if age > timedelta(hours=RETEST_WINDOW_HOURS):
-            raise RetestWindowExpiredError(
-                "The 24h retest window for this session has closed. "
-                "Start a fresh session to practice these topics again."
-            )
+    # Hot/cold: DragonFly while cached, otherwise rebuilt from Postgres and re-cached. There is
+    # no time limit on retesting a completed session.
+    parent = await load_completed_session(cache, db, parent_session_id, user_id)
 
     questions = parent.get("questions") or []
     if not questions:

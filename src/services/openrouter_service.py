@@ -310,32 +310,6 @@ async def _call_openrouter(prompt: str) -> str:
     raise last_error
 
 
-async def continue_with_reasoning(
-    messages: list[dict],
-    follow_up: str,
-    model: str | None = None,
-) -> str:
-    """Continue a reasoning-enabled conversation.
-
-    `messages` must contain the previous assistant message unmodified,
-    including its `reasoning_details` field, e.g.:
-
-        messages = [
-            {"role": "user", "content": original_prompt},
-            {"role": "assistant", "content": msg.get("content"),
-             "reasoning_details": msg.get("reasoning_details")},
-            {"role": "user", "content": follow_up},
-        ]
-    """
-    target_model = model or (MODELS[0] if MODELS else DEFAULT_MODEL)
-    continued = [*messages, {"role": "user", "content": follow_up}]
-    message = await _call_model(continued, target_model)
-    content = message.get("content")
-    if not content:
-        raise RuntimeError(f"Empty content from model {target_model}")
-    return content
-
-
 async def generate_questions(
     cache: CacheService,
     context_id: str,

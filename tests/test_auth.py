@@ -179,7 +179,13 @@ def test_safe_picture_url_keeps_only_https():
     assert auth_service._safe_picture_url("https://lh3.googleusercontent.com/a/u") == (
         "https://lh3.googleusercontent.com/a/u"
     )
-    for bad in ("http://example.com/a.png", "javascript:alert(1)", None, 42, "https://" + "a" * 2048):
+    for bad in (
+        "http://example.com/a.png",
+        "javascript:alert(1)",
+        None,
+        42,
+        "https://" + "a" * 2048,
+    ):
         assert auth_service._safe_picture_url(bad) == ""
 
 
@@ -527,3 +533,16 @@ def test_material_read_scopes_by_user():
 
     assert result == row
     assert any("AND user_id" in sql for sql, _ in db.queries)
+
+
+def test_get_material_route_maps_a_db_row():
+    # Regression: the route passed get_material's row (a dict) to the helper built for parsed
+    # upload documents, so GET /materials/{id} raised "'dict' object has no attribute 'source_id'".
+    from api.routes.materials import get_material
+
+    row = {"id": "m1", "name": "notes.pdf", "kind": "pdf", "page_count": 3, "word_count": 1442}
+    db = _FakeDb(fetchrow_result=row)
+
+    response = asyncio.run(get_material("m1", db=db, user=CurrentUser(id="user-1")))
+
+    assert response.model_dump() == row

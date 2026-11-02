@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { AppPage, PageHeader, Section, SectionCount } from '../components/layout/page'
+import { AppPage, PageHeader, SectionCount } from '../components/layout/page'
 import { Button } from '../components/ui/button'
 import { api, type StudySessionSummary } from '../lib/api'
 import { useAuthStore } from '../lib/auth-state'
@@ -131,40 +131,38 @@ export function SessionsPage() {
 
   return (
     <AppPage>
-      <PageHeader
-        overline={longDateFormat.format(new Date())}
-        title={`${greeting()}, ${firstName(user)}.`}
-        description={
-          latestLive
-            ? `“${latestLive.title}” is waiting for you. ${nextStep(latestLive)}.`
-            : 'Bring a source, say what you know, and see what sticks.'
-        }
-        actions={
-          <>
-            {latestLive ? (
-              <Button
-                variant="secondary"
-                onClick={() => resume.mutate(latestLive.id)}
-                disabled={resume.isPending}
-              >
-                {resume.isPending && resume.variables === latestLive.id ? (
-                  <LoaderCircle className="animate-spin" aria-hidden="true" />
-                ) : (
-                  <RotateCw aria-hidden="true" />
-                )}
-                Resume Latest
-              </Button>
-            ) : null}
-            {startButton}
-          </>
-        }
-      />
-
-      <Section
-        id="sessions-title"
-        title="Sessions"
-        aside={
-          items.length > 0 ? (
+      <div className="shrink-0 flex-none w-full">
+        <PageHeader
+          overline={longDateFormat.format(new Date())}
+          title={`${greeting()}, ${firstName(user)}.`}
+          description={
+            latestLive
+              ? `“${latestLive.title}” is waiting for you. ${nextStep(latestLive)}.`
+              : 'Bring a source, say what you know, and see what sticks.'
+          }
+          actions={
+            <>
+              {latestLive ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => resume.mutate(latestLive.id)}
+                  disabled={resume.isPending}
+                >
+                  {resume.isPending && resume.variables === latestLive.id ? (
+                    <LoaderCircle className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <RotateCw aria-hidden="true" />
+                  )}
+                  Resume Latest
+                </Button>
+              ) : null}
+              {startButton}
+            </>
+          }
+        />
+        <div className="flex items-end justify-between gap-4 border-b-2 border-rule pb-3">
+          <h2 id="sessions-title">Sessions</h2>
+          {items.length > 0 ? (
             <div role="group" aria-label="Filter sessions" className="flex items-center gap-4">
               {filters.map((option) => (
                 <button
@@ -183,48 +181,49 @@ export function SessionsPage() {
             </div>
           ) : (
             <SectionCount value={items.length} />
-          )
-        }
-      >
-        {sessions.isError ? (
-          <div className="flex flex-col items-start gap-4 border-b border-line py-10">
-            <p className="text-sm text-ink/70">Could not load your sessions. Check your connection and try again.</p>
-            <Button variant="ghost" onClick={() => void sessions.refetch()}>
-              <RotateCw aria-hidden="true" /> Retry
-            </Button>
-          </div>
-        ) : null}
+          )}
+        </div>
+      </div>
+      <div className="flex-1 w-full overflow-y-auto min-h-0 pb-12 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {sessions.isError ? (
+            <div className="flex flex-col items-start gap-4 border-b border-line py-10">
+              <p className="text-sm text-ink/70">Could not load your sessions. Check your connection and try again.</p>
+              <Button variant="ghost" onClick={() => void sessions.refetch()}>
+                <RotateCw aria-hidden="true" /> Retry
+              </Button>
+            </div>
+          ) : null}
 
-        {!loading && !sessions.isError && items.length === 0 ? (
-          <div className="flex flex-col items-start border-b border-line py-14">
-            <p className="font-serif text-3xl italic text-ink md:text-4xl">Nothing on the ledger yet.</p>
-            <p className="text-pretty mt-3 max-w-md text-sm leading-6 text-ink/65">
-              Start a session with a PDF or your own notes. It saves as you go, so you can stop at any step and pick it up here.
+          {!loading && !sessions.isError && items.length === 0 ? (
+            <div className="flex flex-col items-start border-b border-line py-14">
+              <p className="font-serif text-3xl italic text-ink md:text-4xl">Nothing on the ledger yet.</p>
+              <p className="text-pretty mt-3 max-w-md text-sm leading-6 text-ink/65">
+                Start a session with a PDF or your own notes. It saves as you go, so you can stop at any step and pick it up here.
+              </p>
+              <div className="mt-8">{startButton}</div>
+            </div>
+          ) : null}
+
+          {!loading && items.length > 0 && visible.length === 0 ? (
+            <p className="border-b border-line py-10 text-sm text-ink/65">
+              {filter === 'live' ? 'Nothing in progress. Every session has its results.' : 'No completed sessions yet.'}
             </p>
-            <div className="mt-8">{startButton}</div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {!loading && items.length > 0 && visible.length === 0 ? (
-          <p className="border-b border-line py-10 text-sm text-ink/65">
-            {filter === 'live' ? 'Nothing in progress. Every session has its results.' : 'No completed sessions yet.'}
-          </p>
-        ) : null}
-
-        {loading || visible.length > 0 ? (
-          <table className="w-full table-fixed border-collapse text-left text-sm">
-            <caption className="sr-only">Your study sessions, how far each got, and how to continue them.</caption>
-            <thead className="border-b border-line">
-              <tr>
-                <th scope="col" className={cn(thClass, 'hidden w-14 sm:table-cell')}>#</th>
-                <th scope="col" className={thClass}>Session</th>
-                <th scope="col" className={cn(thClass, 'hidden w-48 lg:table-cell')}>Stage</th>
-                <th scope="col" className={cn(thClass, 'hidden w-32 md:table-cell')}>Updated</th>
-                <th scope="col" className={cn(thClass, 'w-28 text-right')}>
-                  <span className="sr-only">Action</span>
-                </th>
-              </tr>
-            </thead>
+          {loading || visible.length > 0 ? (
+            <table className="w-full table-fixed border-collapse text-left text-sm">
+              <caption className="sr-only">Your study sessions, how far each got, and how to continue them.</caption>
+              <thead className="sticky top-0 bg-canvas z-10 border-b border-line">
+                <tr>
+                  <th scope="col" className={cn(thClass, 'hidden w-14 sm:table-cell')}>#</th>
+                  <th scope="col" className={thClass}>Session</th>
+                  <th scope="col" className={cn(thClass, 'hidden w-48 lg:table-cell')}>Stage</th>
+                  <th scope="col" className={cn(thClass, 'hidden w-32 md:table-cell')}>Updated</th>
+                  <th scope="col" className={cn(thClass, 'w-28 text-right')}>
+                    <span className="sr-only">Action</span>
+                  </th>
+                </tr>
+              </thead>
             <tbody>
               {loading
                 ? Array.from({ length: 4 }, (_, index) => (
@@ -288,7 +287,7 @@ export function SessionsPage() {
             </tbody>
           </table>
         ) : null}
-      </Section>
+        </div>
     </AppPage>
   )
 }

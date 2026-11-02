@@ -24,7 +24,6 @@ from services import context_service, question_service, session_service
 from services.auth_service import CurrentUser, get_current_user
 from services.session_service import (
     InvalidAnswerError,
-    RetestWindowExpiredError,
     SessionConflictError,
     SessionNotFoundError,
 )
@@ -350,8 +349,8 @@ async def create_retest(
     """Step 6 — Retest: targeted practice on weak areas (score <= 60).
 
     Defaults to weak-only questions. Pass weak_only=false for a full
-    confidence retest. Retests are allowed within 24h of completion —
-    otherwise start a fresh session.
+    confidence retest. Allowed at any time after completion: the parent is read
+    from DragonFly while cached, else rebuilt from Postgres and re-cached.
     """
     try:
         state, meta = await session_service.create_retest(
@@ -366,8 +365,6 @@ async def create_retest(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except SessionConflictError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
-    except RetestWindowExpiredError as e:
-        raise HTTPException(status_code=410, detail=str(e)) from e
     return RetestResponse(
         id=state["id"],
         parent_session_id=session_id,

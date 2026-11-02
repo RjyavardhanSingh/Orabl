@@ -113,12 +113,6 @@ def clean_pages(pages: list[str]) -> list[str]:
     return out
 
 
-def strip_stopwords(text: str) -> str:
-    """Return keyword-soup (stopwords removed). For diagnostics/IR only — NOT for the LLM prompt."""
-    toks = re.findall(r"[a-zA-Z]+", text.lower())
-    return " ".join(t for t in toks if t not in STOPWORDS and len(t) >= 3)
-
-
 def extract_keywords(text: str, *, top_n: int = 50) -> list[str]:
     """Top-N frequent non-stopword terms. Used as a `Key terms` prompt hint."""
     toks = _TOKEN.findall(text.lower())

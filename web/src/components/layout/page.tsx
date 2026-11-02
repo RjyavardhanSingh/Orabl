@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 import { cn } from '../../lib/utils'
 import { AppNavbar } from './app-navbar'
-import { overlineClass, pageContainerClass } from './classes'
+import { overlineClass } from './classes'
 
 /*
  * Editorial Ledger page kit for every signed-in page. Nothing here is a card: content sits
@@ -13,7 +13,9 @@ import { overlineClass, pageContainerClass } from './classes'
 /** A signed-in page: skip link, navbar, then a body that scrolls under the fixed navbar. */
 export function AppPage({ children, navActions }: { children: ReactNode; navActions?: ReactNode }) {
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-canvas text-ink">
+    // Viewport lock: the window never scrolls, <main> fills the rest. bg-canvas is beige in light
+    // and flips with `.dark`; a hardcoded beige stayed beige in dark mode.
+    <div className="flex h-screen max-h-screen w-full flex-col overflow-hidden bg-canvas">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary"
@@ -21,11 +23,15 @@ export function AppPage({ children, navActions }: { children: ReactNode; navActi
         Skip to content
       </a>
       <AppNavbar actions={navActions} />
-      <div className="scroll-area flex min-h-0 flex-1 flex-col">
-        <main id="main-content" className={cn(pageContainerClass, 'pb-20 pt-10 md:pt-14')}>
-          {children}
-        </main>
-      </div>
+      {/* Scrolls when a page is taller than the window (Settings), with the scrollbar hidden;
+          pages that fill the height with their own scrolling panels (dashboard, Results) fit
+          exactly and never trigger it. */}
+      <main
+        id="main-content"
+        className="flex-1 w-full max-w-6xl mx-auto flex flex-col min-h-0 overflow-y-auto px-6 md:px-8 pt-8 md:pt-12 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {children}
+      </main>
     </div>
   )
 }
