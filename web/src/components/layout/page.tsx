@@ -13,7 +13,7 @@ import { overlineClass } from './classes'
 /** A signed-in page: skip link, navbar, then a body that scrolls under the fixed navbar. */
 export function AppPage({ children, navActions }: { children: ReactNode; navActions?: ReactNode }) {
   return (
-    <div className="h-screen max-h-screen w-full flex flex-col overflow-hidden bg-[#EBE5D9] text-ink">
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-[#EBE5D9]">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary"
@@ -21,11 +21,9 @@ export function AppPage({ children, navActions }: { children: ReactNode; navActi
         Skip to content
       </a>
       <AppNavbar actions={navActions} />
-      <div className="scroll-area flex min-h-0 flex-1 flex-col">
-        <main id="main-content" className="flex-1 w-full max-w-6xl mx-auto px-6 md:px-8 py-8 md:py-12 flex flex-col min-h-0">
-          {children}
-        </main>
-      </div>
+      <main id="main-content" className="flex-1 w-full max-w-6xl mx-auto flex flex-col min-h-0 px-6 md:px-8 pt-8 md:pt-12">
+        {children}
+      </main>
     </div>
   )
 }

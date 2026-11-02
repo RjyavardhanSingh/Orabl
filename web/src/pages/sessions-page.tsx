@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { AppPage, PageHeader, Section, SectionCount } from '../components/layout/page'
+import { AppPage, PageHeader, SectionCount } from '../components/layout/page'
 import { Button } from '../components/ui/button'
 import { api, type StudySessionSummary } from '../lib/api'
 import { useAuthStore } from '../lib/auth-state'
@@ -131,7 +131,7 @@ export function SessionsPage() {
 
   return (
     <AppPage>
-      <div className="shrink-0">
+      <div className="shrink-0 flex-none w-full">
         <PageHeader
           overline={longDateFormat.format(new Date())}
           title={`${greeting()}, ${firstName(user)}.`}
@@ -160,14 +160,9 @@ export function SessionsPage() {
             </>
           }
         />
-      </div>
-
-      <Section
-        id="sessions-title"
-        title="Sessions"
-        className="flex-1 min-h-0"
-        aside={
-          items.length > 0 ? (
+        <div className="flex items-end justify-between gap-4 border-b-2 border-rule pb-3">
+          <h2 id="sessions-title">Sessions</h2>
+          {items.length > 0 ? (
             <div role="group" aria-label="Filter sessions" className="flex items-center gap-4">
               {filters.map((option) => (
                 <button
@@ -186,10 +181,10 @@ export function SessionsPage() {
             </div>
           ) : (
             <SectionCount value={items.length} />
-          )
-        }
-      >
-        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] min-h-0 pb-12">
+          )}
+        </div>
+      </div>
+      <div className="flex-1 w-full overflow-y-auto min-h-0 pb-12 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {sessions.isError ? (
             <div className="flex flex-col items-start gap-4 border-b border-line py-10">
               <p className="text-sm text-ink/70">Could not load your sessions. Check your connection and try again.</p>
@@ -293,7 +288,6 @@ export function SessionsPage() {
           </table>
         ) : null}
         </div>
-      </Section>
     </AppPage>
   )
 }
