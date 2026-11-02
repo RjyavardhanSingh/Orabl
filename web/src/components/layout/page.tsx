@@ -23,7 +23,13 @@ export function AppPage({ children, navActions }: { children: ReactNode; navActi
         Skip to content
       </a>
       <AppNavbar actions={navActions} />
-      <main id="main-content" className="flex-1 w-full max-w-6xl mx-auto flex flex-col min-h-0 px-6 md:px-8 pt-8 md:pt-12">
+      {/* Scrolls when a page is taller than the window (Settings), with the scrollbar hidden;
+          pages that fill the height with their own scrolling panels (dashboard, Results) fit
+          exactly and never trigger it. */}
+      <main
+        id="main-content"
+        className="flex-1 w-full max-w-6xl mx-auto flex flex-col min-h-0 overflow-y-auto px-6 md:px-8 pt-8 md:pt-12 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {children}
       </main>
     </div>

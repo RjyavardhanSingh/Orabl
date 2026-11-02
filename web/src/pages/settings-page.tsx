@@ -35,7 +35,8 @@ export function SettingsPage() {
     <AppPage>
       <PageHeader overline="Your account" title="Settings" description="Your account, your study activity, and how Orabl looks on this device." />
 
-      <div className="grid max-w-4xl gap-16">
+      {/* pb: room under Log Out when the page scrolls to its end. */}
+      <div className="grid max-w-4xl gap-16 pb-16">
         <Section id="account-heading" title="Account">
           <dl>
             <div className={cn(rowClass, 'sm:items-center')}>
