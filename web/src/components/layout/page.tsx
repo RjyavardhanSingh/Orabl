@@ -22,7 +22,7 @@ export function AppPage({ children, navActions }: { children: ReactNode; navActi
       </a>
       <AppNavbar actions={navActions} />
       <div className="scroll-area flex min-h-0 flex-1 flex-col">
-        <main id="main-content" className={cn(pageContainerClass, 'pb-20 pt-10 md:pt-14')}>
+        <main id="main-content" className={cn(pageContainerClass, 'overflow-x-hidden pb-20 pt-10 md:pt-14')}>
           {children}
         </main>
       </div>

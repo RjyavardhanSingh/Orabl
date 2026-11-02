@@ -131,6 +131,7 @@
 html {
   min-width: 320px;
   overflow-x: clip;
+  overflow-y: hidden;
   scroll-behavior: smooth;
 }
 
@@ -138,6 +139,7 @@ body {
   margin: 0;
   min-width: 320px;
   overflow-x: clip;
+  overflow-y: hidden;
 }
 
 /* Kill the double-tap zoom delay on interactive controls. */
