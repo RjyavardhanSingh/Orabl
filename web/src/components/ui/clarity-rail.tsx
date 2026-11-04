@@ -28,10 +28,20 @@ const LEG_FOG =
   "C 100 210, 115 260, 155 285 " +
   "C 195 310, 218 303, 242 306";
 
+// Bottom sweep: rises from the lower left through the bottom centre and ends behind the
+// machine plate (inside its 242–402 × 276–336 rect), the same place LEG_FOG disappears into,
+// so the two streams read as one loop feeding the robot. Length ≈ 334.
+const LEG_SWEEP = "M 20 440 C 120 456, 205 446, 245 408 C 268 386, 272 356, 286 318";
+
 const FOG_UNIT = "I know my notes… but can I put it into words? • ";
 const FOG_TILED = `${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}`;
 const FOG_TILED_LENGTH = 1800;
 const FOG_TILE_UNIT = FOG_TILED_LENGTH / 5;
+
+// The bottom sweep uses three of the fog's units: the same 360 spacing and speed as the fog,
+// and 1080 ≥ 334 (its length) + 360, so the stream never shows a gap.
+const SWEEP_TILED = `${FOG_UNIT}${FOG_UNIT}${FOG_UNIT}`;
+const SWEEP_TILED_LENGTH = FOG_TILE_UNIT * 3;
 
 const FOG_STATIC = "Can I say it in my own words?";
 
@@ -220,7 +230,53 @@ export function ClarityRail() {
           <mask id="clarity-fog-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="600" height="560">
             <rect width="600" height="560" fill="url(#clarity-fog-fade)" />
           </mask>
+          {/* Bottom sweep fades: it dissolves in at its lower-left entry (so glyphs never pop
+              onto the start of the curve) and dissolves out into the maroon as it nears the
+              machine, centred on the plate, before sliding behind it. */}
+          <linearGradient id="clarity-sweep-in" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="150" y2="0">
+            <stop offset="0%" stopColor="white" stopOpacity="0" />
+            <stop offset="100%" stopColor="white" />
+          </linearGradient>
+          <radialGradient id="clarity-sweep-out" gradientUnits="userSpaceOnUse" cx="322" cy="306" r="135">
+            <stop offset="35%" stopColor="white" stopOpacity="0" />
+            <stop offset="100%" stopColor="white" />
+          </radialGradient>
+          <mask id="clarity-sweep-in-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="-100" y="-100" width="900" height="700">
+            <rect x="-100" y="-100" width="900" height="700" fill="url(#clarity-sweep-in)" />
+          </mask>
+          <mask id="clarity-sweep-out-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="-100" y="-100" width="900" height="700">
+            <rect x="-100" y="-100" width="900" height="700" fill="url(#clarity-sweep-out)" />
+          </mask>
         </defs>
+        <path id="bottom-sweep-path" d={LEG_SWEEP} fill="transparent" stroke="none" />
+        {/* Bottom sweep: the same narration as the fog (same font, size, opacity and unit
+            spacing) rising into the machine, where the fog also ends. It is drawn before the
+            machine group, so it slides underneath the plate. SVG animates startOffset (CSS
+            cannot), exactly as the other two streams do. */}
+        <g mask="url(#clarity-sweep-in-mask)">
+          <text
+            fontSize={15}
+            fill={BEIGE}
+            fillOpacity={FOG_OPACITY}
+            textLength={SWEEP_TILED_LENGTH}
+            lengthAdjust="spacing"
+            mask="url(#clarity-sweep-out-mask)"
+            style={RAIL_FONT}
+          >
+            <textPath href="#bottom-sweep-path" startOffset={staticView ? 0 : undefined}>
+              {SWEEP_TILED}
+              {staticView ? null : (
+                <animate
+                  attributeName="startOffset"
+                  values={`${-FOG_TILE_UNIT};0`}
+                  keyTimes="0;1"
+                  dur={`${LOOP_SECONDS}s`}
+                  repeatCount="indefinite"
+                />
+              )}
+            </textPath>
+          </text>
+        </g>
         {/* Invisible geometry for the foggy textPath to reference. */}
         <path id="clarity-rail-fog" d={LEG_FOG} fill="none" stroke="none" />
         {/* Exit ribbon backdrop — the clear text below references this
