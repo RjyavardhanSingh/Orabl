@@ -16,7 +16,7 @@ import {
 import { useRegisterFlowResults } from '../components/layout/flow-results'
 import { Alert } from '../components/ui/alert'
 import { buttonVariants } from '../components/ui/button-variants'
-import { api, ApiError, type PracticeSession, type Question } from '../lib/api'
+import { api, ApiError, FOLLOW_UP_LABELS, type PracticeSession, type Question } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { useMicLevelAdapter } from '../lib/use-mic-level-adapter'
 import { formatClock, useVoiceAnswer } from '../lib/use-voice-answer'
@@ -95,19 +95,29 @@ function QuestionPrompt({
   total,
 }: {
   question: Question
+  /** 1-based position within its round: the main questions, or the follow-ups. */
   position: number
   total: number
 }) {
+  const followUp = question.follow_up
   return (
     <section className="border-b border-line pb-7">
       <div className="flex items-start justify-between gap-4">
         <p className={cn(ledgerLabelClass, 'mb-0 tabular')}>
-          Question {position} of {total}
+          {followUp
+            ? `Follow-up ${position} of ${total} · ${FOLLOW_UP_LABELS[followUp.kind]}`
+            : `Question ${position} of ${total}`}
         </p>
         {question.topic ? (
           <p className="max-w-[50%] truncate font-sans text-xs text-ink/50">{question.topic}</p>
         ) : null}
       </div>
+      {followUp ? (
+        <p className="mt-3 text-sm leading-6 text-ink/70">
+          <span className="font-bold text-ink">On question {followUp.parent_index + 1}.</span>{' '}
+          {followUp.rationale}
+        </p>
+      ) : null}
       <h2 className="text-pretty mt-4 font-serif text-2xl italic leading-snug text-strong sm:text-3xl">
         {question.text}
       </h2>
@@ -130,7 +140,8 @@ export function PracticePage() {
   const { studyId } = useParams()
   const currentStudyId = studyId || activeStudySessionId()
   const [session] = useState<PracticeSession | null>(readSession)
-  const [questions] = useState<Question[]>(readQuestions)
+  // Grows during the session: Orabl appends adaptive follow-ups as answers are scored.
+  const [questions, setQuestions] = useState<Question[]>(readQuestions)
   const [index, setIndex] = useState(() => readSession()?.current_index ?? 0)
   const [draft, setDraft] = useState<string | null>(null)
   const [awaitingAck, setAwaitingAck] = useState(false)
@@ -140,11 +151,15 @@ export function PracticePage() {
   const micLevel = useMicLevelAdapter(voice.phase === 'recording')
 
   const total = questions.length
-  const done = index >= total
-  const question = !done ? questions[index] : null
+  const atEnd = index >= total
+  const question = !atEnd ? questions[index] : null
+  // The main questions come first; follow-ups form a short round after them.
+  const mainCount = questions.filter((q) => !q.follow_up).length
+  const inFollowUps = Boolean(question?.follow_up)
 
   const { data: live } = useQuery({
-    queryKey: ['session', session?.id],
+    // Keyed by position, so reaching the end always fetches fresh state, never a stale count.
+    queryKey: ['session', session?.id, index],
     queryFn: () => api.getSession(session?.id ?? ''),
     enabled: Boolean(session?.id) && awaitingAck,
     // Poll only while background scores are outstanding; one final fetch
@@ -152,6 +167,24 @@ export function PracticePage() {
     refetchInterval: (query) => (query.state.data?.pending_count ?? 1) > 0 ? 3000 : false,
   })
   const pendingCount = live?.pending_count ?? 0
+  // The server's list has grown: follow-ups were promoted. Pull them in.
+  const hasNewQuestions = (live?.question_count ?? 0) > questions.length
+  useEffect(() => {
+    if (!hasNewQuestions || !session?.id) return
+    let cancelled = false
+    void api.getSessionQuestions(session.id).then(({ questions: next }) => {
+      if (cancelled) return
+      setQuestions(next)
+      try {
+        window.sessionStorage.setItem('recall.questions', JSON.stringify(next))
+      } catch {
+        // private mode
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [hasNewQuestions, session?.id])
 
   const submit = useMutation({
     mutationFn: (payload: { answer_text: string; skipped?: boolean }) =>
@@ -175,6 +208,14 @@ export function PracticePage() {
       toast.error(error instanceof ApiError ? error.message : 'Could not submit answer.')
     },
   })
+
+  // Finished only when nothing can still arrive: every answer scored and no follow-up waiting.
+  const done =
+    atEnd &&
+    !submit.isPending &&
+    (!awaitingAck || (live !== undefined && pendingCount === 0 && !hasNewQuestions))
+  // Main questions answered, but Orabl may still be preparing follow-ups.
+  const reviewing = atEnd && !done
 
   const finish = useMutation({
     mutationFn: () => api.completeSession(session?.id ?? ''),
@@ -256,9 +297,15 @@ export function PracticePage() {
         />
       </Progress.Root>
 
-      {!done && question ? <QuestionPrompt question={question} position={index + 1} total={total} /> : null}
+      {question ? (
+        <QuestionPrompt
+          question={question}
+          position={inFollowUps ? index - mainCount + 1 : index + 1}
+          total={inFollowUps ? total - mainCount : mainCount}
+        />
+      ) : null}
 
-      {!done && question ? (
+      {question ? (
         <section className="pt-8">
           {voice.phase === 'idle' && draft === null && !submit.isPending ? (
             <div className="flex flex-col items-center text-center">
@@ -391,13 +438,23 @@ export function PracticePage() {
         </section>
       ) : null}
 
+      {reviewing ? (
+        <section className="border-t border-line pt-7" role="status">
+          <h2 className="flex items-center gap-3 font-serif text-3xl italic text-ink">
+            <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />
+            Orabl is reviewing your answers
+          </h2>
+          <p className="text-pretty mt-1.5 text-sm leading-6 text-ink/70">
+            Follow-ups may be on the way: up to three questions on what your answers revealed.
+          </p>
+        </section>
+      ) : null}
+
       {done ? (
         <section className="border-t border-line pt-7">
           <h2 className="font-serif text-3xl italic text-ink">All Questions Answered</h2>
           <p className="text-pretty mt-1.5 text-sm leading-6 text-ink/70">
-            {pendingCount > 0
-              ? `Finishing ${pendingCount} background ${pendingCount === 1 ? 'score' : 'scores'}. Open Results in the tracker when you’re ready.`
-              : 'Your full report is ready. Open Results in the tracker to see it.'}
+            Your full report is ready. Open Results in the tracker to see it.
           </p>
           {finish.isPending ? (
             <p className="mt-3 flex items-center gap-2 text-sm text-ink/70" role="status">
