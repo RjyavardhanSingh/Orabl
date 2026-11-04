@@ -96,6 +96,15 @@ class QuestionGenerate(BaseModel):
     count: int = Field(default=10, ge=1, le=20)
 
 
+class FollowUpInfo(BaseModel):
+    """Marks an adaptive follow-up: which answer prompted it, what it probes, and why."""
+
+    parent_index: int
+    parent_question_id: str | None = None
+    kind: Literal["misconception", "gap", "deepen"]
+    rationale: str = ""
+
+
 class QuestionResponse(BaseModel):
     id: str | None = None
     text: str
@@ -110,6 +119,7 @@ class QuestionResponse(BaseModel):
     reference_answer: str | None = Field(default=None, exclude=True)
     scoring_rubric: dict | None = Field(default=None, exclude=True)
     source_citations: list[str] = Field(default_factory=list)
+    follow_up: FollowUpInfo | None = None
 
 
 class QuestionListResponse(BaseModel):
