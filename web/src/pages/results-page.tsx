@@ -10,7 +10,7 @@ import { AppPage, PageHeader, Section, SectionCount, Stat, StatStrip } from '../
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { buttonVariants } from '../components/ui/button-variants'
-import { api, ApiError, type Question, type SessionResults, type TopicBreakdown } from '../lib/api'
+import { api, ApiError, FOLLOW_UP_LABELS, type Question, type SessionResults, type TopicBreakdown } from '../lib/api'
 import { activeStudySessionId, sessionStepPath } from '../lib/study-session'
 import { cn } from '../lib/utils'
 
@@ -231,9 +231,18 @@ export function ResultsPage() {
                     >
                       <Accordion.Trigger className="flex w-full cursor-pointer items-start gap-4 py-4 text-left transition-colors hover:bg-ink/[0.035]">
                         <span className="tabular w-8 shrink-0 pt-0.5 font-mono text-sm text-ink/50">
-                          {String(position + 1).padStart(2, '0')}.
+                          {/* Follow-ups hang off the answer that prompted them. */}
+                          {question.follow_up ? '↳' : `${String(position + 1).padStart(2, '0')}.`}
                         </span>
-                        <span className="text-pretty min-w-0 flex-1 text-sm font-medium leading-6 text-strong">{question.text}</span>
+                        <span className="min-w-0 flex-1">
+                          {question.follow_up ? (
+                            <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-ink/60">
+                              Follow-up to {String(question.follow_up.parent_index + 1).padStart(2, '0')} ·{' '}
+                              {FOLLOW_UP_LABELS[question.follow_up.kind]}
+                            </span>
+                          ) : null}
+                          <span className="text-pretty block text-sm font-medium leading-6 text-strong">{question.text}</span>
+                        </span>
                         <span className={cn('tabular shrink-0 rounded-[4px] px-2 py-0.5 text-[11px] font-bold', scoreTone(answer?.score ?? null))}>
                           {answer?.score === null || answer?.score === undefined ? '…' : `${answer.score}%`}
                         </span>

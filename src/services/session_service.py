@@ -179,6 +179,9 @@ async def submit_answer(
     state["answers"].append(answer_record)
     state["scores"].append({"question_index": question_index, "score": answer_record["score"]})
     state["current_index"] = question_index + 1
+    if state["current_index"] >= len(state["questions"]):
+        # Last question answered: queue the follow-up round from what scoring found so far.
+        _promote_follow_ups(state)
 
     cache.set(f"session:{session_id}", state, ttl=86400)
 
@@ -288,6 +291,17 @@ async def process_score_job(cache: CacheService, db: Database, job: dict) -> Non
                 score_entry["score"] = result["score"]
         if not updated:
             raise InvalidAnswerError(f"Answer for job {job_id} not found in session")
+        if result.get("follow_up") and not snapshot.get("follow_up"):
+            _add_follow_up_candidate(
+                state,
+                job["question_index"],
+                result["score"],
+                result["follow_up"],
+                result["misconceptions_found"],
+            )
+            # A learner already waiting at the end of the list gets the probe right away.
+            if state.get("current_index", 0) >= len(state.get("questions", [])):
+                _promote_follow_ups(state)
         cache.set(f"session:{job['session_id']}", state, ttl=86400)
         await db.execute(
             """UPDATE study_sessions SET practice_state = $2::jsonb, updated_at = NOW()
@@ -358,6 +372,15 @@ async def complete_session(
     _require_owner(state, user_id)
     if state.get("status") != "active":
         raise SessionConflictError("Session is already completed")
+    # Close the follow-up round, and drop follow-ups the learner never reached (a late
+    # promotion), so they can never block completion.
+    state["follow_ups_closed"] = True
+    reached = state.get("current_index", 0)
+    state["questions"] = [
+        q
+        for index, q in enumerate(state.get("questions", []))
+        if index < reached or not q.get("follow_up")
+    ]
     if state.get("current_index", 0) != len(state.get("questions", [])):
         raise SessionConflictError("Answer every question or skip it before completing")
 
@@ -778,6 +801,8 @@ async def _score_with_gemini(question: dict, answer_text: str) -> dict:
     """
     from services.openrouter_service import _call_openrouter
 
+    # Base questions also propose one adaptive follow-up; follow-ups never spawn their own.
+    asks_follow_up = not question.get("follow_up")
     prompt = (
         "You are an educational scoring assistant. Score the student's answer "
         "against the question's rubric and reference answer.\n\n"
@@ -794,8 +819,10 @@ async def _score_with_gemini(question: dict, answer_text: str) -> dict:
         "Return ONLY a JSON object:\n"
         '{"score": 0-100, "feedback": "detailed feedback", '
         '"concept_coverage": ["concept1"], "concepts_missed": ["concept2"], '
-        '"misconceptions_found": ["misconception1"]}'
+        '"misconceptions_found": ["misconception1"]' + ("" if asks_follow_up else "}")
     )
+    if asks_follow_up:
+        prompt += _FOLLOW_UP_INSTRUCTIONS
 
     try:
         response_text = await _call_openrouter(prompt)
@@ -820,6 +847,7 @@ async def _score_with_gemini(question: dict, answer_text: str) -> dict:
             "concepts_missed": _ensure_list(result.get("concepts_missed")),
             "misconceptions_found": _ensure_list(result.get("misconceptions_found")),
             "scored_by": "llm",
+            "follow_up": _normalize_follow_up(result.get("follow_up")) if asks_follow_up else None,
         }
     except Exception:
         ref = question.get("reference_answer", "")
@@ -832,6 +860,122 @@ async def _score_with_gemini(question: dict, answer_text: str) -> dict:
             "misconceptions_found": [],
             "scored_by": "fallback",
         }
+
+
+FOLLOW_UP_KINDS = ("misconception", "gap", "deepen")
+
+_FOLLOW_UP_INSTRUCTIONS = (
+    ', "follow_up": null or {"kind": "misconception" | "gap" | "deepen", '
+    '"text": "one follow-up question", "target_concepts": ["concept"], '
+    '"reference_answer": "what a strong answer to the follow-up says", '
+    '"rationale": "one short sentence telling the student why you are asking"}}\n\n'
+    "FOLLOW-UP RULES (you are an examiner probing the edge of what the student knows):\n"
+    '- A misconception was found: kind "misconception"; test that exact belief again '
+    "with a different example or scenario, without revealing the answer.\n"
+    '- A key concept was missed: kind "gap"; ask one targeted question about it.\n'
+    '- Strong answer (score >= 70, no misconceptions): kind "deepen"; ask a deeper '
+    "or applied question (a tradeoff, an edge case, a new situation).\n"
+    "- Otherwise (e.g. the answer is empty or off-topic): follow_up is null.\n"
+    "- Ask exactly one question, answerable aloud in under a minute, grounded in the "
+    "question's material."
+)
+
+
+def _normalize_follow_up(raw: object) -> dict | None:
+    """Validate the scorer's proposed follow-up; anything malformed is dropped, never guessed."""
+    if not isinstance(raw, dict):
+        return None
+    kind = str(raw.get("kind", "")).strip().lower()
+    text = str(raw.get("text", "")).strip()
+    if kind not in FOLLOW_UP_KINDS or not text:
+        return None
+    return {
+        "kind": kind,
+        "text": text,
+        "target_concepts": _ensure_list(raw.get("target_concepts")),
+        "reference_answer": str(raw.get("reference_answer", "")).strip(),
+        "rationale": str(raw.get("rationale", "")).strip(),
+    }
+
+
+# Adaptive follow-up round: at most this many probes per session, asked after the main questions.
+MAX_FOLLOW_UPS = 3
+# Which candidates win a slot: a misconception before a gap before a deepen, then the weaker answer.
+_FOLLOW_UP_PRIORITY = {"misconception": 0, "gap": 1, "deepen": 2}
+
+
+def _add_follow_up_candidate(
+    state: dict,
+    parent_index: int,
+    score: int | None,
+    follow_up: dict,
+    misconceptions_found: list[str],
+) -> None:
+    """Remember a scorer-proposed follow-up; one candidate per base question."""
+    candidates = state.setdefault("follow_up_candidates", [])
+    if any(c["parent_index"] == parent_index for c in candidates):
+        return
+    candidates.append(
+        {
+            "parent_index": parent_index,
+            "score": score,
+            "misconceptions_found": misconceptions_found,
+            **follow_up,
+        }
+    )
+
+
+def _promote_follow_ups(state: dict) -> None:
+    """Append the best remaining candidates to the question list, up to MAX_FOLLOW_UPS.
+
+    Appending keeps every index-based path valid: the follow-up gets the next index, the
+    completion gate still compares current_index with len(questions), and topic summaries
+    and mastery read it like any question. Follow-ups never get follow-ups of their own.
+    """
+    if state.get("follow_ups_closed") or state.get("status") != "active":
+        return
+    questions = state.setdefault("questions", [])
+    promoted = {q["follow_up"]["parent_index"] for q in questions if q.get("follow_up")}
+    candidates = sorted(
+        (c for c in state.get("follow_up_candidates", []) if c["parent_index"] not in promoted),
+        key=lambda c: (
+            _FOLLOW_UP_PRIORITY[c["kind"]],
+            c["score"] if c["score"] is not None else 100,
+        ),
+    )
+    for candidate in candidates:
+        if len(promoted) >= MAX_FOLLOW_UPS:
+            break
+        parent_index = candidate["parent_index"]
+        parent = questions[parent_index]
+        parent_id = parent.get("id") or f"{state['context_id']}:q{parent_index}"
+        questions.append(
+            {
+                "id": f"{parent_id}:f",
+                "text": candidate["text"],
+                "topic": parent.get("topic", ""),
+                "target_concepts": candidate["target_concepts"]
+                or parent.get("target_concepts", []),
+                "required_relationships": [],
+                "acceptable_alternatives": [],
+                # A misconception probe is scored against the belief actually found.
+                "common_misconceptions": (
+                    candidate["misconceptions_found"]
+                    if candidate["kind"] == "misconception"
+                    else []
+                ),
+                "reference_answer": candidate["reference_answer"],
+                "scoring_rubric": parent.get("scoring_rubric", {}),
+                "source_citations": parent.get("source_citations", []),
+                "follow_up": {
+                    "parent_index": parent_index,
+                    "parent_question_id": parent_id,
+                    "kind": candidate["kind"],
+                    "rationale": candidate["rationale"],
+                },
+            }
+        )
+        promoted.add(parent_index)
 
 
 def _ensure_list(value: object) -> list[str]:
