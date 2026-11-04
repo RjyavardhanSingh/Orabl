@@ -45,6 +45,25 @@ export type Question = {
     concepts_missed: string[]
     misconceptions_found: string[]
   }
+  /** Set on adaptive follow-ups: asked after the main questions, prompted by an earlier answer. */
+  follow_up?: FollowUp
+}
+
+export type FollowUpKind = 'misconception' | 'gap' | 'deepen'
+
+export type FollowUp = {
+  parent_index: number
+  parent_question_id?: string
+  kind: FollowUpKind
+  /** One sentence telling the learner why Orabl is asking. */
+  rationale: string
+}
+
+/** How each follow-up kind reads to the learner. */
+export const FOLLOW_UP_LABELS: Record<FollowUpKind, string> = {
+  misconception: 'Probing a misconception',
+  gap: 'Filling a gap',
+  deepen: 'Going deeper',
 }
 
 export type QuestionList = {
