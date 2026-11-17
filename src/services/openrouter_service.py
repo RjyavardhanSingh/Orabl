@@ -1,15 +1,11 @@
-"""OpenRouter service for question generation."""
+"""OpenRouter client: model fallback, error messages, and content limits."""
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 import os
 
 import httpx
-
-from cache.dragonfly import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -36,18 +32,6 @@ def _get_api_key() -> str:
     return api_key
 
 
-def calculate_question_count(word_count: int) -> int:
-    """Dynamic question count based on content length."""
-    if word_count < 2000:
-        return 5
-    elif word_count < 10000:
-        return 10
-    elif word_count < 50000:
-        return 15
-    else:
-        return 20
-
-
 def _truncate_content(content: str, max_chars: int = 3000000) -> str:
     """Truncate content to stay within token limits.
 
@@ -58,102 +42,6 @@ def _truncate_content(content: str, max_chars: int = 3000000) -> str:
         return content
     logger.warning(f"Truncating material content from {len(content)} to {max_chars} chars")
     return content[:max_chars]
-
-
-def _build_prompt(
-    material_content: str, goal: dict, count: int, keywords: list[str] | None = None
-) -> str:
-    """Build prompt for enriched question + rubric generation."""
-    subject = goal.get("subject", "general")
-    target = goal.get("target", "general understanding")
-    level = goal.get("level", "intermediate")
-
-    prompt = (
-        "You are a learning assistant. Generate practice questions "
-        "based on the following material and learning goal.\n\n"
-        f"MATERIAL:\n{material_content}\n\n"
-    )
-    if keywords:
-        prompt += f"KEY TERMS (focus questions on these):\n{', '.join(keywords[:50])}\n\n"
-    prompt += (
-        f"LEARNING GOAL:\n"
-        f"- Subject: {subject}\n"
-        f"- Target: {target}\n"
-        f"- Level: {level}\n\n"
-        f"Generate {count} questions that:\n"
-        "1. Are directly about the material content (no unrelated questions)\n"
-        "2. Test understanding, not just memorization\n"
-        "3. Match the difficulty to the learner's level\n"
-        "4. Cover different topics from the material\n\n"
-        "For EACH question, return a JSON object with these fields:\n"
-        '- "text": the question text\n'
-        '- "topic": the topic/category\n'
-        '- "target_concepts": list of key concepts the answer must cover\n'
-        '- "required_relationships": list of causal/logical relationships the answer must express\n'
-        '- "acceptable_alternatives": list of alternative phrasings that are also correct\n'
-        '- "common_misconceptions": list of typical wrong beliefs about this topic\n'
-        '- "reference_answer": a concise, perfect answer based strictly on the material\n'
-        '- "scoring_rubric": object with "excellent", "good", "needs_work" criteria\n'
-        '- "source_citations": list of page/section references from the material\n\n'
-        "Return ONLY a JSON array, no other text:\n"
-        '[{"text": "...", "topic": "...", "target_concepts": ["..."], '
-        '"required_relationships": ["..."], "acceptable_alternatives": ["..."], '
-        '"common_misconceptions": ["..."], "reference_answer": "...", '
-        '"scoring_rubric": {"excellent": "...", "good": "...", "needs_work": "..."}, '
-        '"source_citations": ["..."]}]'
-    )
-    return prompt
-
-
-def _normalize_questions(raw: object) -> list[dict]:
-    """Coerce the model's JSON into a uniform question list.
-
-    Guarantees every item has all required fields so downstream
-    scoring never breaks on a missing field. Raises ValueError when
-    the payload is unusable (triggers a retry).
-    """
-    if not isinstance(raw, list) or not raw:
-        raise ValueError("Response is not a non-empty list")
-    questions = []
-    for i, item in enumerate(raw):
-        if not isinstance(item, dict) or not str(item.get("text", "")).strip():
-            raise ValueError(f"Question at index {i} has no text")
-        questions.append(
-            {
-                "text": str(item["text"]).strip(),
-                "topic": str(item.get("topic", "") or "").strip(),
-                "target_concepts": _ensure_list(item.get("target_concepts")),
-                "required_relationships": _ensure_list(item.get("required_relationships")),
-                "acceptable_alternatives": _ensure_list(item.get("acceptable_alternatives")),
-                "common_misconceptions": _ensure_list(item.get("common_misconceptions")),
-                "reference_answer": str(item.get("reference_answer", "") or "").strip(),
-                "scoring_rubric": _ensure_rubric(item.get("scoring_rubric")),
-                "source_citations": _ensure_list(item.get("source_citations")),
-            }
-        )
-    missing = sum(1 for q in questions if not q["reference_answer"])
-    if missing:
-        logger.warning(f"{missing}/{len(questions)} questions came back without a reference answer")
-    return questions
-
-
-def _ensure_list(value: object) -> list[str]:
-    """Coerce a value to a list of strings."""
-    if isinstance(value, list):
-        return [str(v).strip() for v in value if str(v).strip()]
-    return []
-
-
-def _ensure_rubric(value: object) -> dict:
-    """Coerce a value to a scoring rubric dict with required keys."""
-    defaults = {"excellent": "", "good": "", "needs_work": ""}
-    if isinstance(value, dict):
-        return {
-            "excellent": str(value.get("excellent", "") or "").strip(),
-            "good": str(value.get("good", "") or "").strip(),
-            "needs_work": str(value.get("needs_work", "") or "").strip(),
-        }
-    return defaults
 
 
 def _build_headers() -> dict:
@@ -314,67 +202,3 @@ async def call_openrouter_with_model(prompt: str) -> tuple[str, str]:
             last_error = e
             logger.warning(f"OpenRouter model {model} failed: {e}")
     raise last_error
-
-
-async def generate_questions(
-    cache: CacheService,
-    context_id: str,
-    material_content: str,
-    goal: dict,
-    word_count: int,
-    count: int | None = None,
-    keywords: list[str] | None = None,
-    use_cache: bool = True,
-) -> list[dict]:
-    """Generate questions using OpenRouter with retry logic.
-
-    Checks response cache first to avoid re-generation.
-    """
-    requested_count = count or calculate_question_count(word_count)
-    cache_key = f"openrouter_response:{context_id}:{requested_count}"
-    # Back-compat: fall back to the old Gemini cache key if present.
-    cached = (
-        (cache.get(cache_key) or cache.get(f"gemini_response:{context_id}")) if use_cache else None
-    )
-    if cached is not None:
-        logger.info(f"OpenRouter cache hit for context {context_id}")
-        return cached
-
-    truncated_content = _truncate_content(material_content)
-    prompt = _build_prompt(truncated_content, goal, requested_count, keywords)
-
-    last_error = None
-    for delay in RETRY_DELAYS:
-        try:
-            response_text = await _call_openrouter(prompt)
-            # Strip markdown code fences if present
-            cleaned = response_text.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[1]
-            if cleaned.endswith("```"):
-                cleaned = cleaned.rsplit("```", 1)[0]
-            cleaned = cleaned.strip()
-
-            questions = _normalize_questions(json.loads(cleaned))
-
-            if use_cache:
-                cache.set(cache_key, questions, ttl=86400)
-            return questions
-
-        except Exception as e:
-            if _is_auth_error(e):
-                logger.error(f"OpenRouter auth failed: {e}")
-                raise
-            last_error = e
-            logger.warning(f"OpenRouter call failed: {e}, retrying in {delay}s")
-            await asyncio.sleep(delay)
-
-    logger.error(f"OpenRouter failed after all retries: {last_error}")
-    # Preserve actionable provider errors (rate limits) instead of burying
-    # them under the generic message — the route forwards detail to the UI.
-    if last_error is not None and _status_code(last_error) == 429:
-        raise RuntimeError(
-            "OpenRouter is still rate-limiting this key (429). "
-            "Wait a minute and retry, or set OPENROUTER_MODEL to a paid model."
-        ) from last_error
-    raise RuntimeError("Something went wrong, try again")

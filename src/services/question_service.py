@@ -9,7 +9,7 @@ import uuid
 
 from cache.dragonfly import CacheService
 from db.connection import Database
-from services.openrouter_service import generate_questions as openrouter_generate
+from examiner.blueprint import blueprint_questions, generate_blueprint, save_concepts
 
 logger = logging.getLogger(__name__)
 GENERATION_TIMEOUT = 180
@@ -37,7 +37,7 @@ async def generate_questions(
     count: int | None = None,
     user_id: str | None = None,
 ) -> list[dict]:
-    """Generate a question set from the current context and its materials."""
+    """Prepare the exam blueprint for a context and return its seed questions."""
     context_data = cache.get(f"context:{context_id}")
     if context_data is None:
         row = await db.fetchrow("SELECT * FROM contexts WHERE id = $1", context_id)
@@ -73,22 +73,13 @@ async def generate_questions(
 
     goal = context_data.get("goal", {})
     word_count = context_data.get("stats", {}).get("word_count", 0)
-    keywords: list[str] = []
-    for s in sources:
-        keywords.extend(s.get("keywords", []) or [])
-    # dedupe, keep order, cap so the hint stays small
-    keywords = list(dict.fromkeys(keywords))[:50]
 
-    questions = await openrouter_generate(
-        cache,
-        context_id,
-        material_content,
-        goal,
-        word_count,
-        count=count,
-        keywords=keywords,
-        use_cache=False,
-    )
+    # `count` is accepted for API compatibility; the blueprint sizes itself from the material.
+    blueprint = await generate_blueprint(material_content, goal, word_count)
+    owner = context_data.get("user_id")
+    if owner:
+        await save_concepts(db, owner, context_id, blueprint["concepts"])
+    questions = blueprint_questions(blueprint["concepts"])
     assign_question_ids(questions, context_id)
     return questions
 

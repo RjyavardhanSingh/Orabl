@@ -103,3 +103,28 @@ CREATE TABLE IF NOT EXISTS concept_mastery (
 
 CREATE INDEX IF NOT EXISTS idx_concept_mastery_review ON concept_mastery(next_review_at);
 CREATE INDEX IF NOT EXISTS idx_concept_mastery_user_id ON concept_mastery(user_id);
+
+CREATE TABLE IF NOT EXISTS concepts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  key TEXT NOT NULL,
+  name TEXT NOT NULL,
+  summary TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, key)
+);
+
+CREATE TABLE IF NOT EXISTS concept_edges (
+  user_id TEXT NOT NULL,
+  concept_id TEXT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  prerequisite_id TEXT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  PRIMARY KEY (concept_id, prerequisite_id)
+);
+
+CREATE TABLE IF NOT EXISTS context_concepts (
+  context_id TEXT NOT NULL REFERENCES contexts(id) ON DELETE CASCADE,
+  concept_id TEXT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL,
+  importance INTEGER NOT NULL DEFAULT 2,
+  PRIMARY KEY (context_id, concept_id)
+);

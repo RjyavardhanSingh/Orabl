@@ -144,12 +144,29 @@ def test_generation_after_context_cache_expiry_uses_saved_material(monkeypatch):
             ]
 
     captured = {}
+    saved = {}
 
-    async def fake_openrouter(cache, context_id, material_content, goal, word_count, **kwargs):
-        captured.update(content=material_content, goal=goal, count=kwargs["count"])
-        return [{"text": "Who was Ashoka?"}]
+    async def fake_blueprint(material, goal, word_count):
+        captured.update(content=material, goal=goal)
+        concept = {
+            "key": "ashoka",
+            "name": "Ashoka",
+            "summary": "",
+            "prerequisites": [],
+            "importance": 3,
+            "question": "Who was Ashoka?",
+            "reference_answer": "Mauryan emperor.",
+            "must_include": [],
+            "common_misconceptions": [],
+            "source_quote": "",
+        }
+        return {"concepts": [concept], "model": "fake", "prompt_version": "blueprint-v1"}
 
-    monkeypatch.setattr(question_service, "openrouter_generate", fake_openrouter)
+    async def fake_save(db, user_id, context_id, concepts):
+        saved.update(user_id=user_id, context_id=context_id, keys=[c["key"] for c in concepts])
+
+    monkeypatch.setattr(question_service, "generate_blueprint", fake_blueprint)
+    monkeypatch.setattr(question_service, "save_concepts", fake_save)
 
     result = asyncio.run(
         question_service.generate_questions(ExpiredCache(), ContextDb(), "c1", 5, "u1")
@@ -157,3 +174,5 @@ def test_generation_after_context_cache_expiry_uses_saved_material(monkeypatch):
     assert "Ashoka ruled" in captured["content"]
     assert captured["goal"]["subject"] == "History"
     assert result[0]["id"] == "c1:q0"
+    assert result[0]["concept_key"] == "ashoka"
+    assert saved == {"user_id": "u1", "context_id": "c1", "keys": ["ashoka"]}
