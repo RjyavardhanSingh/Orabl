@@ -179,10 +179,11 @@ Probe use: `broken` → accept `misconception`/`clarify` probe; `shaky` → `cla
 Each PR keeps the app working end to end and CI green (`ruff`, `pytest`; `bun run build`,
 `bun run lint` for 6).
 
-## Open questions
+## Decisions (17 Nov 2026)
 
-1. **Model.** Evaluation quality depends on the model; the defaults are free models that are slow
-   and unreliable at strict JSON. A paid model for blueprint + evaluation is recommended. An
-   `OPENROUTER_API_KEY` in project settings is needed for the live check.
-2. **Exam length.** 15 minutes / 14 questions cap by default.
-3. **Old flow.** Replace it outright (default) or keep the fixed set as a fallback.
+1. **Old flow:** replaced. New sessions are exams; completed sessions keep their old results.
+2. **Exam length:** 15 minutes / 14 questions cap.
+3. **Model:** stay on the free OpenRouter models. Consequences for the build: prompts stay short
+   with one small JSON object per call; every response goes through strict normalisation; any
+   malformed reply falls back to keyword scoring with the verdict `unscored` and no probe, and the
+   policy then moves to the next seed question so the exam never stalls on the model.

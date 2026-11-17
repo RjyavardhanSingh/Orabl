@@ -105,21 +105,35 @@ class FollowUpInfo(BaseModel):
     rationale: str = ""
 
 
+class PreviousAttempt(BaseModel):
+    """On a retest question: how the learner did on it last time."""
+
+    score: int
+    concepts_missed: list[str] = Field(default_factory=list)
+    misconceptions_found: list[str] = Field(default_factory=list)
+
+
 class QuestionResponse(BaseModel):
+    """The learner-facing view of a question.
+
+    The answer key — reference answer, rubric, and what the scorer listens for — is accepted so a
+    stored question validates as-is, but never serialised: a learner could otherwise read it in
+    the network tab mid-session.
+    """
+
     id: str | None = None
     text: str
     topic: str | None = None
     difficulty: str | None = None
-    target_concepts: list[str] = Field(default_factory=list)
-    required_relationships: list[str] = Field(default_factory=list)
-    acceptable_alternatives: list[str] = Field(default_factory=list)
-    common_misconceptions: list[str] = Field(default_factory=list)
-    # Kept on the server-side model for scoring compatibility, but never
-    # serialized into an API response. This prevents answer-key leakage.
+    target_concepts: list[str] = Field(default_factory=list, exclude=True)
+    required_relationships: list[str] = Field(default_factory=list, exclude=True)
+    acceptable_alternatives: list[str] = Field(default_factory=list, exclude=True)
+    common_misconceptions: list[str] = Field(default_factory=list, exclude=True)
     reference_answer: str | None = Field(default=None, exclude=True)
     scoring_rubric: dict | None = Field(default=None, exclude=True)
     source_citations: list[str] = Field(default_factory=list)
     follow_up: FollowUpInfo | None = None
+    previous_attempt: PreviousAttempt | None = None
 
 
 class QuestionListResponse(BaseModel):
@@ -177,7 +191,7 @@ class AnswerResponse(BaseModel):
 class SessionCompleteResponse(BaseModel):
     id: str
     readiness_score: int = Field(ge=0, le=100)
-    questions: list[dict]
+    questions: list[QuestionResponse]
     answers: list[dict]
     scores: list[dict]
     completed_at: str
@@ -191,7 +205,7 @@ class SessionResultsResponse(BaseModel):
 
     id: str
     readiness_score: int
-    questions: list[dict]
+    questions: list[QuestionResponse]
     answers: list[dict]
     scores: list[dict]
     completed_at: str | None = None

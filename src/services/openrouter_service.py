@@ -287,7 +287,13 @@ async def _call_model(messages: list[dict], model: str) -> dict:
 
 
 async def _call_openrouter(prompt: str) -> str:
-    """Call OpenRouter with model fallback.
+    """Call OpenRouter with model fallback; returns the content only."""
+    content, _model = await call_openrouter_with_model(prompt)
+    return content
+
+
+async def call_openrouter_with_model(prompt: str) -> tuple[str, str]:
+    """Call OpenRouter with model fallback; returns (content, model that answered).
 
     Preserves `reasoning_details` on the wire format: if a follow-up
     turn is ever needed, pass the assistant message back unmodified
@@ -301,7 +307,7 @@ async def _call_openrouter(prompt: str) -> str:
             content = message.get("content")
             if not content:
                 raise RuntimeError(f"Empty content from model {model}: {message}")
-            return content
+            return content, model
         except Exception as e:
             if _is_auth_error(e):
                 raise  # key-level failure: other models would fail the same way
