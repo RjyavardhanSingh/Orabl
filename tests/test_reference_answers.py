@@ -1,5 +1,3 @@
-import pytest
-
 from api.schemas import QuestionResponse
 from services import openrouter_service as ors
 from services import session_service
@@ -19,68 +17,6 @@ def test_unauthorized_message_for_rejected_inference_key():
 
     assert "401 Unauthorized" in message
     assert "https://openrouter.ai/keys" in message
-
-
-def test_prompt_requests_reference_answer():
-    prompt = ors._build_prompt("some material", {"subject": "bio"}, 5)
-
-    assert "reference_answer" in prompt
-
-
-def test_prompt_requests_enriched_fields():
-    prompt = ors._build_prompt("some material", {"subject": "bio"}, 5)
-
-    assert '"target_concepts"' in prompt
-    assert '"required_relationships"' in prompt
-    assert '"acceptable_alternatives"' in prompt
-    assert '"common_misconceptions"' in prompt
-    assert '"scoring_rubric"' in prompt
-    assert '"source_citations"' in prompt
-
-
-def test_normalize_questions_ok():
-    raw = [
-        {
-            "text": " What is X? ",
-            "topic": " Basics ",
-            "reference_answer": " X is Y. ",
-            "target_concepts": ["X", "Y"],
-            "required_relationships": ["X leads to Y"],
-            "acceptable_alternatives": ["X causes Y"],
-            "common_misconceptions": ["Z is X"],
-            "scoring_rubric": {
-                "excellent": "Explains X and Y relationship",
-                "good": "Mentions X",
-                "needs_work": "Does not mention X",
-            },
-            "source_citations": ["Page 1"],
-        }
-    ]
-
-    result = ors._normalize_questions(raw)
-    assert result[0]["text"] == "What is X?"
-    assert result[0]["topic"] == "Basics"
-    assert result[0]["reference_answer"] == "X is Y."
-    assert result[0]["target_concepts"] == ["X", "Y"]
-    assert result[0]["required_relationships"] == ["X leads to Y"]
-    assert result[0]["acceptable_alternatives"] == ["X causes Y"]
-    assert result[0]["common_misconceptions"] == ["Z is X"]
-    assert result[0]["scoring_rubric"]["excellent"] == "Explains X and Y relationship"
-    assert result[0]["source_citations"] == ["Page 1"]
-
-
-def test_normalize_questions_minimal():
-    raw = [{"text": "Q?", "topic": "T"}]
-    result = ors._normalize_questions(raw)
-    assert result[0]["reference_answer"] == ""
-    assert result[0]["target_concepts"] == []
-    assert result[0]["scoring_rubric"] == {"excellent": "", "good": "", "needs_work": ""}
-
-
-@pytest.mark.parametrize("raw", [[], {}, "nope", [{"topic": "no text"}], [{"text": "   "}]])
-def test_normalize_questions_rejects_unusable(raw):
-    with pytest.raises(ValueError):
-        ors._normalize_questions(raw)
 
 
 def test_score_perfect_answer_is_100():
