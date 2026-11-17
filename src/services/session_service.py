@@ -148,6 +148,7 @@ async def submit_answer(
             "status": "scored",
             "job_id": None,
             "scored_by": result["scored_by"],
+            **_audit(result),
         }
     else:
         job_id = uuid.uuid4().hex[:12]
@@ -186,6 +187,21 @@ async def submit_answer(
     cache.set(f"session:{session_id}", state, ttl=86400)
 
     return answer_record
+
+
+# Stored on every scored answer so a score can be re-audited after a prompt or model change.
+# Bump SCORE_PROMPT_VERSION whenever the scoring prompt changes.
+SCORE_PROMPT_VERSION = "score-v1"
+KEYWORD_SCORER_VERSION = "keyword-v1"
+
+
+def _audit(result: dict) -> dict:
+    """Which scorer produced a result: model (None for keyword scoring), prompt version, time."""
+    return {
+        "model": result.get("model"),
+        "prompt_version": result.get("prompt_version") or KEYWORD_SCORER_VERSION,
+        "scored_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 async def _score_sync(question: dict, answer_text: str) -> dict:
@@ -283,6 +299,7 @@ async def process_score_job(cache: CacheService, db: Database, job: dict) -> Non
                         "misconceptions_found": result["misconceptions_found"],
                         "status": "scored",
                         "scored_by": result.get("scored_by", "llm"),
+                        **_audit(result),
                     }
                 )
                 updated = True
@@ -501,6 +518,7 @@ async def _reconcile_pending_scores(
                             "feedback": ("Good" if score >= GOOD_SCORE_THRESHOLD else "Needs work"),
                             "status": "scored",
                             "scored_by": "fallback",
+                            **_audit({}),
                         }
                     )
             for score_entry in state.get("scores", []):
@@ -799,7 +817,7 @@ async def _score_with_gemini(question: dict, answer_text: str) -> dict:
     Returns dict with score, feedback, concept_coverage, concepts_missed,
     misconceptions_found.
     """
-    from services.openrouter_service import _call_openrouter
+    from services.openrouter_service import call_openrouter_with_model
 
     # Base questions also propose one adaptive follow-up; follow-ups never spawn their own.
     asks_follow_up = not question.get("follow_up")
@@ -825,7 +843,7 @@ async def _score_with_gemini(question: dict, answer_text: str) -> dict:
         prompt += _FOLLOW_UP_INSTRUCTIONS
 
     try:
-        response_text = await _call_openrouter(prompt)
+        response_text, model = await call_openrouter_with_model(prompt)
         cleaned = response_text.strip()
         if cleaned.startswith("```"):
             cleaned = cleaned.split("\n", 1)[1]
@@ -847,6 +865,8 @@ async def _score_with_gemini(question: dict, answer_text: str) -> dict:
             "concepts_missed": _ensure_list(result.get("concepts_missed")),
             "misconceptions_found": _ensure_list(result.get("misconceptions_found")),
             "scored_by": "llm",
+            "model": model,
+            "prompt_version": SCORE_PROMPT_VERSION,
             "follow_up": _normalize_follow_up(result.get("follow_up")) if asks_follow_up else None,
         }
     except Exception:

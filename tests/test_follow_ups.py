@@ -91,9 +91,10 @@ def test_scorer_asks_for_a_follow_up_only_on_base_questions(monkeypatch):
 
     async def _fake_openrouter(prompt):
         prompts.append(prompt)
-        return json.dumps({"score": 80, "feedback": "Good", "follow_up": _follow_up("deepen")})
+        reply = {"score": 80, "feedback": "Good", "follow_up": _follow_up("deepen")}
+        return json.dumps(reply), "fake/model"
 
-    monkeypatch.setattr(openrouter_service, "_call_openrouter", _fake_openrouter)
+    monkeypatch.setattr(openrouter_service, "call_openrouter_with_model", _fake_openrouter)
     base = _question(0)
     follow_up = {**_question(1), "follow_up": {"parent_index": 0, "kind": "gap"}}
 

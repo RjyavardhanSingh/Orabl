@@ -35,10 +35,6 @@ export type Question = {
   text: string
   topic?: string
   difficulty?: string
-  target_concepts: string[]
-  required_relationships: string[]
-  acceptable_alternatives: string[]
-  common_misconceptions: string[]
   source_citations: string[]
   previous_attempt?: {
     score: number

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.schemas import (
     AnswerResponse,
     AnswerSubmit,
+    QuestionListResponse,
     QuestionResponse,
     RenameSessionRequest,
     RetestCreate,
@@ -127,7 +128,7 @@ async def get_session(
     )
 
 
-@router.get("/{session_id}/questions", tags=["Practice"])
+@router.get("/{session_id}/questions", response_model=QuestionListResponse, tags=["Practice"])
 async def get_session_questions(
     session_id: str,
     cache: CacheService = Depends(get_cache),
@@ -136,7 +137,7 @@ async def get_session_questions(
 ):
     await get_session(session_id, cache, db, user)
     state = await session_service.get_session(cache, session_id, user_id=user.id)
-    return {"questions": state["questions"]}
+    return QuestionListResponse(questions=[QuestionResponse(**q) for q in state["questions"]])
 
 
 @router.post(
